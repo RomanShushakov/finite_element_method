@@ -5,7 +5,7 @@ use crate::extended_matrix::aux_functions_extended_matrix::
         matrices_dimensions_conformity_check, extract_element_value, remove_zero_values
     };
 use crate::extended_matrix::aux_traits_extended_matrix::{One};
-use crate::{ElementsNumbers};
+use crate::{ElementsNumbers, ElementsValues, TOLERANCE};
 
 use std::fmt::Debug;
 use std::convert::{From, Into};
@@ -27,7 +27,7 @@ impl<T, V> ExtendedMatrix<T, V>
              PartialOrd + Add + Sub + Add<Output = T> + Sub<Output = T> + Default + Div + Rem +
              Div<Output = T> + Rem<Output = T> + Eq + Hash + 'static,
           V: Copy + Debug + PartialEq + Default + AddAssign + MulAssign + Mul<Output = V> +
-             Div<Output = V> + SubAssign + One + Sub<Output = V> + 'static,
+             Div<Output = V> + SubAssign + One + Sub<Output = V> + Into<ElementsValues> + 'static,
 {
     pub fn show_matrix(&self)
     {
@@ -50,7 +50,7 @@ impl<T, V> ExtendedMatrix<T, V>
         let all_elements_length = rows_number * columns_number;
         for (index, value) in (0..all_elements_length.into()).zip(all_elements)
         {
-            if value != Default::default()
+            if value.into().abs() > TOLERANCE
             {
                 elements_indexes.push(T::from(index));
                 elements_values.push(value);
@@ -92,7 +92,7 @@ impl<T, V> ExtendedMatrix<T, V>
         let mut elements_values = Vec::new();
         for index in 0..(shape.0 * shape.1).into()
         {
-            let mut value = Default::default();
+            let mut value = V::default();
             for k in 0..basic_dimension.into()
             {
                 let current_lhs_element_value = extract_element_value(
@@ -105,7 +105,7 @@ impl<T, V> ExtendedMatrix<T, V>
                     );
                 value += current_lhs_element_value * current_rhs_element_value;
             }
-            if value != Default::default()
+            if value.into().abs() > TOLERANCE
             {
                 elements_indexes.push(T::from(index));
                 elements_values.push(value);

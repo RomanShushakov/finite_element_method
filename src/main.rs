@@ -1,12 +1,20 @@
 mod extended_matrix;
 use extended_matrix::extended_matrix::{ExtendedMatrix};
 use extended_matrix::basic_matrix::return_symmetric_matrix_struct;
+use extended_matrix::basic_matrix::return_non_symmetric_matrix_struct;
+mod fem;
+use fem::finite_elements::fe_node::{FeNode, GlobalCoordinates};
+
 
 use std::mem;
-use crate::extended_matrix::basic_matrix::return_non_symmetric_matrix_struct;
+
 
 
 pub type ElementsNumbers = u16;
+pub type ElementsValues = f64;
+
+
+pub const TOLERANCE: f64 = 1e-9;
 
 
 fn main()
@@ -79,58 +87,59 @@ fn main()
     }
 
 
-    let x = 0.0;
-    let y = -1.0;
-    let z = 1.0;
-    let length = f64::sqrt(3. * 3. + 3. * 3. + 3. * 3.);
-    let alpha = f64::acos(3. / length).to_degrees();
+    let x = 3.0;
+    let y = 3.0;
+    let z = 3.0;
+    let length = f64::sqrt(x * x + y * y + z * z);
+    let u = length;
+    let v = 0.0;
+    let w = 0.0;
 
-    let heading = f64::atan2(
-        y * alpha.to_radians().sin() - x * z * (1.0 - alpha.to_radians().cos()),
-        1.0 - (y * y + z * z ) * (1.0 - alpha.to_radians().cos()));
-    println!("Heading: {}", heading.to_degrees());
+    let alpha = f64::acos(((x * u + y * v + z * w) /
+            (length * length)).into());
 
-    let attitude = f64::asin(
-        x * y * (1.0 - alpha.to_radians().cos()) + z * alpha.to_radians().sin());
-    println!("Attitude: {}", attitude.to_degrees());
+    let axis_x = 0f64;
+    let mut axis_y = 0f64;
+    let mut axis_z = 0f64;
+    if x != 0f64 && y == 0f64 && z == 0f64
+    {
+        axis_z = x;
+    }
+    else
+    {
+        axis_y = z * length;
+        axis_z = - y * length;
+    }
 
-    let bank = f64::atan2(
-        x * alpha.to_radians().sin() - y * z * (1.0 - alpha.to_radians().cos()) ,
-        1.0 - (x * x + z * z) * (1.0 - alpha.to_radians().cos()));
-    println!("Bank: {}", bank.to_degrees());
+    let norm = 1.0 / f64::sqrt(axis_x * axis_x + axis_y * axis_y + axis_z * axis_z);
 
-    let q_11 = heading.cos() * attitude.cos();
-    println!("Q_11: {}", q_11);
-    let q_12 = - heading.cos() * attitude.sin() * bank.cos() + heading.sin() * bank.sin();
-    println!("Q_12: {}", q_12);
-    let q_13 = heading.cos() * attitude.sin() * bank.sin() + heading.sin() * bank.cos();
-    println!("Q_13: {}", q_13);
-    let q_21 = attitude.sin();
-    println!("Q_21: {}", q_21);
-    let q_22 = attitude.cos() * bank.cos();
-    println!("Q_22: {}", q_22);
-    let q_23 = - attitude.cos() * bank.sin();
-    println!("Q_23: {}", q_23);
-    let q_31 = - heading.sin() * attitude.cos();
-    println!("Q_31: {}", q_31);
-    let q_32 = heading.sin() * attitude.sin() * bank.cos() + heading.cos() * bank.sin();
-    println!("Q_32: {}", q_32);
-    let q_33 = - heading.sin() * attitude.sin() * bank.sin() + heading.cos() * bank.cos();
-    println!("Q_33: {}", q_33);
+    let x_n = axis_x * norm;
+    let y_n = axis_y * norm;
+    let z_n = axis_z * norm;
+    let c = alpha.cos();
+    let s = alpha.sin();
+    let t = 1.0 - c;
+
+    let q_11 = if (t * x_n * x_n + c).abs() < TOLERANCE { 0.0 } else { t * x_n * x_n + c };
+    let q_12 = if (t * x_n * y_n - z_n * s).abs() < TOLERANCE { 0.0 } else { t * x_n * y_n - z_n * s };
+    let q_13 = if (t * x_n * z_n + y_n * s).abs() < TOLERANCE { 0.0 } else { t * x_n * z_n + y_n * s };
+    let q_21 = if (t * x_n * y_n + z_n * s).abs() < TOLERANCE { 0.0 } else { t * x_n * y_n + z_n * s };
+    let q_22 = if (t * y_n * y_n + c).abs() < TOLERANCE { 0.0 } else { t * y_n * y_n + c };
+    let q_23 = if (t * y_n * z_n - x_n * s).abs() < TOLERANCE { 0.0 } else { t * y_n * z_n - x_n * s };
+    let q_31 = if (t * x_n * z_n - y_n * s).abs() < TOLERANCE { 0.0 } else { t * x_n * z_n - y_n * s };
+    let q_32 = if (t * y_n * z_n + x_n * s).abs() < TOLERANCE { 0.0 } else { t * y_n * z_n + x_n * s };
+    let q_33 = if (t * z_n * z_n + c).abs() < TOLERANCE { 0.0 } else { t * z_n * z_n + c };
 
     let v_1 = ExtendedMatrix::create(
         3u16, 1u16, vec![3., 3., 3.]);
-    let v_2 = ExtendedMatrix::create(
-        3u16, 1u16, vec![length, 0., 0.]);
+    // let v_2 = ExtendedMatrix::create(
+    //     3u16, 1u16, vec![length, 0., 0.]);
     let rotational_matrix = ExtendedMatrix::create(
         3u16, 3u16,
         vec![q_11, q_12, q_13, q_21, q_22, q_23, q_31, q_32, q_33]);
-    if let Ok(inv_m) = rotational_matrix.inverse()
+    rotational_matrix.show_matrix();
+    if let Ok(m) = rotational_matrix.multiply_by_matrix(&v_1)
     {
-        if let Ok(m) = inv_m.multiply_by_matrix(&v_1)
-        {
-            m.show_matrix();
-        }
+        m.show_matrix();
     }
-
 }

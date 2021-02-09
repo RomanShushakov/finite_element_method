@@ -1,5 +1,7 @@
 use crate::ExtendedMatrix;
 use crate::extended_matrix::basic_matrix::{Shape, MatrixElementPosition};
+use crate::{ElementsValues, TOLERANCE};
+
 use std::collections::HashMap;
 use std::hash::Hash;
 
@@ -36,12 +38,12 @@ pub fn extract_element_value<T, V>(
 
 
 pub fn remove_zero_values<T, V>(indexes: &mut Vec<T>, values: &mut Vec<V>)
-    where V: Default + PartialEq
+    where V: Copy + Default + PartialEq + Into<ElementsValues>
 {
     let mut i = indexes.len() - 1;
     while i > 0
     {
-        if values[i] == V::default()
+        if values[i].into().abs() < TOLERANCE
         {
             indexes.remove(i);
             values.remove(i);
