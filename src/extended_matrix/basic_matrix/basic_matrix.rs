@@ -22,6 +22,14 @@ pub struct MatrixElementPosition<T>
 }
 
 
+#[derive(Debug)]
+pub struct ZerosRowColumn<T>
+{
+    pub row: T,
+    pub column: T,
+}
+
+
 pub trait BasicMatrixClone<T, V>
 {
     fn clone_box(&self) -> Box<dyn BasicMatrix<T, V>>;
@@ -60,4 +68,5 @@ pub trait BasicMatrix<T, V>: BasicMatrixClone<T, V>
     fn into_symmetric(self) -> Box<dyn BasicMatrix<T, V>>;
     fn define_type(&self) -> BasicMatrixType;
     fn as_any(&self) -> &dyn Any;
+    fn remove_zeros_rows_columns(&mut self) -> Vec<ZerosRowColumn<T>>;
 }

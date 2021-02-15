@@ -1,12 +1,16 @@
 use crate::extended_matrix::basic_matrix::{BasicMatrix};
-use crate::extended_matrix::basic_matrix::{SymmetricMatrix, Shape, MatrixElementPosition};
+use crate::extended_matrix::basic_matrix::
+    {
+        SymmetricMatrix, Shape, MatrixElementPosition, ZerosRowColumn
+    };
 use crate::extended_matrix::basic_matrix::{BasicMatrixType};
 use crate::extended_matrix::basic_matrix::{matrix_size_check, extract_value_by_index};
+use crate::ElementsNumbers;
 
-use std::ops::{Mul, Add, Sub, Div, Rem, MulAssign};
+use std::ops::{Mul, Add, Sub, Div, Rem, MulAssign, SubAssign};
 use std::fmt::Debug;
 use std::any::Any;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 
 
@@ -23,9 +27,9 @@ pub struct NonSymmetricMatrix<T, V>
 
 
 impl<T, V> BasicMatrix<T, V> for NonSymmetricMatrix<T, V>
-    where T: Copy + PartialEq + Debug + PartialOrd + Mul<Output = T> +
-             Add<Output = T> + Default + Sub<Output = T> + Div<Output = T> + Rem<Output = T> +
-             Eq + Hash + 'static,
+    where T: Copy + PartialEq + Debug + PartialOrd + Mul<Output = T> + Add<Output = T> +
+             Default + Sub<Output = T> + Div<Output = T> + Rem<Output = T> + Eq + Hash +
+             Into<ElementsNumbers> + From<ElementsNumbers> + SubAssign + 'static,
           V: Copy + Default + PartialEq + Debug + MulAssign + 'static,
 {
    // fn create_element_value(&mut self, requested_index: T, new_value: V)
@@ -197,5 +201,113 @@ impl<T, V> BasicMatrix<T, V> for NonSymmetricMatrix<T, V>
     fn as_any(&self) -> &dyn Any
     {
         self
+    }
+
+
+    fn remove_zeros_rows_columns(&mut self) -> Vec<ZerosRowColumn<T>>
+    {
+        let mut zeros_rows_columns = Vec::new();
+        let mut can_continue = true;
+        while can_continue
+        {
+            if let Some(row) = self.find_zeros_row()
+            {
+                if let Some(column) = self.find_zeros_column()
+                {
+                    let zeros_row_column = ZerosRowColumn { row, column };
+                    zeros_rows_columns.push(zeros_row_column);
+                    self.remove_zeros_row(row);
+                    self.remove_zeros_column(column);
+                }
+                else
+                {
+                    can_continue = false;
+                }
+            }
+            else
+            {
+                can_continue = false;
+            }
+        }
+        zeros_rows_columns
+    }
+}
+
+
+impl<T, V> NonSymmetricMatrix<T, V>
+    where T: Copy + Debug + Into<ElementsNumbers> + From<ElementsNumbers> + PartialEq +
+             Mul<Output = T> + Add<Output = T> + PartialOrd + SubAssign + Div<Output = T> +
+             Sub<Output = T>,
+          V: Copy + Default
+{
+    fn find_zeros_row(&self) -> Option<T>
+    {
+        let mut zeros_row = None;
+        let find_index = |row, column| self.elements_indexes
+            .iter()
+            .position(|index|
+                {
+                    *index == T::from(row) * self.columns_number + T::from(column)
+                });
+        for row in (0..self.rows_number.into()).rev()
+        {
+            if (0..self.columns_number.into()).rev().all(|column|
+                find_index(row, column) == None)
+            {
+                zeros_row = Some(T::from(row));
+            }
+            if zeros_row != None
+            {
+                break;
+            }
+        }
+        zeros_row
+    }
+
+
+    fn find_zeros_column(&self) -> Option<T>
+    {
+        let mut zeros_column = None;
+        let find_index = |row, column| self.elements_indexes
+            .iter()
+            .position(|index| *index == T::from(row) * self.columns_number + T::from(column));
+        for column in (0..self.columns_number.into()).rev()
+        {
+            if (0..self.rows_number.into()).rev().all(|row| find_index(row, column) == None)
+            {
+                zeros_column = Some(T::from(column));
+            }
+            if zeros_column != None
+            {
+                break;
+            }
+        }
+        zeros_column
+    }
+
+
+    fn remove_zeros_row(&mut self, row: T)
+    {
+        for index in self.elements_indexes.as_mut_slice()
+        {
+            if *index >= row * self.columns_number
+            {
+                *index -= self.columns_number;
+            }
+        }
+        self.rows_number -= T::from(1);
+    }
+
+
+    fn remove_zeros_column(&mut self, column: T)
+    {
+        for index in self.elements_indexes.as_mut_slice()
+        {
+            if *index > column
+            {
+                *index -= *index / column;
+            }
+        }
+        self.columns_number -= T::from(1);
     }
 }

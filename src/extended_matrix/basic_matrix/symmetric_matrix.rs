@@ -1,12 +1,13 @@
 use crate::extended_matrix::basic_matrix::{BasicMatrix};
-use crate::extended_matrix::basic_matrix::{Shape, MatrixElementPosition};
+use crate::extended_matrix::basic_matrix::{Shape, MatrixElementPosition, ZerosRowColumn};
 use crate::extended_matrix::basic_matrix::{BasicMatrixType};
 use crate::extended_matrix::basic_matrix::{matrix_size_check, extract_value_by_index};
+use crate::ElementsNumbers;
 
 use std::ops::{Sub, Add, Mul, MulAssign, Div, Rem};
 use std::any::Any;
 use std::fmt::Debug;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 
 
@@ -21,7 +22,8 @@ pub struct SymmetricMatrix<T, V>
 
 impl<T, V> BasicMatrix<T, V> for SymmetricMatrix<T, V>
     where T: Copy + PartialOrd + Sub<Output = T> + Add<Output = T> + Mul<Output = T> +
-             Div<Output = T> + Debug + Rem<Output = T> + Eq + Hash + 'static,
+             Div<Output = T> + Debug + Rem<Output = T> + Eq + Hash + Into<ElementsNumbers> +
+             From<ElementsNumbers> + 'static,
           V: Copy + Default + Debug + PartialEq + MulAssign + 'static,
 {
    // fn create_element_value(&mut self, requested_index: T, new_value: V)
@@ -140,5 +142,38 @@ impl<T, V> BasicMatrix<T, V> for SymmetricMatrix<T, V>
     fn as_any(&self) -> &dyn Any
     {
         self
+    }
+
+
+    fn remove_zeros_rows_columns(&mut self) -> Vec<ZerosRowColumn<T>>
+    {
+        let mut zeros_rows_columns = Vec::new();
+        let mut non_zeros_rows = HashSet::new();
+        let mut non_zeros_columns = HashSet::new();
+        for index in &self.elements_indexes
+        {
+            let non_zeros_row = *index / self.rows_and_columns_number;
+            let non_zeros_column = *index % self.rows_and_columns_number;
+            non_zeros_rows.insert(non_zeros_row);
+            non_zeros_columns.insert(non_zeros_column);
+        }
+        for i in 0..self.rows_and_columns_number.into()
+        {
+            for j in 0..self.rows_and_columns_number.into()
+            {
+                if non_zeros_rows.get(&T::from(i)) == None &&
+                    non_zeros_columns.get(&T::from(j)) == None
+                {
+                    let zeros_row_column = ZerosRowColumn { row: T::from(i), column: T::from(j) };
+                    zeros_rows_columns.push(zeros_row_column);
+                    if i != j
+                    {
+                        let symmetric_zeros_row_column = ZerosRowColumn { row: T::from(j), column: T::from(i) };
+                        zeros_rows_columns.push(symmetric_zeros_row_column);
+                    }
+                }
+            }
+        }
+        zeros_rows_columns
     }
 }

@@ -132,8 +132,6 @@ fn main()
 
     let v_1 = ExtendedMatrix::create(
         3u16, 1u16, vec![3., 3., 3.]);
-    // let v_2 = ExtendedMatrix::create(
-    //     3u16, 1u16, vec![length, 0., 0.]);
     let rotational_matrix = ExtendedMatrix::create(
         3u16, 3u16,
         vec![q_11, q_12, q_13, q_21, q_22, q_23, q_31, q_32, q_33]);
@@ -142,4 +140,25 @@ fn main()
     {
         m.show_matrix();
     }
+
+    let v_2 = ExtendedMatrix::create(3u16, 1u16, vec![length, 0., 0.]);
+    if let Ok(inv_rot) = rotational_matrix.inverse()
+    {
+        if let Ok(mut m) = inv_rot.multiply_by_matrix(&v_2)
+        {
+            m.show_matrix();
+            m.transpose();
+            m.show_matrix();
+        }
+    }
+
+    let mut m_20 = ExtendedMatrix::create(
+        5u16, 5u16, vec![0., 0., 0., 0., 0.,
+        0., 0., 0., 0., 0.,
+        0., 0., 3., 0., 0.,
+        0., 0., 0., 4., 0.,
+        0., 0., 0., 8., 0.]);
+    let zeros_rows_columns = m_20.basic_matrix.remove_zeros_rows_columns();
+    println!("{:?}", zeros_rows_columns);
+    m_20.show_matrix();
 }
