@@ -4,10 +4,12 @@ use extended_matrix::basic_matrix::return_symmetric_matrix_struct;
 use extended_matrix::basic_matrix::return_non_symmetric_matrix_struct;
 mod fem;
 use fem::finite_elements::fe_node::{FeNode, GlobalCoordinates};
+use fem::finite_elements::truss::truss2n2ip::Truss2n2ip;
 
 
 use std::mem;
 use crate::extended_matrix::basic_matrix::BasicMatrix;
+
 
 
 pub type ElementsNumbers = u16;
@@ -172,15 +174,13 @@ fn main()
     println!();
     // m_20.remove_zeros_row(2u16);
 
-
     m_20.show_matrix();
+    println!();
 
-
-    //
-    //
-    // m_20 = ExtendedMatrix
-    //     {
-    //         basic_matrix: Box::new(return_non_symmetric_matrix_struct(
-    //             b_m.into_non_symmetric()).remove_row(1u16))
-    //     };
+    let node_1 = FeNode { number: 1u16, coordinates: GlobalCoordinates { x: 0.0, y: 0.0, z: 0.0 } };
+    let node_2 = FeNode { number: 2u16, coordinates: GlobalCoordinates { x: 5.0, y: -2.0, z: -7.0 } };
+    let elem_1 = Truss2n2ip { number: 1u16, node_1: &node_1, node_2: &node_2, young_modulus: 1e6, area: 1.0, area_2: None };
+    println!("{}", elem_1.length());
+    let r_m = elem_1.rotation_matrix();
+    r_m.show_matrix();
 }
