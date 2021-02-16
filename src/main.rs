@@ -152,12 +152,18 @@ fn main()
         }
     }
 
+    // let mut m_20 = ExtendedMatrix::create(
+    //     5u16, 5u16, vec![0., 0., 0., 0., 0.,
+    //     0., 0., 0., 0., 0.,
+    //     0., 0., 3., 0., 0.,
+    //     0., 0., 2., 4., 0.,
+    //     0., 6., 0., 0., 0.]);
     let mut m_20 = ExtendedMatrix::create(
-        5u16, 5u16, vec![0., 0., 0., 0., 0.,
-        0., 0., 0., 0., 0.,
-        0., 0., 3., 0., 0.,
-        0., 0., 0., 4., 0.,
-        0., 0., 0., 8., 0.]);
+        5u16, 3u16, vec![0., 0., 0.,
+        0., 0., 0.,
+        0., 0., 3.,
+        0., 0., 2.,
+        0., 0., 0.]);
     let zeros_rows_columns = m_20.basic_matrix.remove_zeros_rows_columns();
     println!("{:?}", zeros_rows_columns);
     m_20.show_matrix();

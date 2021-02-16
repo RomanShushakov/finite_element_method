@@ -4,7 +4,7 @@ use crate::extended_matrix::basic_matrix::{BasicMatrixType};
 use crate::extended_matrix::basic_matrix::{matrix_size_check, extract_value_by_index};
 use crate::ElementsNumbers;
 
-use std::ops::{Sub, Add, Mul, MulAssign, Div, Rem};
+use std::ops::{Sub, Add, Mul, MulAssign, Div, Rem, SubAssign};
 use std::any::Any;
 use std::fmt::Debug;
 use std::collections::{HashMap, HashSet};
@@ -23,7 +23,7 @@ pub struct SymmetricMatrix<T, V>
 impl<T, V> BasicMatrix<T, V> for SymmetricMatrix<T, V>
     where T: Copy + PartialOrd + Sub<Output = T> + Add<Output = T> + Mul<Output = T> +
              Div<Output = T> + Debug + Rem<Output = T> + Eq + Hash + Into<ElementsNumbers> +
-             From<ElementsNumbers> + 'static,
+             From<ElementsNumbers> + SubAssign + 'static,
           V: Copy + Default + Debug + PartialEq + MulAssign + 'static,
 {
    // fn create_element_value(&mut self, requested_index: T, new_value: V)
@@ -148,32 +148,80 @@ impl<T, V> BasicMatrix<T, V> for SymmetricMatrix<T, V>
     fn remove_zeros_rows_columns(&mut self) -> Vec<ZerosRowColumn<T>>
     {
         let mut zeros_rows_columns = Vec::new();
-        let mut non_zeros_rows = HashSet::new();
-        let mut non_zeros_columns = HashSet::new();
-        for index in &self.elements_indexes
+        let mut can_continue = true;
+        while can_continue
         {
-            let non_zeros_row = *index / self.rows_and_columns_number;
-            let non_zeros_column = *index % self.rows_and_columns_number;
-            non_zeros_rows.insert(non_zeros_row);
-            non_zeros_columns.insert(non_zeros_column);
-        }
-        for i in 0..self.rows_and_columns_number.into()
-        {
-            for j in 0..self.rows_and_columns_number.into()
+            if let Some(row_column) = self.find_zeros_row_column()
             {
-                if non_zeros_rows.get(&T::from(i)) == None &&
-                    non_zeros_columns.get(&T::from(j)) == None
-                {
-                    let zeros_row_column = ZerosRowColumn { row: T::from(i), column: T::from(j) };
-                    zeros_rows_columns.push(zeros_row_column);
-                    if i != j
-                    {
-                        let symmetric_zeros_row_column = ZerosRowColumn { row: T::from(j), column: T::from(i) };
-                        zeros_rows_columns.push(symmetric_zeros_row_column);
-                    }
-                }
+                let zeros_row_column = ZerosRowColumn { row: row_column, column: row_column };
+                zeros_rows_columns.push(zeros_row_column);
+                self.remove_zeros_row_column(row_column);
+            }
+            else
+            {
+                can_continue = false;
             }
         }
         zeros_rows_columns
+    }
+}
+
+
+impl<T, V> SymmetricMatrix<T, V>
+    where T: Copy + Debug + Into<ElementsNumbers> + From<ElementsNumbers> + PartialEq +
+             Mul<Output = T> + Add<Output = T> + PartialOrd + SubAssign + Div<Output = T> +
+             Sub<Output = T> + Rem<Output = T>,
+          V: Copy + Default
+{
+    fn find_zeros_row_column(&self) -> Option<T>
+    {
+        let mut zeros_row_column = None;
+        let find_index = |row, column| self.elements_indexes
+            .iter()
+            .position(|index|
+                {
+                    *index == T::from(row) * self.rows_and_columns_number + T::from(column)
+                });
+        for row_column in (0..self.rows_and_columns_number.into()).rev()
+        {
+            if (0..self.rows_and_columns_number.into()).rev().all(|row|
+                find_index(row, row_column) == None) &&
+                (0..self.rows_and_columns_number.into()).rev().all(|column|
+                find_index(row_column, column) == None)
+            {
+                zeros_row_column = Some(T::from(row_column));
+            }
+            if zeros_row_column != None
+            {
+                break;
+            }
+        }
+        zeros_row_column
+    }
+
+
+    fn remove_zeros_row_column(&mut self, row_column: T)
+    {
+        println!("{:?}", self.elements_indexes);
+        for index in self.elements_indexes.as_mut_slice()
+        {
+            if *index >= row_column * self.rows_and_columns_number
+            {
+                *index -= self.rows_and_columns_number;
+            }
+        }
+        println!("{:?}", self.elements_indexes);
+        for index in self.elements_indexes.as_mut_slice()
+        {
+            if *index % self.rows_and_columns_number > row_column
+            {
+                *index -= *index / self.rows_and_columns_number + T::from(1);
+            }
+            else
+            {
+                *index -= *index / self.rows_and_columns_number;
+            }
+        }
+        self.rows_and_columns_number -= T::from(1);
     }
 }

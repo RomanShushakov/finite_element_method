@@ -237,7 +237,7 @@ impl<T, V> BasicMatrix<T, V> for NonSymmetricMatrix<T, V>
 impl<T, V> NonSymmetricMatrix<T, V>
     where T: Copy + Debug + Into<ElementsNumbers> + From<ElementsNumbers> + PartialEq +
              Mul<Output = T> + Add<Output = T> + PartialOrd + SubAssign + Div<Output = T> +
-             Sub<Output = T>,
+             Sub<Output = T> + Rem<Output = T>,
           V: Copy + Default
 {
     fn find_zeros_row(&self) -> Option<T>
@@ -303,9 +303,13 @@ impl<T, V> NonSymmetricMatrix<T, V>
     {
         for index in self.elements_indexes.as_mut_slice()
         {
-            if *index > column
+            if *index % self.columns_number > column
             {
-                *index -= *index / column;
+                *index -= *index / self.columns_number + T::from(1);
+            }
+            else
+            {
+                *index -= *index / self.columns_number;
             }
         }
         self.columns_number -= T::from(1);
