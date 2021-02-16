@@ -1,4 +1,4 @@
-use crate::extended_matrix::basic_matrix::{BasicMatrix};
+use crate::extended_matrix::basic_matrix::{BasicMatrix, return_non_symmetric_matrix_struct};
 use crate::extended_matrix::basic_matrix::
     {
         SymmetricMatrix, Shape, MatrixElementPosition, ZerosRowColumn
@@ -231,6 +231,13 @@ impl<T, V> BasicMatrix<T, V> for NonSymmetricMatrix<T, V>
         }
         zeros_rows_columns
     }
+
+
+    fn remove_zeros_row(&mut self, row: T) -> Box<dyn BasicMatrix<T, V>>
+    {
+        self.remove_zeros_row(row);
+        Box::new(self.clone())
+    }
 }
 
 
@@ -286,11 +293,11 @@ impl<T, V> NonSymmetricMatrix<T, V>
     }
 
 
-    fn remove_zeros_row(&mut self, row: T)
+    pub fn remove_zeros_row(&mut self, row: T)
     {
         for index in self.elements_indexes.as_mut_slice()
         {
-            if *index >= row * self.columns_number
+            if *index > row * self.columns_number
             {
                 *index -= self.columns_number;
             }

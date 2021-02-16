@@ -1,5 +1,8 @@
-use crate::extended_matrix::basic_matrix::BasicMatrix;
-use crate::extended_matrix::basic_matrix::{NonSymmetricMatrix, MatrixElementPosition};
+use crate::extended_matrix::basic_matrix::{BasicMatrix, return_non_symmetric_matrix_struct};
+use crate::extended_matrix::basic_matrix::
+    {
+        NonSymmetricMatrix, MatrixElementPosition, ZerosRowColumn
+    };
 use crate::extended_matrix::aux_functions_extended_matrix::
     {
         matrices_dimensions_conformity_check, extract_element_value, remove_zero_values
@@ -323,5 +326,17 @@ impl<T, V> ExtendedMatrix<T, V>
             });
         let basic_inverse_matrix = basic_inverse_matrix.into_symmetric();
         Ok(ExtendedMatrix { basic_matrix: basic_inverse_matrix })
+    }
+
+
+    pub fn remove_zeros_rows_columns(&mut self) -> Vec<ZerosRowColumn<T>>
+    {
+        self.basic_matrix.remove_zeros_rows_columns()
+    }
+
+
+    pub fn remove_zeros_row(&mut self, row: T)
+    {
+        self.basic_matrix = self.basic_matrix.remove_zeros_row(row)
     }
 }

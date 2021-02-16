@@ -69,4 +69,5 @@ pub trait BasicMatrix<T, V>: BasicMatrixClone<T, V>
     fn define_type(&self) -> BasicMatrixType;
     fn as_any(&self) -> &dyn Any;
     fn remove_zeros_rows_columns(&mut self) -> Vec<ZerosRowColumn<T>>;
+    fn remove_zeros_row(&mut self, row: T) -> Box<dyn BasicMatrix<T, V>>;
 }

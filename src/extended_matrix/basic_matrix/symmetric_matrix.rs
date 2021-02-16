@@ -1,4 +1,4 @@
-use crate::extended_matrix::basic_matrix::{BasicMatrix};
+use crate::extended_matrix::basic_matrix::{BasicMatrix, NonSymmetricMatrix, return_non_symmetric_matrix_struct, return_symmetric_matrix_struct};
 use crate::extended_matrix::basic_matrix::{Shape, MatrixElementPosition, ZerosRowColumn};
 use crate::extended_matrix::basic_matrix::{BasicMatrixType};
 use crate::extended_matrix::basic_matrix::{matrix_size_check, extract_value_by_index};
@@ -23,7 +23,7 @@ pub struct SymmetricMatrix<T, V>
 impl<T, V> BasicMatrix<T, V> for SymmetricMatrix<T, V>
     where T: Copy + PartialOrd + Sub<Output = T> + Add<Output = T> + Mul<Output = T> +
              Div<Output = T> + Debug + Rem<Output = T> + Eq + Hash + Into<ElementsNumbers> +
-             From<ElementsNumbers> + SubAssign + 'static,
+             From<ElementsNumbers> + SubAssign + Default + 'static,
           V: Copy + Default + Debug + PartialEq + MulAssign + 'static,
 {
    // fn create_element_value(&mut self, requested_index: T, new_value: V)
@@ -164,6 +164,15 @@ impl<T, V> BasicMatrix<T, V> for SymmetricMatrix<T, V>
         }
         zeros_rows_columns
     }
+
+
+    fn remove_zeros_row(&mut self, row: T) -> Box<dyn BasicMatrix<T, V>>
+    {
+        let symmetric_matrix = self.clone();
+        let mut non_symmetric_matrix = symmetric_matrix.non_symmetric();
+        non_symmetric_matrix.remove_zeros_row(row);
+        Box::new(non_symmetric_matrix)
+    }
 }
 
 
@@ -202,7 +211,6 @@ impl<T, V> SymmetricMatrix<T, V>
 
     fn remove_zeros_row_column(&mut self, row_column: T)
     {
-        println!("{:?}", self.elements_indexes);
         for index in self.elements_indexes.as_mut_slice()
         {
             if *index >= row_column * self.rows_and_columns_number
@@ -210,7 +218,6 @@ impl<T, V> SymmetricMatrix<T, V>
                 *index -= self.rows_and_columns_number;
             }
         }
-        println!("{:?}", self.elements_indexes);
         for index in self.elements_indexes.as_mut_slice()
         {
             if *index % self.rows_and_columns_number > row_column
@@ -223,5 +230,32 @@ impl<T, V> SymmetricMatrix<T, V>
             }
         }
         self.rows_and_columns_number -= T::from(1);
+    }
+
+
+    fn non_symmetric(&self) -> NonSymmetricMatrix<T, V>
+    {
+        let non_symmetric_rows_number = self.rows_and_columns_number;
+        let non_symmetric_columns_number = self.rows_and_columns_number;
+        let mut non_symmetric_indexes = Vec::new();
+        let mut non_symmetric_values = Vec::new();
+        for (index, value) in self.elements_indexes.iter().zip(self.elements_values.iter())
+        {
+            non_symmetric_indexes.push(*index);
+            non_symmetric_values.push(*value);
+            let current_row = *index / non_symmetric_columns_number;
+            let current_column = *index % non_symmetric_columns_number;
+            if current_row != current_column
+            {
+                let symmetric_index = current_column * non_symmetric_columns_number + current_row;
+                non_symmetric_indexes.push(symmetric_index);
+                non_symmetric_values.push(*value);
+            }
+        }
+        NonSymmetricMatrix
+        {
+            rows_number: non_symmetric_rows_number, columns_number: non_symmetric_columns_number,
+            elements_indexes: non_symmetric_indexes, elements_values: non_symmetric_values,
+        }
     }
 }

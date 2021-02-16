@@ -7,7 +7,7 @@ use fem::finite_elements::fe_node::{FeNode, GlobalCoordinates};
 
 
 use std::mem;
-
+use crate::extended_matrix::basic_matrix::BasicMatrix;
 
 
 pub type ElementsNumbers = u16;
@@ -152,19 +152,35 @@ fn main()
         }
     }
 
-    // let mut m_20 = ExtendedMatrix::create(
-    //     5u16, 5u16, vec![0., 0., 0., 0., 0.,
-    //     0., 0., 0., 0., 0.,
-    //     0., 0., 3., 0., 0.,
-    //     0., 0., 2., 4., 0.,
-    //     0., 6., 0., 0., 0.]);
     let mut m_20 = ExtendedMatrix::create(
-        5u16, 3u16, vec![0., 0., 0.,
-        0., 0., 0.,
-        0., 0., 3.,
-        0., 0., 2.,
-        0., 0., 0.]);
-    let zeros_rows_columns = m_20.basic_matrix.remove_zeros_rows_columns();
+        5u16, 5u16, vec![0., 0., 0., 0., 0.,
+        0., 0., 0., 0., 0.,
+        0., 1., 3., 0., 0.,
+        0., 0., 2., 4., 0.,
+        0., 0., 0., 0., 0.]);
+    // let mut m_20 = ExtendedMatrix::create(
+    //     5u16, 3u16, vec![0., 0., 0.,
+    //     0., 0., 0.,
+    //     0., 5., 3.,
+    //     0., 0., 2.,
+    //     0., 0., 0.]);
+    let zeros_rows_columns = m_20.remove_zeros_rows_columns();
     println!("{:?}", zeros_rows_columns);
     m_20.show_matrix();
+
+
+    println!();
+    // m_20.remove_zeros_row(2u16);
+
+
+    m_20.show_matrix();
+
+
+    //
+    //
+    // m_20 = ExtendedMatrix
+    //     {
+    //         basic_matrix: Box::new(return_non_symmetric_matrix_struct(
+    //             b_m.into_non_symmetric()).remove_row(1u16))
+    //     };
 }
