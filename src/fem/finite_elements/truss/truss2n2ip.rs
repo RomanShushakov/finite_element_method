@@ -8,18 +8,16 @@ use std::hash::Hash;
 use std::fmt::Debug;
 
 
-pub struct Truss2n2ip<'a, T, V>
+fn compare_with_tolerance(value: ElementsValues) -> ElementsValues
 {
-    pub number: T,
-    pub node_1: &'a FeNode<T, V>,
-    pub node_2: &'a FeNode<T, V>,
-    pub young_modulus: V,
-    pub area: V,
-    pub area_2: Option<V>,
+    if value.abs() < TOLERANCE { 0.0 } else { value }
 }
 
 
-impl<'a, T, V> Truss2n2ip<'a, T, V>
+struct TrussAuxFunctions<T, V>(T, V);
+
+
+impl<T, V> TrussAuxFunctions<T, V>
     where T: Copy + From<ElementsNumbers> + Into<ElementsNumbers> + PartialOrd + Default +
              Add<Output = T> + Sub<Output = T> + Div<Output = T> + Rem<Output = T> + Eq + Hash +
              SubAssign + Debug + Mul<Output = T> + 'static,
@@ -27,26 +25,26 @@ impl<'a, T, V> Truss2n2ip<'a, T, V>
              Mul<Output = V> + Add<Output = V> + Div<Output = V> + PartialEq + Debug + AddAssign +
              MulAssign + SubAssign + One + 'static
 {
-    pub fn length(&self) -> V
+    fn length(node_1: &FeNode<T, V>, node_2: &FeNode<T, V>) -> V
     {
-        V::from(((self.node_1.coordinates.x - self.node_2.coordinates.x).into().powi(2) +
-        (self.node_1.coordinates.y - self.node_2.coordinates.y).into().powi(2) +
-        (self.node_1.coordinates.z - self.node_2.coordinates.z).into().powi(2)).sqrt())
+        V::from(((node_1.coordinates.x - node_2.coordinates.x).into().powi(2) +
+        (node_1.coordinates.y - node_2.coordinates.y).into().powi(2) +
+        (node_1.coordinates.z - node_2.coordinates.z).into().powi(2)).sqrt())
     }
 
 
-    pub fn rotation_matrix(&self) -> ExtendedMatrix<T, V>
+    fn rotation_matrix(node_1: &FeNode<T, V>, node_2: &FeNode<T, V>) -> ExtendedMatrix<T, V>
     {
-        let x = (self.node_2.coordinates.x - self.node_1.coordinates.x).into();
-        let y = (self.node_2.coordinates.y - self.node_1.coordinates.y).into();
-        let z = (self.node_2.coordinates.z - self.node_1.coordinates.z).into();
-        let length = self.length().into();
-        let (u, v, w) = (length, 0f64, 0f64);
+        let x = (node_2.coordinates.x - node_1.coordinates.x).into();
+        let y = (node_2.coordinates.y - node_1.coordinates.y).into();
+        let z = (node_2.coordinates.z - node_1.coordinates.z).into();
+        let length = TrussAuxFunctions::<T, V>::length(node_1, node_2).into();
+        let (u, v, w) = (length, 0.0, 0.0);
         let alpha = ((x * u + y * v + z * w) /
             (length * length)).acos();
         let (rotation_axis_coord_x, mut rotation_axis_coord_y,
-            mut rotation_axis_coord_z) = (0f64, 0f64, 0f64);
-        if x != 0f64 && y == 0f64 && z == 0f64
+            mut rotation_axis_coord_z) = (0.0 as ElementsValues, 0.0, 0.0);
+        if x != 0.0 && y == 0.0 && z == 0.0
         {
             rotation_axis_coord_z = x;
         }
@@ -61,23 +59,112 @@ impl<'a, T, V> Truss2n2ip<'a, T, V>
             rotation_axis_coord_y * norm, rotation_axis_coord_z * norm);
         let (c, s) = (alpha.cos(), alpha.sin());
         let t = 1.0 - c;
-        let q_11 = compare_with_tolerance(t * x_n * x_n + c, TOLERANCE);
-        let q_12 = compare_with_tolerance(t * x_n * y_n - z_n * s, TOLERANCE);
-        let q_13 = compare_with_tolerance(t * x_n * z_n + y_n * s, TOLERANCE);
-        let q_21 = compare_with_tolerance(t * x_n * y_n + z_n * s, TOLERANCE);
-        let q_22 = compare_with_tolerance(t * y_n * y_n + c, TOLERANCE);
-        let q_23 = compare_with_tolerance(t * y_n * z_n - x_n * s, TOLERANCE);
-        let q_31 = compare_with_tolerance(t * x_n * z_n - y_n * s, TOLERANCE);
-        let q_32 = compare_with_tolerance(t * y_n * z_n + x_n * s, TOLERANCE);
-        let q_33 = compare_with_tolerance(t * z_n * z_n + c, TOLERANCE);
-        ExtendedMatrix::create(T::from(3u16), T::from(3u16),
+        let q_11 = compare_with_tolerance(t * x_n * x_n + c);
+        let q_12 = compare_with_tolerance(t * x_n * y_n - z_n * s);
+        let q_13 = compare_with_tolerance(t * x_n * z_n + y_n * s);
+        let q_21 = compare_with_tolerance(t * x_n * y_n + z_n * s);
+        let q_22 = compare_with_tolerance(t * y_n * y_n + c);
+        let q_23 = compare_with_tolerance(t * y_n * z_n - x_n * s);
+        let q_31 = compare_with_tolerance(t * x_n * z_n - y_n * s);
+        let q_32 = compare_with_tolerance(t * y_n * z_n + x_n * s);
+        let q_33 = compare_with_tolerance(t * z_n * z_n + c);
+        ExtendedMatrix::create(T::from(3 as ElementsNumbers),
+           T::from(3 as ElementsNumbers),
            vec![V::from(q_11), V::from(q_12), V::from(q_13), V::from(q_21),
                 V::from(q_22), V::from(q_23), V::from(q_31), V::from(q_32), V::from(q_33)])
+    }
+
+
+    fn jacobian(node_1: &FeNode<T, V>, node_2: &FeNode<T, V>) -> V
+    {
+        TrussAuxFunctions::length(node_1, node_2) / V::from(2.0)
+    }
+
+
+    fn inverse_jacobian(node_1: &FeNode<T, V>, node_2: &FeNode<T, V>) -> V
+    {
+        V::from(1.0) / TrussAuxFunctions::jacobian(node_1, node_2)
+    }
+
+
+    fn determinant_jacobian(node_1: &FeNode<T, V>, node_2: &FeNode<T, V>) -> V
+    {
+        TrussAuxFunctions::jacobian(node_1, node_2)
     }
 }
 
 
-fn compare_with_tolerance(value: f64, tolerance: f64) -> f64
+pub struct IntegrationPoint<V>
 {
-    if value.abs() < tolerance { 0.0 } else { value }
+    sampling_point: V,
+    weight: V,
+}
+
+
+pub struct State<T, V>
+{
+    pub rotation_matrix: ExtendedMatrix<T, V>,
+    pub integration_points: Vec<IntegrationPoint<V>>
+}
+
+
+pub struct Truss2n2ip<'a, T, V>
+{
+    pub number: T,
+    pub node_1: &'a FeNode<T, V>,
+    pub node_2: &'a FeNode<T, V>,
+    pub young_modulus: V,
+    pub area: V,
+    pub area_2: Option<V>,
+    pub state: State<T, V>
+}
+
+
+impl<'a, T, V> Truss2n2ip<'a, T, V>
+    where T: Copy + From<ElementsNumbers> + Into<ElementsNumbers> + PartialOrd + Default +
+             Add<Output = T> + Sub<Output = T> + Div<Output = T> + Rem<Output = T> + Eq + Hash +
+             SubAssign + Debug + Mul<Output = T> + 'static,
+          V: Copy + Into<ElementsValues> + From<ElementsValues> + Sub<Output = V> + Default +
+             Mul<Output = V> + Add<Output = V> + Div<Output = V> + PartialEq + Debug + AddAssign +
+             MulAssign + SubAssign + One + 'static
+{
+    pub fn create(number: T, node_1: &'a FeNode<T, V>, node_2: &'a FeNode<T, V>,
+        young_modulus: V, area: V, area_2: Option<V>) -> Self
+    {
+        let integration_point_1 = IntegrationPoint {
+            sampling_point: V::from(- 1.0 / (3.0 as ElementsValues).sqrt()), weight: V::from(1.0) };
+        let integration_point_2 = IntegrationPoint {
+            sampling_point: V::from(1.0 / (3.0 as ElementsValues).sqrt()), weight: V::from(1.0) };
+        let rotation_matrix = TrussAuxFunctions::rotation_matrix(node_1, node_2);
+        let integration_points = vec![integration_point_1, integration_point_2];
+        let state = State { rotation_matrix, integration_points };
+        Truss2n2ip { number, node_1, node_2, young_modulus, area, area_2, state }
+    }
+
+
+    pub fn update(&mut self, node_1: &'a FeNode<T, V>, node_2: &'a FeNode<T, V>,
+        young_modulus: V, area: V, area_2: Option<V>)
+    {
+        let rotation_matrix = TrussAuxFunctions::rotation_matrix(node_1, node_2);
+        self.node_1 = node_1;
+        self.node_2 = node_2;
+        self.young_modulus = young_modulus;
+        self.area = area;
+        self.area_2 = area_2;
+        self.state.rotation_matrix = rotation_matrix;
+    }
+}
+
+
+fn area(area_1: ElementsValues, area_2: Option<ElementsValues>, r: ElementsValues)
+    -> ElementsValues
+{
+    if let Some(area_2) = area_2
+    {
+        area_1.sqrt() + (area_1.sqrt() - area_2.sqrt()) * (r + 1.0) / 2.0
+    }
+    else
+    {
+        area_1
+    }
 }
