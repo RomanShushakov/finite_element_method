@@ -75,21 +75,70 @@ impl<T, V> TrussAuxFunctions<T, V>
     }
 
 
-    fn jacobian(node_1: &FeNode<T, V>, node_2: &FeNode<T, V>) -> V
+    fn power_func_x(a: V, x: V, n: i32) -> V
     {
-        TrussAuxFunctions::length(node_1, node_2) / V::from(2.0)
+        (0..n).fold(a, |acc, _| acc * x)
     }
 
 
-    fn inverse_jacobian(node_1: &FeNode<T, V>, node_2: &FeNode<T, V>) -> V
+    fn derivative_x(f: fn(V, V, i32) -> V,
+                    a: V, x: V, n: i32) -> V
     {
-        V::from(1.0) / TrussAuxFunctions::jacobian(node_1, node_2)
+        f(a * V::from(n as ElementsValues), x, n - 1)
     }
 
 
-    fn determinant_jacobian(node_1: &FeNode<T, V>, node_2: &FeNode<T, V>) -> V
+    fn dx_dr(x_1: V, x_2: V, r: V) -> V
     {
-        TrussAuxFunctions::jacobian(node_1, node_2)
+        TrussAuxFunctions::<T, V>::derivative_x(
+            TrussAuxFunctions::<T, V>::power_func_x, V::from(0.5) * x_1,
+            V::from(0.0), 0) -
+        TrussAuxFunctions::<T, V>::derivative_x(
+            TrussAuxFunctions::<T, V>::power_func_x, V::from(0.5) * x_1, r, 1) +
+        TrussAuxFunctions::<T, V>::derivative_x(
+            TrussAuxFunctions::<T, V>::power_func_x, V::from(0.5) * x_2,
+            V::from(0.0), 0) +
+        TrussAuxFunctions::<T, V>::derivative_x(
+            TrussAuxFunctions::<T, V>::power_func_x, V::from(0.5) * x_2, r, 1)
+    }
+
+
+    fn jacobian(node_1: &FeNode<T, V>, node_2: &FeNode<T, V>, r: V) -> V
+    {
+        let length = TrussAuxFunctions::length(node_1, node_2);
+        let x_1 = V::from(-1.0) * length / V::from(2.0);
+        let x_2 = length / V::from(2.0);
+        TrussAuxFunctions::<T, V>::dx_dr(x_1, x_2, r)
+    }
+
+
+    fn inverse_jacobian(node_1: &FeNode<T, V>, node_2: &FeNode<T, V>, r: V) -> V
+    {
+        V::from(1.0) / TrussAuxFunctions::jacobian(node_1, node_2, r)
+    }
+
+
+    fn determinant_of_jacobian(node_1: &FeNode<T, V>, node_2: &FeNode<T, V>, r: V) -> V
+    {
+        TrussAuxFunctions::jacobian(node_1, node_2, r)
+    }
+
+
+    fn dh1_dr(r: V) -> V
+    {
+        TrussAuxFunctions::<T, V>::derivative_x(
+            TrussAuxFunctions::<T, V>::power_func_x, V::from(0.5), V::from(0.0), 0) -
+        TrussAuxFunctions::<T, V>::derivative_x(
+            TrussAuxFunctions::<T, V>::power_func_x, V::from(0.5), r, 1)
+    }
+
+
+    fn dh2_dr(r: V) -> V
+    {
+        TrussAuxFunctions::<T, V>::derivative_x(
+            TrussAuxFunctions::<T, V>::power_func_x, V::from(0.5), V::from(0.0), 0) +
+        TrussAuxFunctions::<T, V>::derivative_x(
+            TrussAuxFunctions::<T, V>::power_func_x, V::from(0.5), r, 1)
     }
 }
 
@@ -137,6 +186,7 @@ impl<'a, T, V> Truss2n2ip<'a, T, V>
             sampling_point: V::from(1.0 / (3.0 as ElementsValues).sqrt()), weight: V::from(1.0) };
         let rotation_matrix = TrussAuxFunctions::rotation_matrix(node_1, node_2);
         let integration_points = vec![integration_point_1, integration_point_2];
+
         let state = State { rotation_matrix, integration_points };
         Truss2n2ip { number, node_1, node_2, young_modulus, area, area_2, state }
     }
@@ -168,3 +218,46 @@ fn area(area_1: ElementsValues, area_2: Option<ElementsValues>, r: ElementsValue
         area_1
     }
 }
+
+
+fn power_func_x(a: ElementsValues, x: ElementsValues, n: i32) -> ElementsValues
+{
+    (0..n).fold(a, |acc, _| acc * x)
+}
+
+
+fn derivative_x(f: fn(ElementsValues, ElementsValues, i32) -> ElementsValues,
+                a: ElementsValues, x: ElementsValues, n: i32) -> ElementsValues
+{
+    f(a * n as ElementsValues, x, n - 1)
+}
+
+
+fn dh1_dr(r: ElementsValues) -> ElementsValues
+{
+    derivative_x(power_func_x, 0.5, 0.0, 0) -
+    derivative_x(power_func_x, 0.5, r, 1)
+}
+
+
+fn dh2_dr(r: ElementsValues) -> ElementsValues
+{
+    derivative_x(power_func_x, 0.5, 0.0, 0) +
+    derivative_x(power_func_x, 0.5, r, 1)
+}
+
+
+fn dx_dr(x_1: ElementsValues, x_2: ElementsValues, r: ElementsValues) -> ElementsValues
+{
+    derivative_x(power_func_x, 0.5 * x_1, 0.0, 0) -
+    derivative_x(power_func_x, 0.5 * x_1, r, 1) +
+    derivative_x(power_func_x, 0.5 * x_2, 0.0, 0) +
+    derivative_x(power_func_x, 0.5 * x_2, r, 1)
+}
+
+
+// fn jacobian(x_1: f32, x_2: f32, r: f32) -> f32
+// {
+//     derivative_x(power_func_x, 0.5 * x_2, r, 1) -
+//     derivative_x(power_func_x, 0.5 * x_1, r, 1)
+// }
