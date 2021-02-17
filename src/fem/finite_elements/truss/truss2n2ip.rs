@@ -140,6 +140,34 @@ impl<T, V> TrussAuxFunctions<T, V>
         TrussAuxFunctions::<T, V>::derivative_x(
             TrussAuxFunctions::<T, V>::power_func_x, V::from(0.5), r, 1)
     }
+
+
+    fn strain_displacement_matrix(node_1: &FeNode<T, V>, node_2: &FeNode<T, V>, r: V)
+        -> ExtendedMatrix<T, V>
+    {
+        let elements = vec![TrussAuxFunctions::<T, V>::dh1_dr(r), V::from(0.0),
+            V::from(0.0), V::from(0.0), V::from(0.0), V::from(0.0), V::from(0.0), V::from(0.0),
+            V::from(0.0), TrussAuxFunctions::<T, V>::dh2_dr(r), V::from(0.0), V::from(0.0)];
+        let mut matrix = ExtendedMatrix::create(T::from(2),
+            T::from(6), elements);
+        let inverse_jacobian = TrussAuxFunctions::inverse_jacobian(node_1, node_2, r);
+        matrix.multiply_by_number(inverse_jacobian);
+        matrix
+    }
+
+
+    fn area(area_1: V, area_2: Option<V>, r: V) -> V
+    {
+        if let Some(area_2) = area_2
+        {
+            V::from(area_1.into().sqrt() + (area_1.into().sqrt() - area_2.into().sqrt()) *
+                (r.into() + 1.0) / 2.0)
+        }
+        else
+        {
+            area_1
+        }
+    }
 }
 
 
@@ -153,7 +181,8 @@ pub struct IntegrationPoint<V>
 pub struct State<T, V>
 {
     pub rotation_matrix: ExtendedMatrix<T, V>,
-    pub integration_points: Vec<IntegrationPoint<V>>
+    pub integration_points: Vec<IntegrationPoint<V>>,
+    pub strain_displacement_matrix: fn(&FeNode<T, V>, &FeNode<T, V>, V) -> ExtendedMatrix<T, V>
 }
 
 
@@ -186,8 +215,9 @@ impl<'a, T, V> Truss2n2ip<'a, T, V>
             sampling_point: V::from(1.0 / (3.0 as ElementsValues).sqrt()), weight: V::from(1.0) };
         let rotation_matrix = TrussAuxFunctions::rotation_matrix(node_1, node_2);
         let integration_points = vec![integration_point_1, integration_point_2];
+        let strain_displacement_matrix = TrussAuxFunctions::strain_displacement_matrix;
 
-        let state = State { rotation_matrix, integration_points };
+        let state = State { rotation_matrix, integration_points, strain_displacement_matrix };
         Truss2n2ip { number, node_1, node_2, young_modulus, area, area_2, state }
     }
 
@@ -204,60 +234,3 @@ impl<'a, T, V> Truss2n2ip<'a, T, V>
         self.state.rotation_matrix = rotation_matrix;
     }
 }
-
-
-fn area(area_1: ElementsValues, area_2: Option<ElementsValues>, r: ElementsValues)
-    -> ElementsValues
-{
-    if let Some(area_2) = area_2
-    {
-        area_1.sqrt() + (area_1.sqrt() - area_2.sqrt()) * (r + 1.0) / 2.0
-    }
-    else
-    {
-        area_1
-    }
-}
-
-
-fn power_func_x(a: ElementsValues, x: ElementsValues, n: i32) -> ElementsValues
-{
-    (0..n).fold(a, |acc, _| acc * x)
-}
-
-
-fn derivative_x(f: fn(ElementsValues, ElementsValues, i32) -> ElementsValues,
-                a: ElementsValues, x: ElementsValues, n: i32) -> ElementsValues
-{
-    f(a * n as ElementsValues, x, n - 1)
-}
-
-
-fn dh1_dr(r: ElementsValues) -> ElementsValues
-{
-    derivative_x(power_func_x, 0.5, 0.0, 0) -
-    derivative_x(power_func_x, 0.5, r, 1)
-}
-
-
-fn dh2_dr(r: ElementsValues) -> ElementsValues
-{
-    derivative_x(power_func_x, 0.5, 0.0, 0) +
-    derivative_x(power_func_x, 0.5, r, 1)
-}
-
-
-fn dx_dr(x_1: ElementsValues, x_2: ElementsValues, r: ElementsValues) -> ElementsValues
-{
-    derivative_x(power_func_x, 0.5 * x_1, 0.0, 0) -
-    derivative_x(power_func_x, 0.5 * x_1, r, 1) +
-    derivative_x(power_func_x, 0.5 * x_2, 0.0, 0) +
-    derivative_x(power_func_x, 0.5 * x_2, r, 1)
-}
-
-
-// fn jacobian(x_1: f32, x_2: f32, r: f32) -> f32
-// {
-//     derivative_x(power_func_x, 0.5 * x_2, r, 1) -
-//     derivative_x(power_func_x, 0.5 * x_1, r, 1)
-// }

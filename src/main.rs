@@ -185,11 +185,14 @@ fn main()
     //
     let node_1 = FeNode { number: 1u16, coordinates: GlobalCoordinates { x: 0.0, y: 0.0, z: 0.0 } };
     let node_2 = FeNode { number: 2u16, coordinates: GlobalCoordinates { x: 3.0, y: 3.0, z: 3.0 } };
-    let node_3 = FeNode { number: 3u16, coordinates: GlobalCoordinates { x: 4.0, y: 5.0, z: 6.0 } };
-    let mut elem_1 = Truss2n2ip::create(1u16, &node_2, &node_1, 1e6, 1.0, None);
+    let node_3 = FeNode { number: 3u16, coordinates: GlobalCoordinates { x: 80.0, y: 0.0, z: 0.0 } };
+    let mut elem_1 = Truss2n2ip::create(1u16, &node_3, &node_1, 1e6, 1.0, None);
     elem_1.state.rotation_matrix.show_matrix();
     println!();
-    elem_1.update(&node_3, &node_2, 1e6, 1.0, None);
+    elem_1.update(&node_3, &node_1, 1e6, 1.0, None);
     elem_1.state.rotation_matrix.show_matrix();
+    println!();
+    let m = (elem_1.state.strain_displacement_matrix)(&node_1, &node_3, 0.0);
+    m.show_matrix();
     println!();
 }
