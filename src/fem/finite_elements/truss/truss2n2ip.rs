@@ -146,9 +146,8 @@ impl<T, V> TrussAuxFunctions<T, V>
         -> ExtendedMatrix<T, V>
     {
         let elements = vec![TrussAuxFunctions::<T, V>::dh1_dr(r), V::from(0.0),
-            V::from(0.0), V::from(0.0), V::from(0.0), V::from(0.0), V::from(0.0), V::from(0.0),
             V::from(0.0), TrussAuxFunctions::<T, V>::dh2_dr(r), V::from(0.0), V::from(0.0)];
-        let mut matrix = ExtendedMatrix::create(T::from(2),
+        let mut matrix = ExtendedMatrix::create(T::from(1),
             T::from(6), elements);
         let inverse_jacobian = TrussAuxFunctions::inverse_jacobian(node_1, node_2, r);
         matrix.multiply_by_number(inverse_jacobian);
@@ -160,13 +159,47 @@ impl<T, V> TrussAuxFunctions<T, V>
     {
         if let Some(area_2) = area_2
         {
-            V::from(area_1.into().sqrt() + (area_1.into().sqrt() - area_2.into().sqrt()) *
-                (r.into() + 1.0) / 2.0)
+            V::from((area_1.into().sqrt() + (area_2.into().sqrt() - area_1.into().sqrt()) *
+                (r.into() + 1.0) / 2.0).powi(2))
         }
         else
         {
             area_1
         }
+    }
+
+
+    fn local_stiffness_matrix<'a>(node_1: &FeNode<T, V>, node_2: &FeNode<T, V>,
+        young_modulus: V, area_1: V, area_2: Option<V>, alpha: V, r: V,
+        local_stiffness_matrix: &ExtendedMatrix<T, V>)
+        -> Result<ExtendedMatrix<T, V>, &'a str>
+    {
+        let current_area = TrussAuxFunctions::<T, V>::area(area_1, area_2, r);
+        let mut lhs_matrix =
+            TrussAuxFunctions::strain_displacement_matrix(node_1, node_2, r);
+        lhs_matrix.transpose();
+        lhs_matrix.multiply_by_number(young_modulus * current_area);
+        let rhs_matrix =
+            TrussAuxFunctions::strain_displacement_matrix(node_1, node_2, r);
+        return if let Ok(mut matrix) = lhs_matrix
+            .multiply_by_matrix(&rhs_matrix)
+        {
+            matrix.multiply_by_number(
+                TrussAuxFunctions::determinant_of_jacobian(node_1, node_2, r) * alpha);
+            if let Ok(m) = local_stiffness_matrix.sum(&matrix)
+            {
+                Ok(m)
+            }
+            else
+            {
+                Err("Truss2n2ip: Local stiffness matrix cannot be calculated!")
+            }
+        }
+        else
+        {
+            Err("Truss2n2ip: Local stiffness matrix cannot be calculated!")
+        }
+
     }
 }
 
@@ -182,7 +215,7 @@ pub struct State<T, V>
 {
     pub rotation_matrix: ExtendedMatrix<T, V>,
     pub integration_points: Vec<IntegrationPoint<V>>,
-    pub strain_displacement_matrix: fn(&FeNode<T, V>, &FeNode<T, V>, V) -> ExtendedMatrix<T, V>
+    pub local_stiffness_matrix: ExtendedMatrix<T, V>,
 }
 
 
@@ -207,7 +240,7 @@ impl<'a, T, V> Truss2n2ip<'a, T, V>
              MulAssign + SubAssign + One + 'static
 {
     pub fn create(number: T, node_1: &'a FeNode<T, V>, node_2: &'a FeNode<T, V>,
-        young_modulus: V, area: V, area_2: Option<V>) -> Self
+        young_modulus: V, area: V, area_2: Option<V>) -> Result<Self, &'a str>
     {
         let integration_point_1 = IntegrationPoint {
             sampling_point: V::from(- 1.0 / (3.0 as ElementsValues).sqrt()), weight: V::from(1.0) };
@@ -215,22 +248,43 @@ impl<'a, T, V> Truss2n2ip<'a, T, V>
             sampling_point: V::from(1.0 / (3.0 as ElementsValues).sqrt()), weight: V::from(1.0) };
         let rotation_matrix = TrussAuxFunctions::rotation_matrix(node_1, node_2);
         let integration_points = vec![integration_point_1, integration_point_2];
-        let strain_displacement_matrix = TrussAuxFunctions::strain_displacement_matrix;
-
-        let state = State { rotation_matrix, integration_points, strain_displacement_matrix };
-        Truss2n2ip { number, node_1, node_2, young_modulus, area, area_2, state }
+        let mut local_stiffness_matrix =
+            ExtendedMatrix::create(
+                T::from(6), T::from(6), vec![V::from(0.0); 36]);
+        for integration_point in &integration_points
+        {
+            let matrix = TrussAuxFunctions::local_stiffness_matrix(
+                node_1, node_2, young_modulus, area, area_2,
+                integration_point.weight, integration_point.sampling_point,
+                &local_stiffness_matrix)?;
+            local_stiffness_matrix = matrix;
+        }
+        let state = State { rotation_matrix, integration_points, local_stiffness_matrix };
+        Ok(Truss2n2ip { number, node_1, node_2, young_modulus, area, area_2, state })
     }
 
 
     pub fn update(&mut self, node_1: &'a FeNode<T, V>, node_2: &'a FeNode<T, V>,
-        young_modulus: V, area: V, area_2: Option<V>)
+        young_modulus: V, area: V, area_2: Option<V>) -> Result<(), &'a str>
     {
         let rotation_matrix = TrussAuxFunctions::rotation_matrix(node_1, node_2);
+        let mut local_stiffness_matrix = ExtendedMatrix::create(
+                T::from(6), T::from(6), vec![V::from(0.0); 36]);
+        for integration_point in &self.state.integration_points
+        {
+            let matrix = TrussAuxFunctions::local_stiffness_matrix(
+                node_1, node_2, young_modulus, area, area_2,
+                integration_point.weight, integration_point.sampling_point,
+                &local_stiffness_matrix)?;
+            local_stiffness_matrix = matrix;
+        }
         self.node_1 = node_1;
         self.node_2 = node_2;
         self.young_modulus = young_modulus;
         self.area = area;
         self.area_2 = area_2;
         self.state.rotation_matrix = rotation_matrix;
+        self.state.local_stiffness_matrix = local_stiffness_matrix;
+        Ok(())
     }
 }

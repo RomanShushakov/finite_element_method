@@ -16,6 +16,13 @@ use std::ops::{Mul, Add, Sub, Div, Rem, MulAssign, AddAssign, SubAssign};
 use std::hash::Hash;
 
 
+pub enum Operation
+{
+    Addition,
+    Multiplication,
+}
+
+
 pub struct ExtendedMatrix<T, V>
 {
     pub basic_matrix: Box<dyn BasicMatrix<T, V>>
@@ -27,7 +34,8 @@ impl<T, V> ExtendedMatrix<T, V>
              PartialOrd + Add + Sub + Add<Output = T> + Sub<Output = T> + Default + Div + Rem +
              Div<Output = T> + Rem<Output = T> + Eq + Hash + SubAssign + 'static,
           V: Copy + Debug + PartialEq + Default + AddAssign + MulAssign + Mul<Output = V> +
-             Div<Output = V> + SubAssign + One + Sub<Output = V> + Into<ElementsValues> + 'static,
+             Div<Output = V> + SubAssign + One + Sub<Output = V> + Into<ElementsValues> +
+             Add<Output = V> + 'static,
 {
     pub fn show_matrix(&self)
     {
@@ -78,10 +86,48 @@ impl<T, V> ExtendedMatrix<T, V>
     }
 
 
+    pub fn sum<'a>(&'a self, other: &'a Self) -> Result<Self, &'a str>
+    {
+        let (_, shape) = matrices_dimensions_conformity_check(&self, &other,
+        Operation::Addition)?;
+        let lhs_all_elements_values =
+            self.basic_matrix.extract_all_elements_values();
+        let rhs_all_elements_values =
+            other.basic_matrix.extract_all_elements_values();
+        let mut elements_indexes = Vec::new();
+        let mut elements_values = Vec::new();
+        for index in 0..(shape.0 * shape.1).into()
+        {
+            let mut value = V::default();
+            let current_lhs_element_value = extract_element_value(
+                    T::from(index) / shape.1, T::from(index) % shape.1,
+                    &lhs_all_elements_values
+                );
+            let current_rhs_element_value = extract_element_value(
+                    T::from(index) / shape.1, T::from(index) % shape.1,
+                    &rhs_all_elements_values
+                );
+            value += current_lhs_element_value + current_rhs_element_value;
+            if value.into().abs() > TOLERANCE
+            {
+                elements_indexes.push(T::from(index));
+                elements_values.push(value);
+            }
+        }
+        let basic_matrix = Box::new(NonSymmetricMatrix
+            {
+                rows_number: shape.0, columns_number: shape.1, elements_indexes, elements_values
+            });
+        let basic_matrix = basic_matrix.into_symmetric();
+        Ok(ExtendedMatrix { basic_matrix })
+    }
+
+
     pub fn multiply_by_matrix<'a>(&'a self, other: &'a Self) -> Result<Self, &'a str>
     {
         let (basic_dimension, shape) =
-            matrices_dimensions_conformity_check(&self, &other)?;
+            matrices_dimensions_conformity_check(&self, &other,
+        Operation::Multiplication)?;
         let lhs_all_elements_values =
             self.basic_matrix.extract_all_elements_values();
         let rhs_all_elements_values =
@@ -121,7 +167,8 @@ impl<T, V> ExtendedMatrix<T, V>
     pub fn naive_gauss_elimination<'a>(&'a self, other: &'a Self) -> Result<Self, &'a str>
     {
         let (basic_dimension, shape) =
-            matrices_dimensions_conformity_check(&self, &other)?;
+            matrices_dimensions_conformity_check(&self, &other,
+             Operation::Multiplication)?;
         let mut lhs_all_elements_values =
             self.basic_matrix.extract_all_elements_values();
         let mut rhs_all_elements_values =
