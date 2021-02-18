@@ -68,10 +68,16 @@ impl<T, V> TrussAuxFunctions<T, V>
         let q_31 = compare_with_tolerance(t * x_n * z_n - y_n * s);
         let q_32 = compare_with_tolerance(t * y_n * z_n + x_n * s);
         let q_33 = compare_with_tolerance(t * z_n * z_n + c);
-        ExtendedMatrix::create(T::from(3 as ElementsNumbers),
-           T::from(3 as ElementsNumbers),
-           vec![V::from(q_11), V::from(q_12), V::from(q_13), V::from(q_21),
-                V::from(q_22), V::from(q_23), V::from(q_31), V::from(q_32), V::from(q_33)])
+        ExtendedMatrix::create(T::from(6),
+           T::from(6),
+           vec![
+               [V::from(q_11), V::from(q_12), V::from(q_13)], [V::from(0.0); 3],
+               [V::from(q_21), V::from(q_22), V::from(q_23)], [V::from(0.0); 3],
+               [V::from(q_31), V::from(q_32), V::from(q_33)], [V::from(0.0); 3],
+               [V::from(0.0); 3], [V::from(q_11), V::from(q_12), V::from(q_13)],
+               [V::from(0.0); 3], [V::from(q_21), V::from(q_22), V::from(q_23)],
+               [V::from(0.0); 3], [V::from(q_31), V::from(q_32), V::from(q_33)],
+           ].concat())
     }
 
 
@@ -181,25 +187,16 @@ impl<T, V> TrussAuxFunctions<T, V>
         lhs_matrix.multiply_by_number(young_modulus * current_area);
         let rhs_matrix =
             TrussAuxFunctions::strain_displacement_matrix(node_1, node_2, r);
-        return if let Ok(mut matrix) = lhs_matrix
-            .multiply_by_matrix(&rhs_matrix)
+        if let Ok(mut matrix) = lhs_matrix.multiply_by_matrix(&rhs_matrix)
         {
             matrix.multiply_by_number(
                 TrussAuxFunctions::determinant_of_jacobian(node_1, node_2, r) * alpha);
-            if let Ok(m) = local_stiffness_matrix.sum(&matrix)
+            if let Ok(matrix) = local_stiffness_matrix.sum(&matrix)
             {
-                Ok(m)
-            }
-            else
-            {
-                Err("Truss2n2ip: Local stiffness matrix cannot be calculated!")
+                return Ok(matrix);
             }
         }
-        else
-        {
-            Err("Truss2n2ip: Local stiffness matrix cannot be calculated!")
-        }
-
+        Err("Truss2n2ip: Local stiffness matrix cannot be calculated!")
     }
 }
 
@@ -286,5 +283,22 @@ impl<'a, T, V> Truss2n2ip<'a, T, V>
         self.state.rotation_matrix = rotation_matrix;
         self.state.local_stiffness_matrix = local_stiffness_matrix;
         Ok(())
+    }
+
+
+    pub fn extract_stiffness_matrix(&self) -> Result<ExtendedMatrix<T, V>, &'a str>
+    {
+        let mut interim_matrix = self.state.rotation_matrix.clone();
+        interim_matrix.transpose();
+        if let Ok(matrix) =
+        interim_matrix.multiply_by_matrix(&self.state.local_stiffness_matrix)
+        {
+            if let Ok(matrix) =
+            matrix.multiply_by_matrix(&self.state.rotation_matrix)
+            {
+                return Ok(matrix);
+            }
+        }
+        Err("Truss2n2ip: Stiffness matrix cannot be extracted!")
     }
 }

@@ -23,6 +23,7 @@ pub enum Operation
 }
 
 
+#[derive(Clone)]
 pub struct ExtendedMatrix<T, V>
 {
     pub basic_matrix: Box<dyn BasicMatrix<T, V>>
