@@ -1,14 +1,14 @@
 mod extended_matrix;
-use extended_matrix::extended_matrix::{ExtendedMatrix};
-use extended_matrix::basic_matrix::return_symmetric_matrix_struct;
-use extended_matrix::basic_matrix::return_non_symmetric_matrix_struct;
+use extended_matrix::ExtendedMatrix;
+use extended_matrix::{return_symmetric_matrix_struct, return_non_symmetric_matrix_struct};
+
 mod fem;
 use fem::finite_elements::fe_node::{FeNode, GlobalCoordinates};
 use fem::finite_elements::truss::truss2n2ip::Truss2n2ip;
-
+use crate::extended_matrix::basic_matrix::basic_matrix::BasicMatrix;
 
 use std::mem;
-use crate::extended_matrix::basic_matrix::BasicMatrix;
+
 
 
 
@@ -192,9 +192,9 @@ fn main()
 
 
     let node_1 = FeNode { number: 1u16, coordinates: GlobalCoordinates { x: 0.0, y: 0.0, z: 0.0 } };
-    let node_2 = FeNode { number: 2u16, coordinates: GlobalCoordinates { x: 4.0, y: 3.0, z: 0.0 } };
+    let node_2 = FeNode { number: 2u16, coordinates: GlobalCoordinates { x: 0.0, y: 3.0, z: 0.0 } };
     let node_3 = FeNode { number: 3u16, coordinates: GlobalCoordinates { x: 80.0, y: 0.0, z: 0.0 } };
-    let mut elem_1 = Truss2n2ip::create(1u16, &node_1, &node_2, 128000000.0, 0.0625, None).unwrap();
+    let mut elem_1 = Truss2n2ip::create(1u16, &node_1, &node_2, 128000000.0, 0.0625, Some(0.0625)).unwrap();
     elem_1.state.rotation_matrix.show_matrix();
     println!();
     elem_1.state.local_stiffness_matrix.show_matrix();

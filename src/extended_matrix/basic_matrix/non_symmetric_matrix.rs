@@ -1,10 +1,11 @@
-use crate::extended_matrix::basic_matrix::{BasicMatrix, return_non_symmetric_matrix_struct};
-use crate::extended_matrix::basic_matrix::
+use crate::extended_matrix::BasicMatrix;
+use crate::extended_matrix::{MatrixElementPosition, ZerosRowColumn, Shape, SymmetricMatrix};
+use crate::extended_matrix::BasicMatrixType;
+use crate::extended_matrix::
     {
-        SymmetricMatrix, Shape, MatrixElementPosition, ZerosRowColumn
+        matrix_size_check, extract_value_by_index, return_non_symmetric_matrix_struct
     };
-use crate::extended_matrix::basic_matrix::{BasicMatrixType};
-use crate::extended_matrix::basic_matrix::{matrix_size_check, extract_value_by_index};
+
 use crate::ElementsNumbers;
 
 use std::ops::{Mul, Add, Sub, Div, Rem, MulAssign, SubAssign};

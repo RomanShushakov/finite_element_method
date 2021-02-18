@@ -1,6 +1,5 @@
-use crate::extended_matrix::extended_matrix::ExtendedMatrix;
-use crate::extended_matrix::extended_matrix::Operation;
-use crate::extended_matrix::basic_matrix::{Shape, MatrixElementPosition};
+use crate::extended_matrix::{Shape, MatrixElementPosition, ExtendedMatrix};
+use crate::extended_matrix::Operation;
 use crate::{ElementsValues, TOLERANCE};
 
 use std::collections::HashMap;

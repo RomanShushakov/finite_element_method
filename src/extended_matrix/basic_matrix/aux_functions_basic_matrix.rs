@@ -1,5 +1,5 @@
-use crate::extended_matrix::basic_matrix::{BasicMatrix};
-use crate::extended_matrix::basic_matrix::{SymmetricMatrix, NonSymmetricMatrix};
+use crate::extended_matrix::{BasicMatrix};
+use crate::extended_matrix::{SymmetricMatrix, NonSymmetricMatrix};
 
 use std::fmt::Debug;
 

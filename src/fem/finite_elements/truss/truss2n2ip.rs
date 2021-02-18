@@ -1,17 +1,12 @@
 use crate::{FeNode, GlobalCoordinates};
+use crate::fem::finite_elements::aux_functions_finite_elements::compare_with_tolerance;
 use crate::{ElementsNumbers, ElementsValues};
-use crate::TOLERANCE;
-use std::ops::{Sub, Mul, Add, Div, Rem, SubAssign, AddAssign, MulAssign};
 use crate::extended_matrix::extended_matrix::ExtendedMatrix;
+
 use crate::extended_matrix::aux_traits_extended_matrix::{One};
 use std::hash::Hash;
 use std::fmt::Debug;
-
-
-fn compare_with_tolerance(value: ElementsValues) -> ElementsValues
-{
-    if value.abs() < TOLERANCE { 0.0 } else { value }
-}
+use std::ops::{Sub, Mul, Add, Div, Rem, SubAssign, AddAssign, MulAssign};
 
 
 struct TrussAuxFunctions<T, V>(T, V);
@@ -201,9 +196,9 @@ impl<T, V> TrussAuxFunctions<T, V>
 }
 
 
-pub struct IntegrationPoint<V>
+struct IntegrationPoint<V>
 {
-    sampling_point: V,
+    r: V,
     weight: V,
 }
 
@@ -211,7 +206,7 @@ pub struct IntegrationPoint<V>
 pub struct State<T, V>
 {
     pub rotation_matrix: ExtendedMatrix<T, V>,
-    pub integration_points: Vec<IntegrationPoint<V>>,
+    integration_points: Vec<IntegrationPoint<V>>,
     pub local_stiffness_matrix: ExtendedMatrix<T, V>,
 }
 
@@ -240,9 +235,9 @@ impl<'a, T, V> Truss2n2ip<'a, T, V>
         young_modulus: V, area: V, area_2: Option<V>) -> Result<Self, &'a str>
     {
         let integration_point_1 = IntegrationPoint {
-            sampling_point: V::from(- 1.0 / (3.0 as ElementsValues).sqrt()), weight: V::from(1.0) };
+            r: V::from(- 1.0 / (3.0 as ElementsValues).sqrt()), weight: V::from(1.0) };
         let integration_point_2 = IntegrationPoint {
-            sampling_point: V::from(1.0 / (3.0 as ElementsValues).sqrt()), weight: V::from(1.0) };
+            r: V::from(1.0 / (3.0 as ElementsValues).sqrt()), weight: V::from(1.0) };
         let rotation_matrix = TrussAuxFunctions::rotation_matrix(node_1, node_2);
         let integration_points = vec![integration_point_1, integration_point_2];
         let mut local_stiffness_matrix =
@@ -252,7 +247,7 @@ impl<'a, T, V> Truss2n2ip<'a, T, V>
         {
             let matrix = TrussAuxFunctions::local_stiffness_matrix(
                 node_1, node_2, young_modulus, area, area_2,
-                integration_point.weight, integration_point.sampling_point,
+                integration_point.weight, integration_point.r,
                 &local_stiffness_matrix)?;
             local_stiffness_matrix = matrix;
         }
@@ -271,7 +266,7 @@ impl<'a, T, V> Truss2n2ip<'a, T, V>
         {
             let matrix = TrussAuxFunctions::local_stiffness_matrix(
                 node_1, node_2, young_modulus, area, area_2,
-                integration_point.weight, integration_point.sampling_point,
+                integration_point.weight, integration_point.r,
                 &local_stiffness_matrix)?;
             local_stiffness_matrix = matrix;
         }

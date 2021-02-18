@@ -1,5 +1,5 @@
-use crate::extended_matrix::basic_matrix::{BasicMatrix, return_non_symmetric_matrix_struct};
-use crate::extended_matrix::basic_matrix::
+use crate::extended_matrix::BasicMatrix;
+use crate::extended_matrix::
     {
         NonSymmetricMatrix, MatrixElementPosition, ZerosRowColumn
     };
