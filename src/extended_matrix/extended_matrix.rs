@@ -87,7 +87,7 @@ impl<T, V> ExtendedMatrix<T, V>
     }
 
 
-    pub fn sum<'a>(&'a self, other: &'a Self) -> Result<Self, &'a str>
+    pub fn add<'a>(&'a self, other: &'a Self) -> Result<Self, &'a str>
     {
         let (_, shape) = matrices_dimensions_conformity_check(&self, &other,
         Operation::Addition)?;

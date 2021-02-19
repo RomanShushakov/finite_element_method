@@ -1,9 +1,10 @@
-use crate::{FeNode, GlobalCoordinates};
-use crate::fem::finite_elements::aux_functions_finite_elements::compare_with_tolerance;
+use crate::fem::{GlobalCoordinates, FeNode, StiffnessGroup};
+use crate::fem::StiffnessType;
+use crate::fem::compare_with_tolerance;
+use crate::extended_matrix::{ExtendedMatrix, One};
 use crate::{ElementsNumbers, ElementsValues};
-use crate::extended_matrix::extended_matrix::ExtendedMatrix;
 
-use crate::extended_matrix::aux_traits_extended_matrix::{One};
+use std::rc::Rc;
 use std::hash::Hash;
 use std::fmt::Debug;
 use std::ops::{Sub, Mul, Add, Div, Rem, SubAssign, AddAssign, MulAssign};
@@ -186,7 +187,7 @@ impl<T, V> TrussAuxFunctions<T, V>
         {
             matrix.multiply_by_number(
                 TrussAuxFunctions::determinant_of_jacobian(node_1, node_2, r) * alpha);
-            if let Ok(matrix) = local_stiffness_matrix.sum(&matrix)
+            if let Ok(matrix) = local_stiffness_matrix.add(&matrix)
             {
                 return Ok(matrix);
             }
@@ -295,5 +296,44 @@ impl<'a, T, V> Truss2n2ip<'a, T, V>
             }
         }
         Err("Truss2n2ip: Stiffness matrix cannot be extracted!")
+    }
+
+
+    pub fn extract_stiffness_groups(&self) -> Vec<StiffnessGroup<T>>
+    {
+        let (rows_number, columns_number) = (T::from(6), T::from(6));
+        let mut indexes_1_1 = Vec::new();
+        let mut indexes_1_2 = Vec::new();
+        let mut indexes_2_1 = Vec::new();
+        let mut indexes_2_2 = Vec::new();
+        for i in 0..(rows_number * columns_number).into()
+        {
+            let row = T::from(i) / columns_number;
+            let column = T::from(i) % columns_number;
+            if row < T::from(3) && column < T::from(3)
+            {
+                indexes_1_1.push(T::from(i));
+            }
+            else if row < T::from(3) && column >= T::from(3)
+            {
+                indexes_1_2.push(T::from(i));
+            }
+            else if row >= T::from(3) && column < T::from(3)
+            {
+                indexes_2_1.push(T::from(i));
+            }
+            else
+            {
+                indexes_2_2.push(T::from(i));
+            }
+        }
+        vec![StiffnessGroup { stiffness_type: StiffnessType::Kuu, number_1: self.node_1.number,
+                number_2: self.node_1.number, indexes: indexes_1_1, },
+            StiffnessGroup { stiffness_type: StiffnessType::Kuu, number_1: self.node_1.number,
+                number_2: self.node_2.number, indexes: indexes_1_2, },
+            StiffnessGroup { stiffness_type: StiffnessType::Kuu, number_1: self.node_2.number,
+                number_2: self.node_1.number, indexes: indexes_2_1 },
+            StiffnessGroup { stiffness_type: StiffnessType::Kuu, number_1: self.node_2.number,
+                number_2: self.node_2.number, indexes: indexes_2_2 }, ]
     }
 }
