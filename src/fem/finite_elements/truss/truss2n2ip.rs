@@ -8,6 +8,7 @@ use std::rc::Rc;
 use std::hash::Hash;
 use std::fmt::Debug;
 use std::ops::{Sub, Mul, Add, Div, Rem, SubAssign, AddAssign, MulAssign};
+use std::cell::RefCell;
 
 
 struct TrussAuxFunctions<T, V>(T, V);
@@ -215,8 +216,10 @@ pub struct State<T, V>
 pub struct Truss2n2ip<'a, T, V>
 {
     pub number: T,
-    pub node_1: &'a FeNode<T, V>,
-    pub node_2: &'a FeNode<T, V>,
+    // pub node_1: &'a FeNode<T, V>,
+    // pub node_2: &'a FeNode<T, V>,
+    pub node_1: Rc<RefCell<FeNode<T, V>>>,
+    pub node_2: Rc<RefCell<FeNode<T, V>>>,
     pub young_modulus: V,
     pub area: V,
     pub area_2: Option<V>,
