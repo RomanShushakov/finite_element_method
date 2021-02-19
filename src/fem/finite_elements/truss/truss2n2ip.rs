@@ -1,7 +1,8 @@
-use crate::fem::{GlobalCoordinates, FeNode, StiffnessGroup};
+use crate::fem::{FiniteElement};
+use crate::fem::{GlobalCoordinates, FeNode, StiffnessGroup, FEData};
 use crate::fem::StiffnessType;
 use crate::fem::compare_with_tolerance;
-use crate::extended_matrix::{ExtendedMatrix, One};
+use crate::extended_matrix::{ExtendedMatrix};
 use crate::{ElementsNumbers, ElementsValues};
 
 use std::rc::Rc;
@@ -9,6 +10,7 @@ use std::hash::Hash;
 use std::fmt::Debug;
 use std::ops::{Sub, Mul, Add, Div, Rem, SubAssign, AddAssign, MulAssign};
 use std::cell::RefCell;
+use std::borrow::Borrow;
 
 
 struct TrussAuxFunctions<T, V>(T, V);
@@ -20,21 +22,28 @@ impl<T, V> TrussAuxFunctions<T, V>
              SubAssign + Debug + Mul<Output = T> + 'static,
           V: Copy + Into<ElementsValues> + From<ElementsValues> + Sub<Output = V> + Default +
              Mul<Output = V> + Add<Output = V> + Div<Output = V> + PartialEq + Debug + AddAssign +
-             MulAssign + SubAssign + One + 'static
+             MulAssign + SubAssign + 'static
 {
-    fn length(node_1: &FeNode<T, V>, node_2: &FeNode<T, V>) -> V
+    fn length(node_1: Rc<RefCell<FeNode<T, V>>>, node_2: Rc<RefCell<FeNode<T, V>>>) -> V
     {
-        V::from(((node_1.coordinates.x - node_2.coordinates.x).into().powi(2) +
-        (node_1.coordinates.y - node_2.coordinates.y).into().powi(2) +
-        (node_1.coordinates.z - node_2.coordinates.z).into().powi(2)).sqrt())
+        V::from(((node_1.as_ref().borrow().coordinates.x - node_2.as_ref().borrow().coordinates.x)
+            .into().powi(2) +
+        (node_1.as_ref().borrow().coordinates.y - node_2.as_ref().borrow().coordinates.y)
+            .into().powi(2) +
+        (node_1.as_ref().borrow().coordinates.z - node_2.as_ref().borrow().coordinates.z)
+            .into().powi(2)).sqrt())
     }
 
 
-    fn rotation_matrix(node_1: &FeNode<T, V>, node_2: &FeNode<T, V>) -> ExtendedMatrix<T, V>
+    fn rotation_matrix(node_1: Rc<RefCell<FeNode<T, V>>>, node_2: Rc<RefCell<FeNode<T, V>>>)
+        -> ExtendedMatrix<T, V>
     {
-        let x = (node_2.coordinates.x - node_1.coordinates.x).into();
-        let y = (node_2.coordinates.y - node_1.coordinates.y).into();
-        let z = (node_2.coordinates.z - node_1.coordinates.z).into();
+        let x = (node_2.as_ref().borrow().coordinates.x -
+            node_1.as_ref().borrow().coordinates.x).into();
+        let y = (node_2.as_ref().borrow().coordinates.y -
+            node_1.as_ref().borrow().coordinates.y).into();
+        let z = (node_2.as_ref().borrow().coordinates.z -
+            node_1.as_ref().borrow().coordinates.z).into();
         let length = TrussAuxFunctions::<T, V>::length(node_1, node_2).into();
         let (u, v, w) = (length, 0.0, 0.0);
         let alpha = ((x * u + y * v + z * w) /
@@ -106,7 +115,7 @@ impl<T, V> TrussAuxFunctions<T, V>
     }
 
 
-    fn jacobian(node_1: &FeNode<T, V>, node_2: &FeNode<T, V>, r: V) -> V
+    fn jacobian(node_1: Rc<RefCell<FeNode<T, V>>>, node_2: Rc<RefCell<FeNode<T, V>>>, r: V) -> V
     {
         let length = TrussAuxFunctions::length(node_1, node_2);
         let x_1 = V::from(-1.0) * length / V::from(2.0);
@@ -115,13 +124,15 @@ impl<T, V> TrussAuxFunctions<T, V>
     }
 
 
-    fn inverse_jacobian(node_1: &FeNode<T, V>, node_2: &FeNode<T, V>, r: V) -> V
+    fn inverse_jacobian(node_1: Rc<RefCell<FeNode<T, V>>>, node_2: Rc<RefCell<FeNode<T, V>>>, r: V)
+        -> V
     {
         V::from(1.0) / TrussAuxFunctions::jacobian(node_1, node_2, r)
     }
 
 
-    fn determinant_of_jacobian(node_1: &FeNode<T, V>, node_2: &FeNode<T, V>, r: V) -> V
+    fn determinant_of_jacobian(node_1: Rc<RefCell<FeNode<T, V>>>,
+       node_2: Rc<RefCell<FeNode<T, V>>>, r: V) -> V
     {
         TrussAuxFunctions::jacobian(node_1, node_2, r)
     }
@@ -145,8 +156,8 @@ impl<T, V> TrussAuxFunctions<T, V>
     }
 
 
-    fn strain_displacement_matrix(node_1: &FeNode<T, V>, node_2: &FeNode<T, V>, r: V)
-        -> ExtendedMatrix<T, V>
+    fn strain_displacement_matrix(node_1: Rc<RefCell<FeNode<T, V>>>,
+        node_2: Rc<RefCell<FeNode<T, V>>>, r: V) -> ExtendedMatrix<T, V>
     {
         let elements = vec![TrussAuxFunctions::<T, V>::dh1_dr(r), V::from(0.0),
             V::from(0.0), TrussAuxFunctions::<T, V>::dh2_dr(r), V::from(0.0), V::from(0.0)];
@@ -172,18 +183,20 @@ impl<T, V> TrussAuxFunctions<T, V>
     }
 
 
-    fn local_stiffness_matrix<'a>(node_1: &FeNode<T, V>, node_2: &FeNode<T, V>,
-        young_modulus: V, area_1: V, area_2: Option<V>, alpha: V, r: V,
-        local_stiffness_matrix: &ExtendedMatrix<T, V>)
+    fn local_stiffness_matrix<'a>(node_1: Rc<RefCell<FeNode<T, V>>>,
+        node_2: Rc<RefCell<FeNode<T, V>>>, young_modulus: V, area_1: V, area_2: Option<V>,
+        alpha: V, r: V, local_stiffness_matrix: &ExtendedMatrix<T, V>)
         -> Result<ExtendedMatrix<T, V>, &'a str>
     {
         let current_area = TrussAuxFunctions::<T, V>::area(area_1, area_2, r);
         let mut lhs_matrix =
-            TrussAuxFunctions::strain_displacement_matrix(node_1, node_2, r);
+            TrussAuxFunctions::strain_displacement_matrix(
+                Rc::clone(&node_1), Rc::clone(&node_2), r);
         lhs_matrix.transpose();
         lhs_matrix.multiply_by_number(young_modulus * current_area);
         let rhs_matrix =
-            TrussAuxFunctions::strain_displacement_matrix(node_1, node_2, r);
+            TrussAuxFunctions::strain_displacement_matrix(
+                Rc::clone(&node_1), Rc::clone(&node_2), r);
         if let Ok(mut matrix) = lhs_matrix.multiply_by_matrix(&rhs_matrix)
         {
             matrix.multiply_by_number(
@@ -213,11 +226,9 @@ pub struct State<T, V>
 }
 
 
-pub struct Truss2n2ip<'a, T, V>
+pub struct Truss2n2ip<T, V>
 {
     pub number: T,
-    // pub node_1: &'a FeNode<T, V>,
-    // pub node_2: &'a FeNode<T, V>,
     pub node_1: Rc<RefCell<FeNode<T, V>>>,
     pub node_2: Rc<RefCell<FeNode<T, V>>>,
     pub young_modulus: V,
@@ -227,22 +238,25 @@ pub struct Truss2n2ip<'a, T, V>
 }
 
 
-impl<'a, T, V> Truss2n2ip<'a, T, V>
+impl<T, V> Truss2n2ip<T, V>
     where T: Copy + From<ElementsNumbers> + Into<ElementsNumbers> + PartialOrd + Default +
              Add<Output = T> + Sub<Output = T> + Div<Output = T> + Rem<Output = T> + Eq + Hash +
              SubAssign + Debug + Mul<Output = T> + 'static,
           V: Copy + Into<ElementsValues> + From<ElementsValues> + Sub<Output = V> + Default +
              Mul<Output = V> + Add<Output = V> + Div<Output = V> + PartialEq + Debug + AddAssign +
-             MulAssign + SubAssign + One + 'static
+             MulAssign + SubAssign + 'static
 {
-    pub fn create(number: T, node_1: &'a FeNode<T, V>, node_2: &'a FeNode<T, V>,
-        young_modulus: V, area: V, area_2: Option<V>) -> Result<Self, &'a str>
+    pub fn create<'a>(number: T, node_1: Rc<RefCell<FeNode<T, V>>>,
+        node_2: Rc<RefCell<FeNode<T, V>>>, young_modulus: V, area: V, area_2: Option<V>)
+        -> Result<Self, &'a str>
     {
         let integration_point_1 = IntegrationPoint {
             r: V::from(- 1.0 / (3.0 as ElementsValues).sqrt()), weight: V::from(1.0) };
         let integration_point_2 = IntegrationPoint {
             r: V::from(1.0 / (3.0 as ElementsValues).sqrt()), weight: V::from(1.0) };
-        let rotation_matrix = TrussAuxFunctions::rotation_matrix(node_1, node_2);
+        let rotation_matrix =
+            TrussAuxFunctions::rotation_matrix(Rc::clone(&node_1),
+                                               Rc::clone(&node_2));
         let integration_points = vec![integration_point_1, integration_point_2];
         let mut local_stiffness_matrix =
             ExtendedMatrix::create(
@@ -250,8 +264,8 @@ impl<'a, T, V> Truss2n2ip<'a, T, V>
         for integration_point in &integration_points
         {
             let matrix = TrussAuxFunctions::local_stiffness_matrix(
-                node_1, node_2, young_modulus, area, area_2,
-                integration_point.weight, integration_point.r,
+                Rc::clone(&node_1), Rc::clone(&node_2), young_modulus,
+                area, area_2, integration_point.weight, integration_point.r,
                 &local_stiffness_matrix)?;
             local_stiffness_matrix = matrix;
         }
@@ -260,17 +274,19 @@ impl<'a, T, V> Truss2n2ip<'a, T, V>
     }
 
 
-    pub fn update(&mut self, node_1: &'a FeNode<T, V>, node_2: &'a FeNode<T, V>,
-        young_modulus: V, area: V, area_2: Option<V>) -> Result<(), &'a str>
+    pub fn update(&mut self, node_1: Rc<RefCell<FeNode<T, V>>>, node_2: Rc<RefCell<FeNode<T, V>>>,
+        young_modulus: V, area: V, area_2: Option<V>) -> Result<(), &str>
     {
-        let rotation_matrix = TrussAuxFunctions::rotation_matrix(node_1, node_2);
+        let rotation_matrix =
+            TrussAuxFunctions::rotation_matrix(Rc::clone(&node_1),
+                                               Rc::clone(&node_2));
         let mut local_stiffness_matrix = ExtendedMatrix::create(
                 T::from(6), T::from(6), vec![V::from(0.0); 36]);
         for integration_point in &self.state.integration_points
         {
             let matrix = TrussAuxFunctions::local_stiffness_matrix(
-                node_1, node_2, young_modulus, area, area_2,
-                integration_point.weight, integration_point.r,
+                Rc::clone(&node_1), Rc::clone(&node_2), young_modulus,
+                area, area_2, integration_point.weight, integration_point.r,
                 &local_stiffness_matrix)?;
             local_stiffness_matrix = matrix;
         }
@@ -285,7 +301,7 @@ impl<'a, T, V> Truss2n2ip<'a, T, V>
     }
 
 
-    pub fn extract_stiffness_matrix(&self) -> Result<ExtendedMatrix<T, V>, &'a str>
+    pub fn extract_stiffness_matrix(&self) -> Result<ExtendedMatrix<T, V>, &str>
     {
         let mut interim_matrix = self.state.rotation_matrix.clone();
         interim_matrix.transpose();
@@ -330,13 +346,99 @@ impl<'a, T, V> Truss2n2ip<'a, T, V>
                 indexes_2_2.push(T::from(i));
             }
         }
-        vec![StiffnessGroup { stiffness_type: StiffnessType::Kuu, number_1: self.node_1.number,
-                number_2: self.node_1.number, indexes: indexes_1_1, },
-            StiffnessGroup { stiffness_type: StiffnessType::Kuu, number_1: self.node_1.number,
-                number_2: self.node_2.number, indexes: indexes_1_2, },
-            StiffnessGroup { stiffness_type: StiffnessType::Kuu, number_1: self.node_2.number,
-                number_2: self.node_1.number, indexes: indexes_2_1 },
-            StiffnessGroup { stiffness_type: StiffnessType::Kuu, number_1: self.node_2.number,
-                number_2: self.node_2.number, indexes: indexes_2_2 }, ]
+        vec![StiffnessGroup { stiffness_type: StiffnessType::Kuu,
+                number_1: self.node_1.as_ref().borrow().number,
+                number_2: self.node_1.as_ref().borrow().number, indexes: indexes_1_1, },
+            StiffnessGroup { stiffness_type: StiffnessType::Kuu,
+                number_1: self.node_1.as_ref().borrow().number,
+                number_2: self.node_2.as_ref().borrow().number, indexes: indexes_1_2, },
+            StiffnessGroup { stiffness_type: StiffnessType::Kuu,
+                number_1: self.node_2.as_ref().borrow().number,
+                number_2: self.node_1.as_ref().borrow().number, indexes: indexes_2_1 },
+            StiffnessGroup { stiffness_type: StiffnessType::Kuu,
+                number_1: self.node_2.as_ref().borrow().number,
+                number_2: self.node_2.as_ref().borrow().number, indexes: indexes_2_2 }, ]
+    }
+
+
+    pub fn node_belong_element(&self, node_number: T) -> bool
+    {
+        self.node_1.as_ref().borrow().number == node_number ||
+        self.node_2.as_ref().borrow().number == node_number
+    }
+
+
+    pub fn refresh(&mut self) -> Result<(), &str>
+    {
+        let rotation_matrix =
+            TrussAuxFunctions::rotation_matrix(Rc::clone(&self.node_1),
+                                               Rc::clone(&self.node_2));
+        let mut local_stiffness_matrix = ExtendedMatrix::create(
+                T::from(6), T::from(6), vec![V::from(0.0); 36]);
+        for integration_point in &self.state.integration_points
+        {
+            let matrix = TrussAuxFunctions::local_stiffness_matrix(
+                Rc::clone(&self.node_1), Rc::clone(&self.node_2),
+                self.young_modulus, self.area, self.area_2, integration_point.weight,
+                integration_point.r, &local_stiffness_matrix)?;
+            local_stiffness_matrix = matrix;
+        }
+        self.state.rotation_matrix = rotation_matrix;
+        self.state.local_stiffness_matrix = local_stiffness_matrix;
+        Ok(())
+    }
+}
+
+
+impl<T, V> FiniteElement<T, V> for Truss2n2ip<T, V>
+    where T: Copy + Add<Output = T> + Sub<Output = T> + Div<Output = T> + Rem<Output = T> +
+             Mul<Output = T> + From<ElementsNumbers> + Into<ElementsNumbers> + Eq + Hash + Debug +
+             SubAssign + PartialOrd + Default + 'static,
+          V: Copy + Sub<Output = V> + Mul<Output = V> + Add<Output = V> + Div<Output = V> +
+             Into<ElementsValues> + From<ElementsValues> + SubAssign + AddAssign + MulAssign +
+             PartialEq + Debug + Default + 'static,
+{
+    fn update(&mut self, data: FEData<T, V>) -> Result<(), &str>
+    {
+        if data.properties.len() == 3
+        {
+            self.update(
+                Rc::clone(&data.nodes[0]), Rc::clone(&data.nodes[1]),
+                data.properties[0], data.properties[1],
+                Some(data.properties[2]))?;
+        }
+        else
+        {
+            self.update(
+                Rc::clone(&data.nodes[0]), Rc::clone(&data.nodes[1]),
+                data.properties[0], data.properties[1],
+                None)?;
+        }
+        Ok(())
+    }
+
+
+    fn extract_stiffness_matrix(&self) -> Result<ExtendedMatrix<T, V>, &str>
+    {
+        self.extract_stiffness_matrix()
+    }
+
+
+    fn extract_stiffness_groups(&self) -> Vec<StiffnessGroup<T>>
+    {
+        self.extract_stiffness_groups()
+    }
+
+
+    fn node_belong_element(&self, node_number: T) -> bool
+    {
+        self.node_belong_element(node_number)
+    }
+
+
+    fn refresh(&mut self) -> Result<(), &str>
+    {
+        self.refresh()?;
+        Ok(())
     }
 }

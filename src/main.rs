@@ -3,14 +3,14 @@ use extended_matrix::ExtendedMatrix;
 use extended_matrix::{return_symmetric_matrix_struct, return_non_symmetric_matrix_struct};
 
 mod fem;
-use crate::fem::{FeNode, GlobalCoordinates, FEModel};
+use crate::fem::{FeNode, GlobalCoordinates, FEModel, FEType, FEData};
 use fem::finite_elements::truss::truss2n2ip::Truss2n2ip;
 use crate::extended_matrix::basic_matrix::basic_matrix::BasicMatrix;
 
 use std::mem;
 
 
-pub type ElementsNumbers = u16;
+pub type ElementsNumbers = u32;
 pub type ElementsValues = f64;
 
 
@@ -19,33 +19,37 @@ pub const TOLERANCE: ElementsValues = 1e-9;
 
 fn main() -> Result<(), String>
 {
+    let mut fe_model = FEModel::<ElementsNumbers,_>::create();
+    fe_model.add_node(1, 0.0, 0.0, 0.0);
+    fe_model.add_node(2, 4.0, 3.0, 0.0);
+    fe_model.add_node(3, 80.0, 0.0, 0.0);
+
+    fe_model.add_element(
+        FEType::Truss2n2ip,
+        vec![1, 2],
+        FEData { number: 1, nodes: Vec::new(), properties: vec![128000000.0, 0.0625] })?;
+    let m = fe_model.elements[0].extract_stiffness_matrix()?;
+    m.show_matrix();
+    println!();
+    println!("{:?}", fe_model.nodes);
+    println!();
+
+    fe_model.add_node(4, 3.0, 3.0, 3.0);
+    fe_model.update_node(2, 4.0, 0.0, 0.0)?;
+    let m = fe_model.elements[0].extract_stiffness_matrix()?;
+    m.show_matrix();
+    println!();
+    println!("{:?}", fe_model.elements[0].extract_stiffness_groups());
+    println!();
+    fe_model.add_element(
+        FEType::Truss2n2ip,
+        vec![3, 1],
+        FEData { number: 2, nodes: Vec::new(), properties: vec![1e6, 1.0, 9.0] })?;
+    let m = fe_model.elements[1].extract_stiffness_matrix()?;
+    m.show_matrix();
 
 
-    let mut fe_model = FEModel::create();
-    let node_1 = FeNode::create(1u16, 0.0, 0.0, 0.0);
-    fe_model.add_node(node_1);
-    let node_2 = FeNode::create(2u16, 4.0, 3.0, 0.0);
-    fe_model.add_node(node_2);
-    let node_3 = FeNode::create(3u16, 80.0, 0.0, 0.0);
-    fe_model.add_node(node_3);
 
-    fe_model.add_element(1u16, 1u16, 2u16,
-    128000000.0, 0.0625, None)?;
-
-    // fe_model.add_element(2u16, 10u16, 2u16,
-    // 128000000.0, 0.0625, None)?;
-
-
-    // let mut elem_1 = Truss2n2ip::create(
-    // 1u16, &fe_model.nodes[0], &fe_model.nodes[1],
-    // 128000000.0, 0.0625, Some(0.0625)).unwrap();
-    // fe_model.elements = Some(vec![elem_1]);
-
-    // fe_model.update_node(3u16, 0.0, 3.0, 0.0)?;
-    //
-    let node_4 = FeNode::create(4u16, 3.0, 3.0, 3.0);
-    fe_model.add_node(node_4);
-    //
     // println!("{:?}", fe_model.nodes);
 
 

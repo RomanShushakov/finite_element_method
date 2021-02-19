@@ -1,26 +1,30 @@
-use crate::fem::{FeNode, Truss2n2ip};
+use crate::fem::FiniteElement;
+use crate::fem::{FeNode, Truss2n2ip, FEData, FECreator};
+use crate::fem::{FEType};
 use crate::{ElementsNumbers, ElementsValues};
 
 use std::ops::{Sub, Div, Rem, SubAssign, Mul, Add, AddAssign, MulAssign};
 use std::hash::Hash;
 use std::fmt::Debug;
-use crate::extended_matrix::One;
+use std::rc::Rc;
+use std::cell::RefCell;
+use std::borrow::Borrow;
 
 
-pub struct FEModel<'a, T, V>
+pub struct FEModel<T, V>
 {
-    pub nodes: Vec<FeNode<T, V>>,
-    pub elements: Vec<Truss2n2ip<'a, T, V>>,
+    pub nodes: Vec<Rc<RefCell<FeNode<T, V>>>>,
+    pub elements: Vec<Box<dyn FiniteElement<T, V>>>,
 }
 
 
-impl<'a, T, V> FEModel<'a, T, V>
+impl<T, V> FEModel<T, V>
     where T: Copy + PartialEq + Into<ElementsNumbers> + Sub<Output = T> + Div<Output = T> +
              Rem<Output = T> + From<ElementsNumbers> + Eq + Hash + SubAssign + Debug +
              Mul<Output = T> + PartialOrd + Default + Add<Output = T> + 'static,
           V: Copy + From<ElementsValues> + Sub<Output = V> + Default + Mul<Output = V> +
              Add<Output = V> + Div<Output = V> + PartialEq + Debug + AddAssign + MulAssign +
-             SubAssign + One + Into<ElementsValues> + 'static
+             SubAssign + Into<ElementsValues> + 'static
 {
     pub fn create() -> Self
     {
@@ -28,49 +32,51 @@ impl<'a, T, V> FEModel<'a, T, V>
     }
 
 
-    pub fn add_node(&mut self, node: FeNode<T, V>)
+    pub fn add_node(&mut self, number: T, x: V, y: V, z: V)
     {
-        self.nodes.push(node);
+        let node = FeNode::create(number, x, y, z);
+        self.nodes.push(Rc::new(RefCell::new(node)));
     }
 
 
     pub fn update_node(&mut self, number: T, x: V, y: V, z: V) -> Result<(), String>
     {
         if let Some(position) = self.nodes.iter().position(|node|
-            node.number == number)
+            node.as_ref().borrow().number == number)
         {
-            self.nodes[position].update(x, y, z);
+            self.nodes[position].borrow_mut().update(x, y, z);
+            for element in self.elements
+                .iter_mut()
+                .filter(|element| element.node_belong_element(number))
+            {
+                element.refresh()?;
+            }
             return Ok(());
         }
         Err(format!("FEModel: Node {} could not be updated!", number.into()))
     }
 
 
-    pub fn add_element(&'a mut self, element_number: T, node_1_number: T, node_2_number: T,
-        young_modulus: V, area: V, area_2: Option<V>) -> Result<(), String>
+    pub fn add_element(&mut self, element_type: FEType, nodes_numbers: Vec<T>,
+        mut data: FEData<T, V>) -> Result<(), String>
     {
-        if let Some(pos_1) = self.nodes.iter().position(|node|
-            node.number == node_1_number)
+        for node_number in nodes_numbers.iter()
         {
-            if let Some(pos_2) = self.nodes.iter().position(|node|
-                node.number == node_2_number)
+            if let Some(position) = self.nodes.iter().position(|node|
+                node.as_ref().borrow().number == *node_number)
             {
-
-                let element = Truss2n2ip::create(
-                    element_number, &self.nodes[pos_1], &self.nodes[pos_2],
-                    young_modulus, area, area_2)?;
-                self.elements.push(element);
+                data.nodes.push(Rc::clone(&self.nodes[position]));
             }
-            else
-            {
-                return Err(format!("FEModel: Element {} could not be added! Node {} does not exist!",
-                               element_number.into(), node_2_number.into()));
-            }
+        }
+        if nodes_numbers.len() == data.nodes.len()
+        {
+            let element = FECreator::create(element_type, data)?;
+            self.elements.push(element);
         }
         else
         {
-            return Err(format!("FEModel: Element {} could not be added! Node {} does not exist!",
-                               element_number.into(), node_1_number.into()));
+            return Err(format!("FEModel: Element {} could not be added! Some node does not exist!",
+                               data.number.into()));
         }
         Ok(())
     }

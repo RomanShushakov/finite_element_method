@@ -7,7 +7,6 @@ use crate::extended_matrix::aux_functions_extended_matrix::
     {
         matrices_dimensions_conformity_check, extract_element_value, remove_zero_values
     };
-use crate::extended_matrix::aux_traits_extended_matrix::{One};
 use crate::{ElementsNumbers, ElementsValues, TOLERANCE};
 
 use std::fmt::Debug;
@@ -35,8 +34,8 @@ impl<T, V> ExtendedMatrix<T, V>
              PartialOrd + Add + Sub + Add<Output = T> + Sub<Output = T> + Default + Div + Rem +
              Div<Output = T> + Rem<Output = T> + Eq + Hash + SubAssign + 'static,
           V: Copy + Debug + PartialEq + Default + AddAssign + MulAssign + Mul<Output = V> +
-             Div<Output = V> + SubAssign + One + Sub<Output = V> + Into<ElementsValues> +
-             Add<Output = V> + 'static,
+             Div<Output = V> + SubAssign + Sub<Output = V> + Into<ElementsValues> +
+             From<ElementsValues> + Add<Output = V> + 'static,
 {
     pub fn show_matrix(&self)
     {
@@ -250,7 +249,7 @@ impl<T, V> ExtendedMatrix<T, V>
         for i in 0..shape.0.into()
         {
             l_elements_indexes.push(T::from(i) * shape.1 + T::from(i));
-            l_elements_values.push(V::one());
+            l_elements_values.push(V::from(1.0));
         }
         let mut all_elements_values =
             self.basic_matrix.extract_all_elements_values();
@@ -323,7 +322,7 @@ impl<T, V> ExtendedMatrix<T, V>
         let u_matrix_elements_values = u_matrix.basic_matrix
             .extract_all_elements_values();
         let shape = u_matrix.basic_matrix.get_shape();
-        let mut determinant = V::one();
+        let mut determinant = V::from(1.0);
         for i in 0..shape.0.into()
         {
             let current_diag_element_value = extract_element_value(
@@ -343,7 +342,7 @@ impl<T, V> ExtendedMatrix<T, V>
         for k in 0..shape.1.into()
         {
             let unit_column_indexes = vec![T::from(k)];
-            let unit_column_values = vec![V::one()];
+            let unit_column_values = vec![V::from(1.0)];
             let basic_unit_column = Box::new(NonSymmetricMatrix
             {
                 rows_number: shape.1, columns_number: T::from(1),

@@ -1,11 +1,9 @@
 pub mod basic_matrix;
 pub mod extended_matrix;
 pub mod aux_functions_extended_matrix;
-pub mod aux_traits_extended_matrix;
 
 pub use crate::extended_matrix::extended_matrix::ExtendedMatrix;
 pub use crate::extended_matrix::extended_matrix::Operation;
-pub use crate::extended_matrix::aux_traits_extended_matrix::One;
 pub use crate::extended_matrix::aux_functions_extended_matrix::
     {
         matrices_dimensions_conformity_check, extract_element_value, remove_zero_values
