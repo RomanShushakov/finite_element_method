@@ -1,5 +1,4 @@
-use crate::fem::FiniteElement;
-use crate::fem::{FeNode, Truss2n2ip, FEData, FECreator};
+use crate::fem::{FeNode, FEData, FiniteElement};
 use crate::fem::{FEType};
 use crate::{ElementsNumbers, ElementsValues};
 
@@ -8,13 +7,12 @@ use std::hash::Hash;
 use std::fmt::Debug;
 use std::rc::Rc;
 use std::cell::RefCell;
-use std::borrow::Borrow;
 
 
 pub struct FEModel<T, V>
 {
     pub nodes: Vec<Rc<RefCell<FeNode<T, V>>>>,
-    pub elements: Vec<Box<dyn FiniteElement<T, V>>>,
+    pub elements: Vec<FiniteElement<T, V>>,
 }
 
 
@@ -47,7 +45,8 @@ impl<T, V> FEModel<T, V>
             self.nodes[position].borrow_mut().update(x, y, z);
             for element in self.elements
                 .iter_mut()
-                .filter(|element| element.node_belong_element(number))
+                .filter(|element|
+                    element.node_belong_element(number))
             {
                 element.refresh()?;
             }
@@ -70,7 +69,7 @@ impl<T, V> FEModel<T, V>
         }
         if nodes_numbers.len() == data.nodes.len()
         {
-            let element = FECreator::create(element_type, data)?;
+            let element = FiniteElement::create(element_type, data)?;
             self.elements.push(element);
         }
         else

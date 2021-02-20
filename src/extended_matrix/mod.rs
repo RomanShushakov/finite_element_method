@@ -8,7 +8,7 @@ pub use crate::extended_matrix::aux_functions_extended_matrix::
     {
         matrices_dimensions_conformity_check, extract_element_value, remove_zero_values
     };
-pub use crate::extended_matrix::basic_matrix::basic_matrix::BasicMatrix;
+pub use crate::extended_matrix::basic_matrix::basic_matrix::BasicMatrixTrait;
 pub use crate::extended_matrix::basic_matrix::basic_matrix::
     {
         Shape, ZerosRowColumn, MatrixElementPosition

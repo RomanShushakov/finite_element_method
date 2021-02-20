@@ -1,4 +1,4 @@
-use crate::extended_matrix::BasicMatrix;
+use crate::extended_matrix::BasicMatrixTrait;
 use crate::extended_matrix::
     {
         MatrixElementPosition, Shape, ZerosRowColumn, NonSymmetricMatrix
@@ -25,7 +25,7 @@ pub struct SymmetricMatrix<T, V>
 }
 
 
-impl<T, V> BasicMatrix<T, V> for SymmetricMatrix<T, V>
+impl<T, V> BasicMatrixTrait<T, V> for SymmetricMatrix<T, V>
     where T: Copy + PartialOrd + Sub<Output = T> + Add<Output = T> + Mul<Output = T> +
              Div<Output = T> + Debug + Rem<Output = T> + Eq + Hash + Into<ElementsNumbers> +
              From<ElementsNumbers> + SubAssign + Default + 'static,
@@ -131,7 +131,7 @@ impl<T, V> BasicMatrix<T, V> for SymmetricMatrix<T, V>
     }
 
 
-    fn into_symmetric(self) -> Box<dyn BasicMatrix<T, V>>
+    fn into_symmetric(self) -> Box<dyn BasicMatrixTrait<T, V>>
     {
         Box::new(self)
     }
@@ -171,7 +171,7 @@ impl<T, V> BasicMatrix<T, V> for SymmetricMatrix<T, V>
     }
 
 
-    fn remove_zeros_row(&mut self, row: T) -> Box<dyn BasicMatrix<T, V>>
+    fn remove_zeros_row(&mut self, row: T) -> Box<dyn BasicMatrixTrait<T, V>>
     {
         let symmetric_matrix = self.clone();
         let mut non_symmetric_matrix = symmetric_matrix.non_symmetric();

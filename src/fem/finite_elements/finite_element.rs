@@ -1,12 +1,12 @@
 use crate::fem::{FeNode, Truss2n2ip};
 use crate::{ElementsNumbers, ElementsValues};
+use crate::extended_matrix::{ExtendedMatrix, MatrixElementPosition};
 
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::ops::{Sub, Div, Rem, SubAssign, Mul, Add, AddAssign, MulAssign};
 use std::hash::Hash;
 use std::fmt::Debug;
-use crate::extended_matrix::ExtendedMatrix;
 
 
 #[derive(Debug)]
@@ -25,10 +25,11 @@ pub struct StiffnessGroup<T>
     pub stiffness_type: StiffnessType,
     pub number_1: T,
     pub number_2: T,
-    pub indexes: Vec<T>
+    pub positions: Vec<MatrixElementPosition<T>>
 }
 
 
+#[derive(Clone)]
 pub enum FEType
 {
     Truss2n2ip
@@ -43,7 +44,7 @@ pub struct FEData<T, V>
 }
 
 
-pub trait FiniteElement<T, V>
+pub trait FiniteElementTrait<T, V>
 {
     fn update(&mut self, data: FEData<T, V>) -> Result<(), &str>;
     fn extract_stiffness_matrix(&self) -> Result<ExtendedMatrix<T, V>, &str>;
@@ -53,7 +54,7 @@ pub trait FiniteElement<T, V>
 }
 
 
-pub struct FECreator<T, V>(T, V);
+struct FECreator<T, V>(T, V);
 
 
 impl<T, V> FECreator<T, V>
@@ -64,7 +65,8 @@ impl<T, V> FECreator<T, V>
              Mul<Output = V> + Add<Output = V> + Div<Output = V> + PartialEq + Debug + AddAssign +
              MulAssign + SubAssign + 'static,
 {
-    pub fn create<'a>(fe_type: FEType, data: FEData<T, V>) -> Result<Box<dyn FiniteElement<T, V>>, &'a str>
+    fn create<'a>(fe_type: FEType, data: FEData<T, V>)
+        -> Result<Box<dyn FiniteElementTrait<T, V>>, &'a str>
     {
         match fe_type
         {
@@ -92,5 +94,62 @@ impl<T, V> FECreator<T, V>
                     }
                 }
         }
+    }
+}
+
+
+pub struct FiniteElement<T, V>
+{
+    pub element_type: FEType,
+    pub element: Box<dyn FiniteElementTrait<T, V>>,
+}
+
+
+impl<T, V> FiniteElement<T, V>
+    where T: Copy + Sub<Output = T> + Div<Output = T> + Rem<Output = T> + From<ElementsNumbers> +
+             Into<ElementsNumbers> + Eq + Hash + SubAssign + Debug + Mul<Output = T> + PartialOrd +
+             Default + Add<Output = T> + 'static,
+          V: Copy + From<ElementsValues> + Into<ElementsValues> + Sub<Output = V> + Default +
+             Mul<Output = V> + Add<Output = V> + Div<Output = V> + PartialEq + Debug + AddAssign +
+             MulAssign + SubAssign + 'static,
+{
+    pub fn create<'a>(fe_type: FEType, data: FEData<T, V>) -> Result<Self, &'a str>
+    {
+        let element_type = fe_type.clone();
+        let element = FECreator::create(fe_type, data)?;
+        Ok(FiniteElement { element_type, element })
+    }
+
+
+    pub fn update(&mut self, data: FEData<T, V>) -> Result<(), &str>
+    {
+        self.element.update(data)?;
+        Ok(())
+    }
+
+
+    pub fn extract_stiffness_matrix(&self) -> Result<ExtendedMatrix<T, V>, &str>
+    {
+        let stiffness_matrix = self.element.extract_stiffness_matrix()?;
+        Ok(stiffness_matrix)
+    }
+
+
+    pub fn extract_stiffness_groups(&self) -> Vec<StiffnessGroup<T>>
+    {
+        self.element.extract_stiffness_groups()
+    }
+
+
+    pub fn node_belong_element(&self, node_number: T) -> bool
+    {
+        self.element.node_belong_element(node_number)
+    }
+
+
+    pub fn refresh(&mut self) -> Result<(), &str>
+    {
+        self.element.refresh()?;
+        Ok(())
     }
 }

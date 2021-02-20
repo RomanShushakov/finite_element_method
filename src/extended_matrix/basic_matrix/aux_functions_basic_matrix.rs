@@ -1,4 +1,4 @@
-use crate::extended_matrix::{BasicMatrix};
+use crate::extended_matrix::{BasicMatrixTrait};
 use crate::extended_matrix::{SymmetricMatrix, NonSymmetricMatrix};
 
 use std::fmt::Debug;
@@ -27,12 +27,12 @@ pub fn extract_value_by_index<T, V>(requested_index: T, indexes: &[T], values: &
     }
     else
     {
-        Default::default()
+        V::default()
     }
 }
 
 
-pub fn return_symmetric_matrix_struct<T, V>(boxed_struct: Box<dyn BasicMatrix<T, V>>)
+pub fn return_symmetric_matrix_struct<T, V>(boxed_struct: Box<dyn BasicMatrixTrait<T, V>>)
     -> SymmetricMatrix<T, V>
     where T: Copy + 'static,
           V: Copy + 'static
@@ -51,7 +51,7 @@ pub fn return_symmetric_matrix_struct<T, V>(boxed_struct: Box<dyn BasicMatrix<T,
 }
 
 
-pub fn return_non_symmetric_matrix_struct<T, V>(boxed_struct: Box<dyn BasicMatrix<T, V>>)
+pub fn return_non_symmetric_matrix_struct<T, V>(boxed_struct: Box<dyn BasicMatrixTrait<T, V>>)
     -> NonSymmetricMatrix<T, V>
     where T: Copy + Debug + Default + 'static,
           V: Copy + Debug + Default + 'static

@@ -5,12 +5,12 @@ use extended_matrix::{return_symmetric_matrix_struct, return_non_symmetric_matri
 mod fem;
 use crate::fem::{FeNode, GlobalCoordinates, FEModel, FEType, FEData};
 use fem::finite_elements::truss::truss2n2ip::Truss2n2ip;
-use crate::extended_matrix::basic_matrix::basic_matrix::BasicMatrix;
+use crate::extended_matrix::basic_matrix::basic_matrix::BasicMatrixTrait;
 
 use std::mem;
 
 
-pub type ElementsNumbers = u32;
+pub type ElementsNumbers = u16;
 pub type ElementsValues = f64;
 
 
@@ -30,14 +30,16 @@ fn main() -> Result<(), String>
         FEData { number: 1, nodes: Vec::new(), properties: vec![128000000.0, 0.0625] })?;
     let m = fe_model.elements[0].extract_stiffness_matrix()?;
     m.show_matrix();
+    println!("{:?}", m.basic_matrix.define_type());
     println!();
     println!("{:?}", fe_model.nodes);
     println!();
 
     fe_model.add_node(4, 3.0, 3.0, 3.0);
-    fe_model.update_node(2, 4.0, 0.0, 0.0)?;
+    fe_model.update_node(2, 0.0, 3.0, 0.0)?;
     let m = fe_model.elements[0].extract_stiffness_matrix()?;
     m.show_matrix();
+    println!("{:?}", m.basic_matrix.define_type());
     println!();
     println!("{:?}", fe_model.elements[0].extract_stiffness_groups());
     println!();
@@ -47,41 +49,5 @@ fn main() -> Result<(), String>
         FEData { number: 2, nodes: Vec::new(), properties: vec![1e6, 1.0, 9.0] })?;
     let m = fe_model.elements[1].extract_stiffness_matrix()?;
     m.show_matrix();
-
-
-
-    // println!("{:?}", fe_model.nodes);
-
-
-    // match fe_model.update_node(2u16, 0.0, 3.0, 0.0)
-    // {
-    //     Ok(_) => println!("Ok"),
-    //     Err(e) => println!("{}", e),
-    // }
-
-    // if let Some(mut elements) = fe_model.elements
-    // {
-    //     elements[0].state.rotation_matrix.show_matrix();
-    //     println!();
-    //     // elements[0].update(&fe_model.nodes[0], &fe_model.nodes[2],
-    //     // 128000000.0, 0.0625, Some(0.0625));
-    //     // elements[0].state.rotation_matrix.show_matrix();
-    // }
-    //
-
-
     Ok(())
-
-    // fe_model.elements.unwrap()[0].update(&fe_model.nodes[0], &fe_model.nodes[2],
-    // 128000000.0, 0.0625, Some(0.0625));
-    // elem.state.local_stiffness_matrix.show_matrix();
-    // println!();
-    // let matrix = elem.extract_stiffness_matrix().unwrap();
-    // matrix.show_matrix();
-    // println!();
-    // println!("{:?}", matrix.basic_matrix.define_type());
-    // println!();
-    // let stiffness_groups = elem.extract_stiffness_groups();
-    // println!("{:?}", stiffness_groups);
-
 }

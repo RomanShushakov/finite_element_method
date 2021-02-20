@@ -1,8 +1,8 @@
-use crate::fem::{FiniteElement};
+use crate::fem::{FiniteElementTrait};
 use crate::fem::{GlobalCoordinates, FeNode, StiffnessGroup, FEData};
 use crate::fem::StiffnessType;
 use crate::fem::compare_with_tolerance;
-use crate::extended_matrix::{ExtendedMatrix};
+use crate::extended_matrix::{ExtendedMatrix, MatrixElementPosition};
 use crate::{ElementsNumbers, ElementsValues};
 
 use std::rc::Rc;
@@ -321,43 +321,47 @@ impl<T, V> Truss2n2ip<T, V>
     pub fn extract_stiffness_groups(&self) -> Vec<StiffnessGroup<T>>
     {
         let (rows_number, columns_number) = (T::from(6), T::from(6));
-        let mut indexes_1_1 = Vec::new();
-        let mut indexes_1_2 = Vec::new();
-        let mut indexes_2_1 = Vec::new();
-        let mut indexes_2_2 = Vec::new();
+        let mut positions_1_1 = Vec::new();
+        let mut positions_1_2 = Vec::new();
+        let mut positions_2_1 = Vec::new();
+        let mut positions_2_2 = Vec::new();
         for i in 0..(rows_number * columns_number).into()
         {
+            let position = MatrixElementPosition { row: T::from(i) / columns_number,
+                column: T::from(i) % columns_number };
             let row = T::from(i) / columns_number;
             let column = T::from(i) % columns_number;
             if row < T::from(3) && column < T::from(3)
             {
-                indexes_1_1.push(T::from(i));
+                positions_1_1.push(position);
             }
             else if row < T::from(3) && column >= T::from(3)
             {
-                indexes_1_2.push(T::from(i));
+                positions_1_2.push(position);
             }
             else if row >= T::from(3) && column < T::from(3)
             {
-                indexes_2_1.push(T::from(i));
+                positions_2_1.push(position);
             }
             else
             {
-                indexes_2_2.push(T::from(i));
+                positions_2_2.push(position);
             }
         }
         vec![StiffnessGroup { stiffness_type: StiffnessType::Kuu,
                 number_1: self.node_1.as_ref().borrow().number,
-                number_2: self.node_1.as_ref().borrow().number, indexes: indexes_1_1, },
-            StiffnessGroup { stiffness_type: StiffnessType::Kuu,
+                number_2: self.node_1.as_ref().borrow().number, positions: positions_1_1, },
+             StiffnessGroup { stiffness_type: StiffnessType::Kuu,
                 number_1: self.node_1.as_ref().borrow().number,
-                number_2: self.node_2.as_ref().borrow().number, indexes: indexes_1_2, },
-            StiffnessGroup { stiffness_type: StiffnessType::Kuu,
+                number_2: self.node_2.as_ref().borrow().number, positions: positions_1_2, },
+             StiffnessGroup { stiffness_type: StiffnessType::Kuu,
                 number_1: self.node_2.as_ref().borrow().number,
-                number_2: self.node_1.as_ref().borrow().number, indexes: indexes_2_1 },
-            StiffnessGroup { stiffness_type: StiffnessType::Kuu,
+                number_2: self.node_1.as_ref().borrow().number, positions: positions_2_1
+             },
+             StiffnessGroup { stiffness_type: StiffnessType::Kuu,
                 number_1: self.node_2.as_ref().borrow().number,
-                number_2: self.node_2.as_ref().borrow().number, indexes: indexes_2_2 }, ]
+                number_2: self.node_2.as_ref().borrow().number, positions: positions_2_2
+             }, ]
     }
 
 
@@ -390,7 +394,7 @@ impl<T, V> Truss2n2ip<T, V>
 }
 
 
-impl<T, V> FiniteElement<T, V> for Truss2n2ip<T, V>
+impl<T, V> FiniteElementTrait<T, V> for Truss2n2ip<T, V>
     where T: Copy + Add<Output = T> + Sub<Output = T> + Div<Output = T> + Rem<Output = T> +
              Mul<Output = T> + From<ElementsNumbers> + Into<ElementsNumbers> + Eq + Hash + Debug +
              SubAssign + PartialOrd + Default + 'static,

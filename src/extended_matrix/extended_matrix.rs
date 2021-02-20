@@ -1,4 +1,4 @@
-use crate::extended_matrix::BasicMatrix;
+use crate::extended_matrix::BasicMatrixTrait;
 use crate::extended_matrix::
     {
         NonSymmetricMatrix, MatrixElementPosition, ZerosRowColumn
@@ -25,7 +25,7 @@ pub enum Operation
 #[derive(Clone)]
 pub struct ExtendedMatrix<T, V>
 {
-    pub basic_matrix: Box<dyn BasicMatrix<T, V>>
+    pub basic_matrix: Box<dyn BasicMatrixTrait<T, V>>
 }
 
 
@@ -80,12 +80,6 @@ impl<T, V> ExtendedMatrix<T, V>
     }
 
 
-    pub fn multiply_by_number(&mut self, number: V)
-    {
-        self.basic_matrix.multiply_by_number(number);
-    }
-
-
     pub fn add<'a>(&'a self, other: &'a Self) -> Result<Self, &'a str>
     {
         let (_, shape) = matrices_dimensions_conformity_check(&self, &other,
@@ -120,6 +114,68 @@ impl<T, V> ExtendedMatrix<T, V>
             });
         let basic_matrix = basic_matrix.into_symmetric();
         Ok(ExtendedMatrix { basic_matrix })
+    }
+
+
+    pub fn add_sub_matrix(&mut self, other: &Self, self_positions: &[MatrixElementPosition<T>],
+        other_positions: &[MatrixElementPosition<T>])
+    {
+        let lhs_shape = self.basic_matrix.get_shape();
+        let lhs_all_elements_values =
+            self.basic_matrix.extract_all_elements_values();
+        let rhs_all_elements_values =
+            other.basic_matrix.extract_all_elements_values();
+        let mut elements_indexes = Vec::new();
+        let mut elements_values = Vec::new();
+        for (lhs_position, rhs_position) in
+            self_positions.iter().zip(other_positions)
+        {
+            let mut value = V::default();
+            let current_lhs_element_value = extract_element_value(
+                    lhs_position.row, lhs_position.column,
+                    &lhs_all_elements_values
+                );
+            let current_rhs_element_value = extract_element_value(
+                    rhs_position.row, rhs_position.column,
+                    &rhs_all_elements_values
+                );
+            value += current_lhs_element_value + current_rhs_element_value;
+            if value.into().abs() > TOLERANCE
+            {
+                elements_indexes.push(lhs_position.row * lhs_shape.1 + lhs_position.column);
+                elements_values.push(value);
+            }
+        }
+        for index in 0..(lhs_shape.0 * lhs_shape.1).into()
+        {
+            if let None = self_positions.iter().position(|position|
+                *position == MatrixElementPosition { row: T::from(index) / lhs_shape.1,
+                    column: T::from(index) % lhs_shape.1 })
+            {
+                let value = extract_element_value(
+                    T::from(index) / lhs_shape.1, T::from(index) % lhs_shape.1,
+                    &lhs_all_elements_values
+                );
+                if value.into().abs() > TOLERANCE
+                {
+                    elements_indexes.push(T::from(index));
+                    elements_values.push(value);
+                }
+            }
+        }
+        let basic_matrix = Box::new(NonSymmetricMatrix
+            {
+                rows_number: lhs_shape.0, columns_number: lhs_shape.1, elements_indexes,
+                elements_values
+            });
+        let basic_matrix = basic_matrix.into_symmetric();
+        self.basic_matrix = basic_matrix;
+    }
+
+
+    pub fn multiply_by_number(&mut self, number: V)
+    {
+        self.basic_matrix.multiply_by_number(number);
     }
 
 
