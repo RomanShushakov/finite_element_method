@@ -51,6 +51,7 @@ pub trait FiniteElementTrait<T, V>
     fn extract_stiffness_groups(&self) -> Vec<StiffnessGroup<T>>;
     fn node_belong_element(&self, node_number: T) -> bool;
     fn refresh(&mut self) -> Result<(), &str>;
+    fn number_same(&self, number: T) -> bool;
 }
 
 
@@ -151,5 +152,11 @@ impl<T, V> FiniteElement<T, V>
     {
         self.element.refresh()?;
         Ok(())
+    }
+
+
+    pub fn number_same(&self, number: T) -> bool
+    {
+        self.element.number_same(number)
     }
 }

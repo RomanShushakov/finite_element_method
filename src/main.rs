@@ -20,10 +20,9 @@ pub const TOLERANCE: ElementsValues = 1e-9;
 fn main() -> Result<(), String>
 {
     let mut fe_model = FEModel::<ElementsNumbers,_>::create();
-    fe_model.add_node(1, 0.0, 0.0, 0.0);
-    fe_model.add_node(2, 4.0, 3.0, 0.0);
-    fe_model.add_node(3, 80.0, 0.0, 0.0);
-
+    fe_model.add_node(1, 0.0, 0.0, 0.0)?;
+    fe_model.add_node(2, 4.0, 3.0, 0.0)?;
+    fe_model.add_node(3, 80.0, 0.0, 0.0)?;
     fe_model.add_element(
         FEType::Truss2n2ip,
         vec![1, 2],
@@ -35,7 +34,7 @@ fn main() -> Result<(), String>
     println!("{:?}", fe_model.nodes);
     println!();
 
-    fe_model.add_node(4, 3.0, 3.0, 3.0);
+    fe_model.add_node(4, 3.0, 3.0, 3.0)?;
     fe_model.update_node(2, 0.0, 3.0, 0.0)?;
     let m = fe_model.elements[0].extract_stiffness_matrix()?;
     m.show_matrix();
@@ -49,5 +48,15 @@ fn main() -> Result<(), String>
         FEData { number: 2, nodes: Vec::new(), properties: vec![1e6, 1.0, 9.0] })?;
     let m = fe_model.elements[1].extract_stiffness_matrix()?;
     m.show_matrix();
+    println!();
+    fe_model.delete_element(1)?;
+    fe_model.update_element(
+        vec![3, 3],
+        FEData { number: 2, nodes: Vec::new(), properties: vec![1.6e6, 3.0, 9.0] })?;
+    let m = fe_model.elements[0].extract_stiffness_matrix()?;
+    m.show_matrix();
+    println!();
+    println!("{}, {}", fe_model.nodes.len(), fe_model.elements.len());
+    println!();
     Ok(())
 }

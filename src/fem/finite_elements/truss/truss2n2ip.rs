@@ -445,4 +445,10 @@ impl<T, V> FiniteElementTrait<T, V> for Truss2n2ip<T, V>
         self.refresh()?;
         Ok(())
     }
+
+
+    fn number_same(&self, number: T) -> bool
+    {
+        self.number == number
+    }
 }
