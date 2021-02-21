@@ -7,15 +7,33 @@ use std::cell::RefCell;
 use std::ops::{Sub, Div, Rem, SubAssign, Mul, Add, AddAssign, MulAssign};
 use std::hash::Hash;
 use std::fmt::Debug;
+use std::slice::Iter;
+use self::StiffnessType::*;
 
 
-#[derive(Debug)]
+pub const STIFFNESS_TYPES_NUMBER: usize = 4;
+
+
+#[derive(Debug, Copy, Clone)]
 pub enum StiffnessType
 {
     Kuu,
     Kuth,
     Kthu,
     Kthth,
+}
+
+
+impl StiffnessType
+{
+    pub fn iterator() -> Iter<'static, StiffnessType>
+     {
+        static TYPES: [StiffnessType; STIFFNESS_TYPES_NUMBER] =
+            [
+                Kuu, Kuth, Kthu, Kthth,
+            ];
+        TYPES.iter()
+    }
 }
 
 

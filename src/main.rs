@@ -51,12 +51,19 @@ fn main() -> Result<(), String>
     println!();
     fe_model.delete_element(1)?;
     fe_model.update_element(
-        vec![3, 3],
+        vec![3, 2],
         FEData { number: 2, nodes: Vec::new(), properties: vec![1.6e6, 3.0, 9.0] })?;
     let m = fe_model.elements[0].extract_stiffness_matrix()?;
     m.show_matrix();
     println!();
     println!("{}, {}", fe_model.nodes.len(), fe_model.elements.len());
+    println!();
+    println!("{:?}", fe_model.stiffness_groups);
+    println!();
+    fe_model.delete_node(1)?;
+    println!("{:?}", fe_model.stiffness_groups);
+    fe_model.delete_node(3)?;
+    println!("{:?}", fe_model.stiffness_groups);
     println!();
     Ok(())
 }

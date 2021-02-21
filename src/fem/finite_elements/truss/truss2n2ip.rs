@@ -13,6 +13,10 @@ use std::cell::RefCell;
 use std::borrow::Borrow;
 
 
+const TRUSS_NODE_DOF: ElementsNumbers = 3;
+const TRUSS2N2IP_NODES_NUMBER: ElementsNumbers = 2;
+
+
 struct TrussAuxFunctions<T, V>(T, V);
 
 
@@ -74,15 +78,15 @@ impl<T, V> TrussAuxFunctions<T, V>
         let q_31 = compare_with_tolerance(t * x_n * z_n - y_n * s);
         let q_32 = compare_with_tolerance(t * y_n * z_n + x_n * s);
         let q_33 = compare_with_tolerance(t * z_n * z_n + c);
-        ExtendedMatrix::create(T::from(6),
-           T::from(6),
+        ExtendedMatrix::create(T::from(TRUSS2N2IP_NODES_NUMBER * TRUSS_NODE_DOF),
+           T::from(TRUSS2N2IP_NODES_NUMBER * TRUSS_NODE_DOF),
            vec![
-               [V::from(q_11), V::from(q_12), V::from(q_13)], [V::from(0.0); 3],
-               [V::from(q_21), V::from(q_22), V::from(q_23)], [V::from(0.0); 3],
-               [V::from(q_31), V::from(q_32), V::from(q_33)], [V::from(0.0); 3],
-               [V::from(0.0); 3], [V::from(q_11), V::from(q_12), V::from(q_13)],
-               [V::from(0.0); 3], [V::from(q_21), V::from(q_22), V::from(q_23)],
-               [V::from(0.0); 3], [V::from(q_31), V::from(q_32), V::from(q_33)],
+               [V::from(q_11), V::from(q_12), V::from(q_13)], [V::from(0.0); TRUSS_NODE_DOF as usize],
+               [V::from(q_21), V::from(q_22), V::from(q_23)], [V::from(0.0); TRUSS_NODE_DOF as usize],
+               [V::from(q_31), V::from(q_32), V::from(q_33)], [V::from(0.0); TRUSS_NODE_DOF as usize],
+               [V::from(0.0); TRUSS_NODE_DOF as usize], [V::from(q_11), V::from(q_12), V::from(q_13)],
+               [V::from(0.0); TRUSS_NODE_DOF as usize], [V::from(q_21), V::from(q_22), V::from(q_23)],
+               [V::from(0.0); TRUSS_NODE_DOF as usize], [V::from(q_31), V::from(q_32), V::from(q_33)],
            ].concat())
     }
 
@@ -162,7 +166,7 @@ impl<T, V> TrussAuxFunctions<T, V>
         let elements = vec![TrussAuxFunctions::<T, V>::dh1_dr(r), V::from(0.0),
             V::from(0.0), TrussAuxFunctions::<T, V>::dh2_dr(r), V::from(0.0), V::from(0.0)];
         let mut matrix = ExtendedMatrix::create(T::from(1),
-            T::from(6), elements);
+            T::from(TRUSS2N2IP_NODES_NUMBER * TRUSS_NODE_DOF), elements);
         let inverse_jacobian = TrussAuxFunctions::inverse_jacobian(node_1, node_2, r);
         matrix.multiply_by_number(inverse_jacobian);
         matrix
@@ -260,7 +264,10 @@ impl<T, V> Truss2n2ip<T, V>
         let integration_points = vec![integration_point_1, integration_point_2];
         let mut local_stiffness_matrix =
             ExtendedMatrix::create(
-                T::from(6), T::from(6), vec![V::from(0.0); 36]);
+                T::from(TRUSS2N2IP_NODES_NUMBER * TRUSS_NODE_DOF),
+                T::from(TRUSS2N2IP_NODES_NUMBER * TRUSS_NODE_DOF),
+                vec![V::from(0.0); (TRUSS2N2IP_NODES_NUMBER * TRUSS_NODE_DOF *
+                    TRUSS2N2IP_NODES_NUMBER * TRUSS_NODE_DOF) as usize ]);
         for integration_point in &integration_points
         {
             let matrix = TrussAuxFunctions::local_stiffness_matrix(
@@ -281,7 +288,10 @@ impl<T, V> Truss2n2ip<T, V>
             TrussAuxFunctions::rotation_matrix(Rc::clone(&node_1),
                                                Rc::clone(&node_2));
         let mut local_stiffness_matrix = ExtendedMatrix::create(
-                T::from(6), T::from(6), vec![V::from(0.0); 36]);
+                T::from(TRUSS2N2IP_NODES_NUMBER * TRUSS_NODE_DOF),
+                T::from(TRUSS2N2IP_NODES_NUMBER * TRUSS_NODE_DOF),
+                vec![V::from(0.0); (TRUSS2N2IP_NODES_NUMBER * TRUSS_NODE_DOF *
+                    TRUSS2N2IP_NODES_NUMBER * TRUSS_NODE_DOF) as usize]);
         for integration_point in &self.state.integration_points
         {
             let matrix = TrussAuxFunctions::local_stiffness_matrix(
@@ -320,7 +330,9 @@ impl<T, V> Truss2n2ip<T, V>
 
     pub fn extract_stiffness_groups(&self) -> Vec<StiffnessGroup<T>>
     {
-        let (rows_number, columns_number) = (T::from(6), T::from(6));
+        let (rows_number, columns_number) =
+            (T::from(TRUSS2N2IP_NODES_NUMBER * TRUSS_NODE_DOF),
+             T::from(TRUSS2N2IP_NODES_NUMBER * TRUSS_NODE_DOF));
         let mut positions_1_1 = Vec::new();
         let mut positions_1_2 = Vec::new();
         let mut positions_2_1 = Vec::new();
@@ -331,15 +343,15 @@ impl<T, V> Truss2n2ip<T, V>
                 column: T::from(i) % columns_number };
             let row = T::from(i) / columns_number;
             let column = T::from(i) % columns_number;
-            if row < T::from(3) && column < T::from(3)
+            if row < T::from(TRUSS_NODE_DOF) && column < T::from(TRUSS_NODE_DOF)
             {
                 positions_1_1.push(position);
             }
-            else if row < T::from(3) && column >= T::from(3)
+            else if row < T::from(TRUSS_NODE_DOF) && column >= T::from(TRUSS_NODE_DOF)
             {
                 positions_1_2.push(position);
             }
-            else if row >= T::from(3) && column < T::from(3)
+            else if row >= T::from(TRUSS_NODE_DOF) && column < T::from(TRUSS_NODE_DOF)
             {
                 positions_2_1.push(position);
             }
@@ -378,7 +390,10 @@ impl<T, V> Truss2n2ip<T, V>
             TrussAuxFunctions::rotation_matrix(Rc::clone(&self.node_1),
                                                Rc::clone(&self.node_2));
         let mut local_stiffness_matrix = ExtendedMatrix::create(
-                T::from(6), T::from(6), vec![V::from(0.0); 36]);
+                T::from(TRUSS2N2IP_NODES_NUMBER * TRUSS_NODE_DOF),
+                T::from(TRUSS2N2IP_NODES_NUMBER * TRUSS_NODE_DOF),
+                vec![V::from(0.0); (TRUSS2N2IP_NODES_NUMBER * TRUSS_NODE_DOF *
+                    TRUSS2N2IP_NODES_NUMBER * TRUSS_NODE_DOF) as usize]);
         for integration_point in &self.state.integration_points
         {
             let matrix = TrussAuxFunctions::local_stiffness_matrix(
