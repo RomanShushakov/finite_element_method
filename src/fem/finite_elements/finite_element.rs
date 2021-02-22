@@ -14,7 +14,7 @@ use self::StiffnessType::*;
 pub const STIFFNESS_TYPES_NUMBER: ElementsNumbers = 4 as ElementsNumbers;
 
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum StiffnessType
 {
     Kuu,
