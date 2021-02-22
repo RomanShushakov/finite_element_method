@@ -3,7 +3,7 @@ use extended_matrix::ExtendedMatrix;
 use extended_matrix::{return_symmetric_matrix_struct, return_non_symmetric_matrix_struct};
 
 mod fem;
-use crate::fem::{FeNode, GlobalCoordinates, FEModel, FEType, FEData};
+use crate::fem::{FeNode, GlobalCoordinates, FEModel, FEType, FEData, GLOBAL_DOF};
 use fem::finite_elements::truss::truss2n2ip::Truss2n2ip;
 use crate::extended_matrix::basic_matrix::basic_matrix::BasicMatrixTrait;
 
@@ -11,7 +11,7 @@ use std::mem;
 
 
 pub type ElementsNumbers = u16;
-pub type ElementsValues = f32;
+pub type ElementsValues = f64;
 
 
 pub const TOLERANCE: ElementsValues = 1e-6;
@@ -19,7 +19,7 @@ pub const TOLERANCE: ElementsValues = 1e-6;
 
 fn main() -> Result<(), String>
 {
-    let mut fe_model = FEModel::<ElementsNumbers,_>::create();
+    let mut fe_model = FEModel::<ElementsNumbers,ElementsValues>::create();
     fe_model.add_node(1, 4.0, 0.0, 0.0)?;
     fe_model.add_node(2, 4.0, 3.0, 0.0)?;
     fe_model.add_node(3, 0.0, 0.0, 0.0)?;
@@ -36,34 +36,7 @@ fn main() -> Result<(), String>
         FEType::Truss2n2ip,
         vec![2, 4],
         FEData { number: 3, nodes: Vec::new(), properties: vec![128000000.0, 0.0625] })?;
-    let mut global_stiffness_matrix = ExtendedMatrix::create(
-        24 as ElementsNumbers,
-        24 as ElementsNumbers,
-        vec![0.0; 24 * 24]);
-    for element in &fe_model.elements
-    {
-        let element_stiffness_matrix = element.extract_stiffness_matrix()?;
-        let element_stiffness_groups = element.extract_stiffness_groups();
-        for element_stiffness_group in element_stiffness_groups
-        {
-            if let Some(position) = fe_model.stiffness_groups
-                .iter()
-                .position(|group|
-                              { group.stiffness_type == element_stiffness_group.stiffness_type &&
-                                group.number_1 == element_stiffness_group.number_1 &&
-                                group.number_2 == element_stiffness_group.number_2 })
-            {
-
-                global_stiffness_matrix.add_sub_matrix(
-                    &element_stiffness_matrix,
-                    fe_model.stiffness_groups[position].positions.as_slice(),
-                    element_stiffness_group.positions.as_slice());
-
-            }
-        }
-
-
-    }
+    let mut global_stiffness_matrix = fe_model.compose_global_stiffness_matrix()?;
     global_stiffness_matrix.remove_zeros_rows_columns();
     global_stiffness_matrix.show_matrix();
 

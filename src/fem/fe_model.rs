@@ -11,6 +11,7 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::iter::FromIterator;
+use crate::extended_matrix::ExtendedMatrix;
 
 
 pub const GLOBAL_DOF: ElementsNumbers = 6;
@@ -175,6 +176,13 @@ impl<T, V> FEModel<T, V>
             return Err(format!("FEModel: Element {} could not be added! All nodes numbers \
                 should be unique!", data.number.into()));
         }
+        if self.elements.iter().position(|element|
+            element.element_type == element_type &&
+            element.nodes_numbers_same(nodes_numbers.clone())).is_some()
+        {
+            return Err(format!("FEModel: Element {} could not be added! The element with the same \
+                type and with same nodes numbers is already exist!", data.number.into()));
+        }
         for node_number in nodes_numbers.iter()
         {
             if let Some(position) = self.nodes.iter().position(|node|
@@ -248,5 +256,43 @@ impl<T, V> FEModel<T, V>
         }
         Err(format!("FEModel: Element {} could not be deleted because it does not exist!",
                     number.into()))
+    }
+
+
+    pub fn compose_global_stiffness_matrix(&self) -> Result<ExtendedMatrix<T, V>, &str>
+    {
+        if self.elements.is_empty()
+        {
+            return Err("FEModel: Global stiffness matrix could not be composed because there are \
+                no elements in the model!");
+        }
+        let mut global_stiffness_matrix = ExtendedMatrix::create(
+            T::from(self.nodes.len() as ElementsNumbers * GLOBAL_DOF),
+            T::from(self.nodes.len() as ElementsNumbers * GLOBAL_DOF),
+            vec![V::default(); (self.nodes.len() as ElementsNumbers * GLOBAL_DOF *
+                self.nodes.len() as ElementsNumbers * GLOBAL_DOF) as usize]);
+        for element in &self.elements
+        {
+            let element_stiffness_matrix = element.extract_stiffness_matrix()?;
+            let element_stiffness_groups = element.extract_stiffness_groups();
+            for element_stiffness_group in element_stiffness_groups
+            {
+                if let Some(position) = self.stiffness_groups
+                    .iter()
+                    .position(|group|
+                        { group.stiffness_type == element_stiffness_group.stiffness_type &&
+                        group.number_1 == element_stiffness_group.number_1 &&
+                        group.number_2 == element_stiffness_group.number_2 })
+                {
+
+                    global_stiffness_matrix.add_sub_matrix(
+                        &element_stiffness_matrix,
+                        &self.stiffness_groups[position].positions,
+                        &element_stiffness_group.positions);
+
+                }
+            }
+        }
+        Ok(global_stiffness_matrix)
     }
 }

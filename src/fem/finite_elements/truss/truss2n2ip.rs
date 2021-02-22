@@ -222,23 +222,23 @@ struct IntegrationPoint<V>
 }
 
 
-pub struct State<T, V>
+struct State<T, V>
 {
-    pub rotation_matrix: ExtendedMatrix<T, V>,
+    rotation_matrix: ExtendedMatrix<T, V>,
     integration_points: Vec<IntegrationPoint<V>>,
-    pub local_stiffness_matrix: ExtendedMatrix<T, V>,
+    local_stiffness_matrix: ExtendedMatrix<T, V>,
 }
 
 
 pub struct Truss2n2ip<T, V>
 {
-    pub number: T,
-    pub node_1: Rc<RefCell<FeNode<T, V>>>,
-    pub node_2: Rc<RefCell<FeNode<T, V>>>,
-    pub young_modulus: V,
-    pub area: V,
-    pub area_2: Option<V>,
-    pub state: State<T, V>
+    number: T,
+    node_1: Rc<RefCell<FeNode<T, V>>>,
+    node_2: Rc<RefCell<FeNode<T, V>>>,
+    young_modulus: V,
+    area: V,
+    area_2: Option<V>,
+    state: State<T, V>
 }
 
 
@@ -465,5 +465,14 @@ impl<T, V> FiniteElementTrait<T, V> for Truss2n2ip<T, V>
     fn number_same(&self, number: T) -> bool
     {
         self.number == number
+    }
+
+
+    fn nodes_numbers_same(&self, nodes_numbers: Vec<T>) -> bool
+    {
+        (nodes_numbers[0] == self.node_1.as_ref().borrow().number &&
+        nodes_numbers[1] == self.node_2.as_ref().borrow().number) ||
+        (nodes_numbers[0] == self.node_2.as_ref().borrow().number &&
+        nodes_numbers[1] == self.node_1.as_ref().borrow().number)
     }
 }

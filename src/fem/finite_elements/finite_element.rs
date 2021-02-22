@@ -47,7 +47,7 @@ pub struct StiffnessGroup<T>
 }
 
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum FEType
 {
     Truss2n2ip
@@ -70,6 +70,7 @@ pub trait FiniteElementTrait<T, V>
     fn node_belong_element(&self, node_number: T) -> bool;
     fn refresh(&mut self) -> Result<(), &str>;
     fn number_same(&self, number: T) -> bool;
+    fn nodes_numbers_same(&self, nodes_numbers: Vec<T>) -> bool;
 }
 
 
@@ -176,5 +177,11 @@ impl<T, V> FiniteElement<T, V>
     pub fn number_same(&self, number: T) -> bool
     {
         self.element.number_same(number)
+    }
+
+
+    pub fn nodes_numbers_same(&self, nodes_numbers: Vec<T>) -> bool
+    {
+        self.element.nodes_numbers_same(nodes_numbers)
     }
 }
