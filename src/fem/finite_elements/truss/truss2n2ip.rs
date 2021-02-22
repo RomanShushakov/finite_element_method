@@ -10,7 +10,6 @@ use std::hash::Hash;
 use std::fmt::Debug;
 use std::ops::{Sub, Mul, Add, Div, Rem, SubAssign, AddAssign, MulAssign};
 use std::cell::RefCell;
-use std::borrow::Borrow;
 
 
 const TRUSS_NODE_DOF: ElementsNumbers = 3;
