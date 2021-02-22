@@ -62,6 +62,7 @@ fn main() -> Result<(), String>
     println!();
     fe_model.delete_node(1)?;
     println!("{:?}", fe_model.stiffness_groups);
+    println!();
     fe_model.delete_node(3)?;
     println!("{:?}", fe_model.stiffness_groups);
     println!();

@@ -1,5 +1,6 @@
 use crate::fem::{FeNode, FEData, FiniteElement, StiffnessGroup, StiffnessType};
 use crate::fem::{FEType};
+use crate::fem::compose_stiffness_sub_groups;
 use crate::fem::{STIFFNESS_TYPES_NUMBER};
 use crate::{ElementsNumbers, ElementsValues};
 
@@ -12,7 +13,7 @@ use std::collections::HashSet;
 use std::iter::FromIterator;
 
 
-const GLOBAL_DOF: ElementsNumbers = 6;
+pub const GLOBAL_DOF: ElementsNumbers = 6;
 
 
 pub struct FEModel<T, V>
@@ -26,7 +27,7 @@ pub struct FEModel<T, V>
 impl<T, V> FEModel<T, V>
     where T: Copy + PartialEq + Into<ElementsNumbers> + Sub<Output = T> + Div<Output = T> +
              Rem<Output = T> + From<ElementsNumbers> + Eq + Hash + SubAssign + Debug +
-             Mul<Output = T> + PartialOrd + Default + Add<Output = T> + 'static,
+             Mul<Output = T> + PartialOrd + Default + Add<Output = T> + AddAssign + 'static,
           V: Copy + From<ElementsValues> + Sub<Output = V> + Default + Mul<Output = V> +
              Add<Output = V> + Div<Output = V> + PartialEq + Debug + AddAssign + MulAssign +
              SubAssign + Into<ElementsValues> + 'static
@@ -51,8 +52,8 @@ impl<T, V> FEModel<T, V>
             {
                 nodes_numbers.push(node.borrow().number);
             }
-            let mut position = 0;
-            let columns_number = nodes_numbers.len();
+            let mut position = T::default();
+            let columns_number = T::from(nodes_numbers.len() as ElementsNumbers);
             for i in 1..nodes_numbers.len()
             {
                 let mut v_lhs = nodes_numbers[0..i - 1].to_vec();
@@ -63,110 +64,37 @@ impl<T, V> FEModel<T, V>
                 {
                     if j + 1 == i
                     {
-                        let row = position / columns_number;
-                        let column = position % columns_number;
-                        println!("{}, {}", row, column);
-                        for k in 0..STIFFNESS_TYPES_NUMBER
-                        {
-                            for m in (row * 6 + k / 2 * 3)..(row * 6 + k / 2 * 3 + 3)
-                            {
-                                for n in (column * 6 + k % 2 * 3)..(column * 6 + k % 2 * 3 + 3)
-                                {
-                                    print!("{}, {}; ", m, n);
-                                }
-                            }
-                            println!();
-                            let stiffness_type = StiffnessType::iterator()
-                                .nth(k)
-                                .ok_or("FEModel: Stiffness type could not be defined")?;
-                            let stiffness_group = StiffnessGroup { stiffness_type: *stiffness_type,
-                                number_1: nodes_numbers[j],
-                                number_2: nodes_numbers[j],
-                                positions: Vec::new(),
-                            };
-                            stiffness_groups.push(stiffness_group);
-                        }
-                        println!();
-                        position += 1;
+                        let stiffness_sub_groups =
+                             compose_stiffness_sub_groups(position,
+                            columns_number, nodes_numbers[j],
+                            nodes_numbers[j])?;
+                        stiffness_groups.extend(stiffness_sub_groups);
+                        position += T::from(1);
                     }
-                    let row = position / columns_number;
-                    let column = position % columns_number;
-                    println!("{}, {}", row, column);
-                    for k in 0..STIFFNESS_TYPES_NUMBER
-                    {
-                        for m in (row * 6 + k / 2 * 3)..(row * 6 + k / 2 * 3 + 3)
-                        {
-                            for n in (column * 6 + k % 2 * 3)..(column * 6 + k % 2 * 3 + 3)
-                            {
-                                print!("{}, {}; ", m, n);
-                            }
-                        }
-                        println!();
-                        let stiffness_type = StiffnessType::iterator()
-                            .nth(k)
-                            .ok_or("FEModel: Stiffness type could not be defined")?;
-                        let stiffness_group = StiffnessGroup { stiffness_type: *stiffness_type,
-                            number_1: excluded,
-                            number_2: v_lhs[j],
-                            positions: Vec::new(),
-                        };
-                        stiffness_groups.push(stiffness_group);
-                    }
-                    println!();
-                    position += 1;
+                    let stiffness_sub_groups =
+                         compose_stiffness_sub_groups(position,
+                        columns_number, excluded,
+                        v_lhs[j])?;
+                    stiffness_groups.extend(stiffness_sub_groups);
+                    position += T::from(1);
                 }
             }
             for i in 0..nodes_numbers.len() - 1
             {
-                let row = position / columns_number;
-                let column = position % columns_number;
-                println!("{}, {}", row, column);
-                for k in 0..STIFFNESS_TYPES_NUMBER
-                {
-                    for m in (row * 6 + k / 2 * 3)..(row * 6 + k / 2 * 3 + 3)
-                    {
-                        for n in (column * 6 + k % 2 * 3)..(column * 6 + k % 2 * 3 + 3)
-                        {
-                            print!("{}, {}; ", m, n);
-                        }
-                    }
-                    println!();
-                    let stiffness_type = StiffnessType::iterator()
-                        .nth(k)
-                        .ok_or("FEModel: Stiffness type could not be defined")?;
-                    let stiffness_group = StiffnessGroup { stiffness_type: *stiffness_type,
-                        number_1: nodes_numbers[nodes_numbers.len() - 1],
-                        number_2: nodes_numbers[i],
-                        positions: Vec::new(),
-                    };
-                    stiffness_groups.push(stiffness_group);
-                }
-                position += 1;
+                let stiffness_sub_groups =
+                     compose_stiffness_sub_groups(position,
+                    columns_number,
+                    nodes_numbers[nodes_numbers.len() - 1],
+                    nodes_numbers[i])?;
+                stiffness_groups.extend(stiffness_sub_groups);
+                position += T::from(1);
             }
-            let row = position / columns_number;
-            let column = position % columns_number;
-            println!();
-            println!("{}, {}", row, column);
-            for k in 0..STIFFNESS_TYPES_NUMBER
-            {
-                for m in (row * 6 + k / 2 * 3)..(row * 6 + k / 2 * 3 + 3)
-                {
-                    for n in (column * 6 + k % 2 * 3)..(column * 6 + k % 2 * 3 + 3)
-                    {
-                        print!("{}, {}; ", m, n);
-                    }
-                }
-                println!();
-                let stiffness_type = StiffnessType::iterator()
-                    .nth(k)
-                    .ok_or("FEModel: Stiffness type could not be defined")?;
-                let stiffness_group = StiffnessGroup { stiffness_type: *stiffness_type,
-                    number_1: nodes_numbers[nodes_numbers.len() - 1],
-                    number_2: nodes_numbers[nodes_numbers.len() - 1],
-                    positions: Vec::new(),
-                };
-                stiffness_groups.push(stiffness_group);
-            }
+            let stiffness_sub_groups =
+                 compose_stiffness_sub_groups(position,
+                columns_number,
+                nodes_numbers[nodes_numbers.len() - 1],
+                nodes_numbers[nodes_numbers.len() - 1])?;
+            stiffness_groups.extend(stiffness_sub_groups);
         }
         self.stiffness_groups = stiffness_groups;
         Ok(())

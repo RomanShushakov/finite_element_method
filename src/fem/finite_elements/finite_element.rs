@@ -11,7 +11,7 @@ use std::slice::Iter;
 use self::StiffnessType::*;
 
 
-pub const STIFFNESS_TYPES_NUMBER: usize = 4;
+pub const STIFFNESS_TYPES_NUMBER: ElementsNumbers = 4 as ElementsNumbers;
 
 
 #[derive(Debug, Copy, Clone)]
@@ -28,7 +28,7 @@ impl StiffnessType
 {
     pub fn iterator() -> Iter<'static, StiffnessType>
      {
-        static TYPES: [StiffnessType; STIFFNESS_TYPES_NUMBER] =
+        static TYPES: [StiffnessType; STIFFNESS_TYPES_NUMBER as usize] =
             [
                 Kuu, Kuth, Kthu, Kthth,
             ];
