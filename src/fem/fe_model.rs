@@ -1,8 +1,8 @@
-use crate::fem::{FeNode, FEData, FiniteElement, StiffnessGroup, StiffnessType};
-use crate::fem::{FEType};
+use crate::fem::{FeNode, FEData, FiniteElement, StiffnessGroup, Force, Displacement};
+use crate::fem::{FEType, GlobalForceDisplacementComponent};
 use crate::fem::compose_stiffness_sub_groups;
-use crate::fem::{STIFFNESS_TYPES_NUMBER};
 use crate::{ElementsNumbers, ElementsValues};
+use crate::extended_matrix::ExtendedMatrix;
 
 use std::ops::{Sub, Div, Rem, SubAssign, Mul, Add, AddAssign, MulAssign};
 use std::hash::Hash;
@@ -11,7 +11,6 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::iter::FromIterator;
-use crate::extended_matrix::ExtendedMatrix;
 
 
 pub const GLOBAL_DOF: ElementsNumbers = 6;
@@ -21,7 +20,9 @@ pub struct FEModel<T, V>
 {
     pub nodes: Vec<Rc<RefCell<FeNode<T, V>>>>,
     pub elements: Vec<FiniteElement<T, V>>,
-    pub stiffness_groups: Vec<StiffnessGroup<T>>
+    pub stiffness_groups: Vec<StiffnessGroup<T>>,
+    pub applied_loads: Vec<Force<T, V>>,
+    pub applied_displacements: Vec<Displacement<T, V>>,
 }
 
 
@@ -35,7 +36,8 @@ impl<T, V> FEModel<T, V>
 {
     pub fn create() -> Self
     {
-        FEModel { nodes: Vec::new(), elements: Vec::new(), stiffness_groups: Vec::new() }
+        FEModel { nodes: Vec::new(), elements: Vec::new(), stiffness_groups: Vec::new(),
+            applied_loads: Vec::new(), applied_displacements: Vec::new() }
     }
 
 
@@ -284,12 +286,10 @@ impl<T, V> FEModel<T, V>
                         group.number_1 == element_stiffness_group.number_1 &&
                         group.number_2 == element_stiffness_group.number_2 })
                 {
-
                     global_stiffness_matrix.add_sub_matrix(
                         &element_stiffness_matrix,
                         &self.stiffness_groups[position].positions,
                         &element_stiffness_group.positions);
-
                 }
             }
         }

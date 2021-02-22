@@ -11,7 +11,7 @@ use std::mem;
 
 
 pub type ElementsNumbers = u16;
-pub type ElementsValues = f64;
+pub type ElementsValues = f32;
 
 
 pub const TOLERANCE: ElementsValues = 1e-6;
@@ -37,8 +37,11 @@ fn main() -> Result<(), String>
         vec![2, 4],
         FEData { number: 3, nodes: Vec::new(), properties: vec![128000000.0, 0.0625] })?;
     let mut global_stiffness_matrix = fe_model.compose_global_stiffness_matrix()?;
-    global_stiffness_matrix.remove_zeros_rows_columns();
     global_stiffness_matrix.show_matrix();
+    println!();
+    // let removed_data = global_stiffness_matrix.remove_zeros_rows_columns();
+    // global_stiffness_matrix.show_matrix();
+    // println!("{:?}", removed_data);
 
 
     // let m = fe_model.elements[0].extract_stiffness_matrix()?;
