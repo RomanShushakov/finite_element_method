@@ -1,4 +1,4 @@
-use crate::fem::{FeNode, FEData, FiniteElement, StiffnessGroup, Force, Displacement};
+use crate::fem::{FeNode, FEData, FiniteElement, StiffnessGroup, ForceBC, DisplacementBC};
 use crate::fem::{FEType, GlobalForceDisplacementComponent};
 use crate::fem::compose_stiffness_sub_groups;
 use crate::{ElementsNumbers, ElementsValues};
@@ -21,8 +21,8 @@ pub struct FEModel<T, V>
     pub nodes: Vec<Rc<RefCell<FeNode<T, V>>>>,
     pub elements: Vec<FiniteElement<T, V>>,
     pub stiffness_groups: Vec<StiffnessGroup<T>>,
-    pub applied_loads: Vec<Force<T, V>>,
-    pub applied_displacements: Vec<Displacement<T, V>>,
+    pub applied_loads: Vec<ForceBC<T, V>>,
+    pub applied_displacements: Vec<DisplacementBC<T, V>>,
 }
 
 
@@ -155,15 +155,15 @@ impl<T, V> FEModel<T, V>
             }
             while let Some(position) = self.applied_loads
                 .iter()
-                .position(|force|
-                    force.node_number == number)
+                .position(|force_bc|
+                    force_bc.force.node_number == number)
             {
                 self.applied_loads.remove(position);
             }
             while let Some(position) = self.applied_displacements
                 .iter()
-                .position(|displacement|
-                    displacement.node_number == number)
+                .position(|displacement_bc|
+                    displacement_bc.displacement.node_number == number)
             {
                 self.applied_displacements.remove(position);
             }
@@ -311,11 +311,11 @@ impl<T, V> FEModel<T, V>
     }
 
 
-    pub fn add_applied_load(&mut self, force_number: T, node_number: T,
+    pub fn add_load(&mut self, number: T, node_number: T,
         component: GlobalForceDisplacementComponent, value: V) -> Result<(), &str>
     {
         if self.applied_loads.iter().position(|f|
-            f.force_number == force_number).is_some()
+            f.number == number).is_some()
         {
             return Err("FEModel: Force could not be added because the same force number does \
                 already exist!");
@@ -326,13 +326,13 @@ impl<T, V> FEModel<T, V>
             return Err("FEModel: Force could not be added because the current node number does \
                 not exist!");
         }
-        let force = Force::create(force_number, node_number, component, value);
-        self.applied_loads.push(force);
+        let force_bc = ForceBC::create(number, node_number, component, value);
+        self.applied_loads.push(force_bc);
         Ok(())
     }
 
 
-    pub fn update_applied_load(&mut self, force_number: T, node_number: T,
+    pub fn update_load(&mut self, number: T, node_number: T,
         component: GlobalForceDisplacementComponent, value: V) -> Result<(), &str>
     {
         if self.nodes.iter().position(|node|
@@ -342,7 +342,7 @@ impl<T, V> FEModel<T, V>
                 not exist!");
         }
         if let Some(position) =  self.applied_loads.iter().position(|f|
-            f.force_number == force_number)
+            f.number == number)
         {
 
             self.applied_loads[position].update(node_number, component, value);
@@ -355,10 +355,10 @@ impl<T, V> FEModel<T, V>
     }
 
 
-    pub fn delete_applied_load(&mut self, force_number: T) -> Result<(), &str>
+    pub fn delete_load(&mut self, number: T) -> Result<(), &str>
     {
         if let Some(position) =  self.applied_loads.iter().position(|f|
-            f.force_number == force_number)
+            f.number == number)
         {
             self.applied_loads.remove(position);
             Ok(())
@@ -370,11 +370,11 @@ impl<T, V> FEModel<T, V>
     }
 
 
-    pub fn add_applied_displacement(&mut self, displacement_number: T, node_number: T,
+    pub fn add_displacement(&mut self, number: T, node_number: T,
         component: GlobalForceDisplacementComponent, value: V) -> Result<(), &str>
     {
         if self.applied_displacements.iter().position(|d|
-            d.displacement_number == displacement_number).is_some()
+            d.number == number).is_some()
         {
             return Err("FEModel: Displacement could not be added because the same displacement \
                 number does already exist!");
@@ -385,14 +385,14 @@ impl<T, V> FEModel<T, V>
             return Err("FEModel: Displacement could not be added because the current node number \
                 does not exist!");
         }
-        let displacement = Displacement::create(
-            displacement_number, node_number, component, value);
-        self.applied_displacements.push(displacement);
+        let displacement_bc = DisplacementBC::create(
+            number, node_number, component, value);
+        self.applied_displacements.push(displacement_bc);
         Ok(())
     }
 
 
-    pub fn update_applied_displacement(&mut self, displacement_number: T, node_number: T,
+    pub fn update_displacement(&mut self, number: T, node_number: T,
         component: GlobalForceDisplacementComponent, value: V) -> Result<(), &str>
     {
         if self.nodes.iter().position(|node|
@@ -402,7 +402,7 @@ impl<T, V> FEModel<T, V>
                 does not exist!");
         }
         if let Some(position) =  self.applied_displacements.iter().position(|d|
-            d.displacement_number == displacement_number)
+            d.number == number)
         {
             self.applied_displacements[position].update(node_number, component, value);
             Ok(())
@@ -415,10 +415,10 @@ impl<T, V> FEModel<T, V>
     }
 
 
-    pub fn delete_applied_displacement(&mut self, displacement_number: T) -> Result<(), &str>
+    pub fn delete_displacement(&mut self, number: T) -> Result<(), &str>
     {
         if let Some(position) =  self.applied_displacements.iter().position(|d|
-            d.displacement_number == displacement_number)
+            d.number == number)
         {
             self.applied_displacements.remove(position);
             Ok(())

@@ -1,6 +1,6 @@
 use crate::fem::{FiniteElementTrait};
-use crate::fem::{GlobalCoordinates, FeNode, StiffnessGroup, FEData};
-use crate::fem::StiffnessType;
+use crate::fem::{GlobalCoordinates, FeNode, StiffnessGroup, FEData, Displacement};
+use crate::fem::{StiffnessType, GlobalForceDisplacementComponent};
 use crate::fem::compare_with_tolerance;
 use crate::extended_matrix::{ExtendedMatrix, MatrixElementPosition};
 use crate::{ElementsNumbers, ElementsValues};
@@ -186,10 +186,10 @@ impl<T, V> TrussAuxFunctions<T, V>
     }
 
 
-    fn local_stiffness_matrix<'a>(node_1: Rc<RefCell<FeNode<T, V>>>,
+    fn local_stiffness_matrix(node_1: Rc<RefCell<FeNode<T, V>>>,
         node_2: Rc<RefCell<FeNode<T, V>>>, young_modulus: V, area_1: V, area_2: Option<V>,
         alpha: V, r: V, local_stiffness_matrix: &ExtendedMatrix<T, V>)
-        -> Result<ExtendedMatrix<T, V>, &'a str>
+        -> Result<ExtendedMatrix<T, V>, String>
     {
         let current_area = TrussAuxFunctions::<T, V>::area(area_1, area_2, r);
         let mut lhs_matrix =
@@ -200,16 +200,42 @@ impl<T, V> TrussAuxFunctions<T, V>
         let rhs_matrix =
             TrussAuxFunctions::strain_displacement_matrix(
                 Rc::clone(&node_1), Rc::clone(&node_2), r);
-        if let Ok(mut matrix) = lhs_matrix.multiply_by_matrix(&rhs_matrix)
+        return match lhs_matrix.multiply_by_matrix(&rhs_matrix)
         {
-            matrix.multiply_by_number(
-                TrussAuxFunctions::determinant_of_jacobian(node_1, node_2, r) * alpha);
-            if let Ok(matrix) = local_stiffness_matrix.add(&matrix)
-            {
-                return Ok(matrix);
-            }
+            Ok(mut matrix) =>
+                {
+                    matrix.multiply_by_number(
+                        TrussAuxFunctions::determinant_of_jacobian(
+                            node_1, node_2, r) * alpha);
+                    match local_stiffness_matrix.add_matrix(&matrix)
+                    {
+                        Ok(matrix) => Ok(matrix),
+                        Err(e) =>
+                            Err(format!("Truss2n2ip: Local stiffness matrix cannot be \
+                                calculated! Reason: {}", e)),
+                    }
+                },
+            Err(e) => Err(format!("Truss2n2ip: Local stiffness matrix cannot be \
+                                calculated! Reason: {}", e)),
         }
-        Err("Truss2n2ip: Local stiffness matrix cannot be calculated!")
+    }
+
+
+    fn compose_default_node_displacements<'a>(node_number: T)
+        -> Result<Vec<Displacement<T, V>>, &'a str>
+    {
+        let mut nodes_displacements = Vec::new();
+        for dof in 0..TRUSS_NODE_DOF
+        {
+            let displacement_component =
+                GlobalForceDisplacementComponent::iterator().nth(dof as usize)
+                    .ok_or("Truss2n2ip: Could not find displacement component!")?;
+            let displacement = Displacement { node_number,
+                component: *displacement_component,
+                value: V::default() };
+            nodes_displacements.push(displacement);
+        }
+        Ok(nodes_displacements)
     }
 }
 
@@ -226,6 +252,7 @@ struct State<T, V>
     rotation_matrix: ExtendedMatrix<T, V>,
     integration_points: Vec<IntegrationPoint<V>>,
     local_stiffness_matrix: ExtendedMatrix<T, V>,
+    nodes_global_displacements: Vec<Displacement<T, V>>,
 }
 
 
@@ -249,9 +276,9 @@ impl<T, V> Truss2n2ip<T, V>
              Mul<Output = V> + Add<Output = V> + Div<Output = V> + PartialEq + Debug + AddAssign +
              MulAssign + SubAssign + 'static
 {
-    pub fn create<'a>(number: T, node_1: Rc<RefCell<FeNode<T, V>>>,
+    pub fn create(number: T, node_1: Rc<RefCell<FeNode<T, V>>>,
         node_2: Rc<RefCell<FeNode<T, V>>>, young_modulus: V, area: V, area_2: Option<V>)
-        -> Result<Self, &'a str>
+        -> Result<Self, String>
     {
         let integration_point_1 = IntegrationPoint {
             r: V::from(- 1.0 / (3.0 as ElementsValues).sqrt()), weight: V::from(1.0) };
@@ -275,13 +302,22 @@ impl<T, V> Truss2n2ip<T, V>
                 &local_stiffness_matrix)?;
             local_stiffness_matrix = matrix;
         }
-        let state = State { rotation_matrix, integration_points, local_stiffness_matrix };
+        let mut nodes_displacements =
+            TrussAuxFunctions::compose_default_node_displacements(node_1.as_ref()
+                .borrow().number)?;
+        let node_2_displacements =
+            TrussAuxFunctions::compose_default_node_displacements(node_2.as_ref()
+                .borrow().number)?;
+        nodes_displacements.extend(node_2_displacements);
+        let state = State { rotation_matrix, integration_points, local_stiffness_matrix,
+            nodes_global_displacements: nodes_displacements
+        };
         Ok(Truss2n2ip { number, node_1, node_2, young_modulus, area, area_2, state })
     }
 
 
     pub fn update(&mut self, node_1: Rc<RefCell<FeNode<T, V>>>, node_2: Rc<RefCell<FeNode<T, V>>>,
-        young_modulus: V, area: V, area_2: Option<V>) -> Result<(), &str>
+        young_modulus: V, area: V, area_2: Option<V>) -> Result<(), String>
     {
         let rotation_matrix =
             TrussAuxFunctions::rotation_matrix(Rc::clone(&node_1),
@@ -299,6 +335,13 @@ impl<T, V> Truss2n2ip<T, V>
                 &local_stiffness_matrix)?;
             local_stiffness_matrix = matrix;
         }
+        let mut nodes_displacements =
+            TrussAuxFunctions::compose_default_node_displacements(node_1.as_ref()
+                .borrow().number)?;
+        let node_2_displacements =
+            TrussAuxFunctions::compose_default_node_displacements(node_2.as_ref()
+                .borrow().number)?;
+        nodes_displacements.extend(node_2_displacements);
         self.node_1 = node_1;
         self.node_2 = node_2;
         self.young_modulus = young_modulus;
@@ -306,6 +349,7 @@ impl<T, V> Truss2n2ip<T, V>
         self.area_2 = area_2;
         self.state.rotation_matrix = rotation_matrix;
         self.state.local_stiffness_matrix = local_stiffness_matrix;
+        self.state.nodes_global_displacements = nodes_displacements;
         Ok(())
     }
 
@@ -383,7 +427,7 @@ impl<T, V> Truss2n2ip<T, V>
     }
 
 
-    pub fn refresh(&mut self) -> Result<(), &str>
+    pub fn refresh(&mut self) -> Result<(), String>
     {
         let rotation_matrix =
             TrussAuxFunctions::rotation_matrix(Rc::clone(&self.node_1),
@@ -416,7 +460,7 @@ impl<T, V> FiniteElementTrait<T, V> for Truss2n2ip<T, V>
              Into<ElementsValues> + From<ElementsValues> + SubAssign + AddAssign + MulAssign +
              PartialEq + Debug + Default + 'static,
 {
-    fn update(&mut self, data: FEData<T, V>) -> Result<(), &str>
+    fn update(&mut self, data: FEData<T, V>) -> Result<(), String>
     {
         if data.properties.len() == 3
         {
@@ -454,7 +498,7 @@ impl<T, V> FiniteElementTrait<T, V> for Truss2n2ip<T, V>
     }
 
 
-    fn refresh(&mut self) -> Result<(), &str>
+    fn refresh(&mut self) -> Result<(), String>
     {
         self.refresh()?;
         Ok(())

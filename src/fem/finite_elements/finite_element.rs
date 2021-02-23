@@ -11,7 +11,7 @@ use std::slice::Iter;
 use self::StiffnessType::*;
 
 
-pub const STIFFNESS_TYPES_NUMBER: ElementsNumbers = 4 as ElementsNumbers;
+pub const STIFFNESS_TYPES_NUMBER: ElementsNumbers = 4;
 
 
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -64,11 +64,11 @@ pub struct FEData<T, V>
 
 pub trait FiniteElementTrait<T, V>
 {
-    fn update(&mut self, data: FEData<T, V>) -> Result<(), &str>;
+    fn update(&mut self, data: FEData<T, V>) -> Result<(), String>;
     fn extract_stiffness_matrix(&self) -> Result<ExtendedMatrix<T, V>, &str>;
     fn extract_stiffness_groups(&self) -> Vec<StiffnessGroup<T>>;
     fn node_belong_element(&self, node_number: T) -> bool;
-    fn refresh(&mut self) -> Result<(), &str>;
+    fn refresh(&mut self) -> Result<(), String>;
     fn number_same(&self, number: T) -> bool;
     fn nodes_numbers_same(&self, nodes_numbers: Vec<T>) -> bool;
 }
@@ -85,8 +85,8 @@ impl<T, V> FECreator<T, V>
              Mul<Output = V> + Add<Output = V> + Div<Output = V> + PartialEq + Debug + AddAssign +
              MulAssign + SubAssign + 'static,
 {
-    fn create<'a>(fe_type: FEType, data: FEData<T, V>)
-        -> Result<Box<dyn FiniteElementTrait<T, V>>, &'a str>
+    fn create(fe_type: FEType, data: FEData<T, V>)
+        -> Result<Box<dyn FiniteElementTrait<T, V>>, String>
     {
         match fe_type
         {
@@ -133,15 +133,14 @@ impl<T, V> FiniteElement<T, V>
              Mul<Output = V> + Add<Output = V> + Div<Output = V> + PartialEq + Debug + AddAssign +
              MulAssign + SubAssign + 'static,
 {
-    pub fn create<'a>(fe_type: FEType, data: FEData<T, V>) -> Result<Self, &'a str>
+    pub fn create(fe_type: FEType, data: FEData<T, V>) -> Result<Self, String>
     {
-        let element_type = fe_type.clone();
-        let element = FECreator::create(fe_type, data)?;
-        Ok(FiniteElement { element_type, element })
+        let element = FECreator::create(fe_type.clone(), data)?;
+        Ok(FiniteElement { element_type: fe_type, element })
     }
 
 
-    pub fn update(&mut self, data: FEData<T, V>) -> Result<(), &str>
+    pub fn update(&mut self, data: FEData<T, V>) -> Result<(), String>
     {
         self.element.update(data)?;
         Ok(())
@@ -167,7 +166,7 @@ impl<T, V> FiniteElement<T, V>
     }
 
 
-    pub fn refresh(&mut self) -> Result<(), &str>
+    pub fn refresh(&mut self) -> Result<(), String>
     {
         self.element.refresh()?;
         Ok(())

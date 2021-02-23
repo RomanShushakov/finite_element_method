@@ -37,43 +37,57 @@ fn main() -> Result<(), String>
         FEType::Truss2n2ip,
         vec![2, 4],
         FEData { number: 3, nodes: Vec::new(), properties: vec![128000000.0, 0.0625] })?;
-    let mut global_stiffness_matrix = fe_model.compose_global_stiffness_matrix()?;
+    let mut global_stiffness_matrix =
+        fe_model.compose_global_stiffness_matrix()?;
     global_stiffness_matrix.show_matrix();
     println!();
-    // let removed_data = global_stiffness_matrix.remove_zeros_rows_columns();
-    // global_stiffness_matrix.show_matrix();
-    // println!("{:?}", removed_data);
+    let removed_zeros_rows_columns =
+        global_stiffness_matrix.remove_zeros_rows_columns();
+    for removed_zeros_row_column in &removed_zeros_rows_columns
+    {
+        let removed_force_node_number =
+            fe_model.nodes[(removed_zeros_row_column.row / GLOBAL_DOF) as usize]
+                .as_ref().borrow().number;
+        let removed_force_component =
+            GlobalForceDisplacementComponent::iterator()
+                .nth((removed_zeros_row_column.row % GLOBAL_DOF) as usize)
+                .ok_or("Could not find force component!")?;
+        println!("{} {:?}", removed_force_node_number, removed_force_component);
+
+    }
+    global_stiffness_matrix.show_matrix();
+    println!("{:?}", removed_zeros_rows_columns);
 
 
-    fe_model.add_applied_load(
+    fe_model.add_load(
         1, 1, GlobalForceDisplacementComponent::X, 1000.0)?;
     println!("{:?}", fe_model.applied_loads);
     println!();
-    fe_model.add_applied_load(
+    fe_model.add_load(
         5, 2, GlobalForceDisplacementComponent::ThX, 1500.0)?;
     println!("{:?}", fe_model.applied_loads);
     println!();
-    fe_model.update_applied_load(
+    fe_model.update_load(
         5, 4, GlobalForceDisplacementComponent::ThX, 1500.0)?;
     println!("{:?}", fe_model.applied_loads);
     println!();
-    fe_model.delete_applied_load(1)?;
+    fe_model.delete_load(1)?;
     println!("{:?}", fe_model.applied_loads);
     println!();
 
-    fe_model.add_applied_displacement(
+    fe_model.add_displacement(
         1, 1, GlobalForceDisplacementComponent::X, 1000.0)?;
     println!("{:?}", fe_model.applied_displacements);
     println!();
-    fe_model.add_applied_displacement(
+    fe_model.add_displacement(
         5, 2, GlobalForceDisplacementComponent::ThX, 1500.0)?;
     println!("{:?}", fe_model.applied_displacements);
     println!();
-    fe_model.update_applied_displacement(
+    fe_model.update_displacement(
         5, 4, GlobalForceDisplacementComponent::ThX, 1500.0)?;
     println!("{:?}", fe_model.applied_displacements);
     println!();
-    fe_model.delete_applied_displacement(1)?;
+    fe_model.delete_displacement(1)?;
     println!("{:?}", fe_model.applied_displacements);
     println!();
 

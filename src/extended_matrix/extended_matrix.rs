@@ -15,10 +15,12 @@ use std::ops::{Mul, Add, Sub, Div, Rem, MulAssign, AddAssign, SubAssign};
 use std::hash::Hash;
 
 
+#[derive(Copy, Clone)]
 pub enum Operation
 {
     Addition,
     Multiplication,
+    Subtraction,
 }
 
 
@@ -80,10 +82,11 @@ impl<T, V> ExtendedMatrix<T, V>
     }
 
 
-    pub fn add<'a>(&'a self, other: &'a Self) -> Result<Self, &'a str>
+    pub fn add_subtract_matrix<'a>(&'a self, other: &'a Self, operation: Operation)
+        -> Result<Self, &'a str>
     {
-        let (_, shape) = matrices_dimensions_conformity_check(&self, &other,
-        Operation::Addition)?;
+        let (_, shape) =
+            matrices_dimensions_conformity_check(&self, &other, operation)?;
         let lhs_all_elements_values =
             self.basic_matrix.extract_all_elements_values();
         let rhs_all_elements_values =
@@ -92,7 +95,6 @@ impl<T, V> ExtendedMatrix<T, V>
         let mut elements_values = Vec::new();
         for index in 0..(shape.0 * shape.1).into()
         {
-            let mut value = V::default();
             let current_lhs_element_value = extract_element_value(
                     T::from(index) / shape.1, T::from(index) % shape.1,
                     &lhs_all_elements_values
@@ -101,7 +103,19 @@ impl<T, V> ExtendedMatrix<T, V>
                     T::from(index) / shape.1, T::from(index) % shape.1,
                     &rhs_all_elements_values
                 );
-            value += current_lhs_element_value + current_rhs_element_value;
+            let value =
+                {
+                    match operation
+                    {
+                        Operation::Addition =>
+                            current_lhs_element_value + current_rhs_element_value,
+                        Operation::Subtraction =>
+                            current_lhs_element_value - current_rhs_element_value,
+                        Operation::Multiplication =>
+                            return Err("Extended matrix: Multiplication operation could not be \
+                                applied for add_subtract function!"),
+                    }
+                };
             if value.into().abs() > TOLERANCE
             {
                 elements_indexes.push(T::from(index));
@@ -114,6 +128,18 @@ impl<T, V> ExtendedMatrix<T, V>
             });
         let basic_matrix = basic_matrix.into_symmetric();
         Ok(ExtendedMatrix { basic_matrix })
+    }
+
+
+    pub fn add_matrix<'a>(&'a self, other: &'a Self) -> Result<Self, &'a str>
+    {
+        self.add_subtract_matrix(other, Operation::Addition)
+    }
+
+
+    pub fn subtract_matrix<'a>(&'a self, other: &'a Self) -> Result<Self, &'a str>
+    {
+        self.add_subtract_matrix(other, Operation::Subtraction)
     }
 
 
@@ -130,7 +156,6 @@ impl<T, V> ExtendedMatrix<T, V>
         for (lhs_position, rhs_position) in
             self_positions.iter().zip(other_positions)
         {
-            let mut value = V::default();
             let current_lhs_element_value = extract_element_value(
                     lhs_position.row, lhs_position.column,
                     &lhs_all_elements_values
@@ -139,7 +164,7 @@ impl<T, V> ExtendedMatrix<T, V>
                     rhs_position.row, rhs_position.column,
                     &rhs_all_elements_values
                 );
-            value += current_lhs_element_value + current_rhs_element_value;
+            let value = current_lhs_element_value + current_rhs_element_value;
             if value.into().abs() > TOLERANCE
             {
                 elements_indexes.push(lhs_position.row * lhs_shape.1 + lhs_position.column);

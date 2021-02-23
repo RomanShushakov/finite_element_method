@@ -4,6 +4,7 @@ use crate::{ElementsValues, TOLERANCE};
 
 use std::collections::HashMap;
 use std::hash::Hash;
+use crate::extended_matrix::extended_matrix::Operation::Subtraction;
 
 
 pub fn matrices_dimensions_conformity_check<'a, T, V>(
@@ -31,7 +32,14 @@ pub fn matrices_dimensions_conformity_check<'a, T, V>(
                 }
                 Ok((lhs_shape.1, Shape(lhs_shape.0, rhs_shape.1)))
             }
-
+        Operation::Subtraction =>
+            {
+                if lhs_shape.0 != rhs_shape.0 || lhs_shape.1 != rhs_shape.1
+                {
+                    return Err("Extended matrix: Shapes of matrices does not conform to each other!");
+                }
+                Ok((lhs_shape.1, Shape(lhs_shape.0, rhs_shape.1)))
+            }
     }
 
 }

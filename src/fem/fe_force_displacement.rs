@@ -4,7 +4,7 @@ use std::slice::Iter;
 use self::GlobalForceDisplacementComponent::*;
 
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Copy, Clone)]
 pub enum GlobalForceDisplacementComponent
 {
     X,
@@ -31,28 +31,34 @@ impl GlobalForceDisplacementComponent
 #[derive(Debug)]
 pub struct Force<T, V>
 {
-    pub force_number: T,
     pub node_number: T,
-    pub component: GlobalForceDisplacementComponent,
-    pub value: V,
+    component: GlobalForceDisplacementComponent,
+    value: V,
 }
 
 
-impl<T, V> Force<T, V>
+#[derive(Debug)]
+pub struct ForceBC<T, V>
 {
-    pub fn create(force_number: T, node_number: T, component: GlobalForceDisplacementComponent,
+    pub number: T,
+    pub force: Force<T, V>
+}
+
+
+impl<T, V> ForceBC<T, V>
+{
+    pub fn create(number: T, node_number: T, component: GlobalForceDisplacementComponent,
         value: V) -> Self
     {
-        Force { force_number, node_number, component, value }
+        ForceBC { number, force: Force { node_number, component, value } }
     }
 
 
-    pub fn update(&mut self, node_number: T,
-        component: GlobalForceDisplacementComponent, value: V)
+    pub fn update(&mut self, node_number: T, component: GlobalForceDisplacementComponent, value: V)
     {
-        self.node_number = node_number;
-        self.component = component;
-        self.value = value;
+        self.force.node_number = node_number;
+        self.force.component = component;
+        self.force.value = value;
     }
 }
 
@@ -60,27 +66,33 @@ impl<T, V> Force<T, V>
 #[derive(Debug)]
 pub struct Displacement<T, V>
 {
-    pub displacement_number: T,
     pub node_number: T,
     pub component: GlobalForceDisplacementComponent,
     pub value: V,
 }
 
 
-impl<T, V> Displacement<T, V>
+#[derive(Debug)]
+pub struct DisplacementBC<T, V>
 {
-    pub fn create(displacement_number: T, node_number: T,
+    pub number: T,
+    pub displacement: Displacement<T, V>,
+}
+
+
+impl<T, V> DisplacementBC<T, V>
+{
+    pub fn create(number: T, node_number: T,
         component: GlobalForceDisplacementComponent, value: V) -> Self
     {
-        Displacement { displacement_number, node_number, component, value }
+        DisplacementBC { number, displacement: Displacement { node_number, component, value } }
     }
 
 
-    pub fn update(&mut self, node_number: T,
-        component: GlobalForceDisplacementComponent, value: V)
+    pub fn update(&mut self, node_number: T, component: GlobalForceDisplacementComponent, value: V)
     {
-        self.node_number = node_number;
-        self.component = component;
-        self.value = value;
+        self.displacement.node_number = node_number;
+        self.displacement.component = component;
+        self.displacement.value = value;
     }
 }
