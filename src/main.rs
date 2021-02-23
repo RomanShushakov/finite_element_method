@@ -3,7 +3,7 @@ use extended_matrix::ExtendedMatrix;
 use extended_matrix::{return_symmetric_matrix_struct, return_non_symmetric_matrix_struct};
 
 mod fem;
-use crate::fem::{FeNode, GlobalCoordinates, FEModel, FEType, FEData, GLOBAL_DOF};
+use crate::fem::{FeNode, GlobalCoordinates, FEModel, FEType, FEData, GLOBAL_DOF, Force, GlobalForceDisplacementComponent};
 use fem::finite_elements::truss::truss2n2ip::Truss2n2ip;
 use crate::extended_matrix::basic_matrix::basic_matrix::BasicMatrixTrait;
 
@@ -11,7 +11,7 @@ use std::mem;
 
 
 pub type ElementsNumbers = u16;
-pub type ElementsValues = f32;
+pub type ElementsValues = f64;
 
 
 
@@ -45,43 +45,45 @@ fn main() -> Result<(), String>
     // println!("{:?}", removed_data);
 
 
-    // let m = fe_model.elements[0].extract_stiffness_matrix()?;
-    // m.show_matrix();
-    // println!("{:?}", m.basic_matrix.define_type());
-    // println!();
-    // println!("{:?}", fe_model.nodes);
-    // println!();
-    //
-    // fe_model.update_node(2, 0.0, 3.0, 0.0)?;
-    // let m = fe_model.elements[0].extract_stiffness_matrix()?;
-    // m.show_matrix();
-    // println!("{:?}", m.basic_matrix.define_type());
-    // println!();
-    // println!("{:?}", fe_model.elements[0].extract_stiffness_groups());
-    // println!();
-    // fe_model.add_element(
-    //     FEType::Truss2n2ip,
-    //     vec![3, 1],
-    //     FEData { number: 2, nodes: Vec::new(), properties: vec![1e6, 1.0, 9.0] })?;
-    // let m = fe_model.elements[1].extract_stiffness_matrix()?;
-    // m.show_matrix();
-    // println!();
-    // fe_model.delete_element(1)?;
-    // fe_model.update_element(
-    //     vec![3, 2],
-    //     FEData { number: 2, nodes: Vec::new(), properties: vec![1.6e6, 3.0, 9.0] })?;
-    // let m = fe_model.elements[0].extract_stiffness_matrix()?;
-    // m.show_matrix();
-    // println!();
-    // println!("{}, {}", fe_model.nodes.len(), fe_model.elements.len());
-    // println!();
-    // println!("{:?}", fe_model.stiffness_groups);
-    // println!();
-    // fe_model.delete_node(1)?;
-    // println!("{:?}", fe_model.stiffness_groups);
-    // println!();
-    // fe_model.delete_node(3)?;
-    // println!("{:?}", fe_model.stiffness_groups);
-    // println!();
+    fe_model.add_applied_load(
+        1, 1, GlobalForceDisplacementComponent::X, 1000.0)?;
+    println!("{:?}", fe_model.applied_loads);
+    println!();
+    fe_model.add_applied_load(
+        5, 2, GlobalForceDisplacementComponent::ThX, 1500.0)?;
+    println!("{:?}", fe_model.applied_loads);
+    println!();
+    fe_model.update_applied_load(
+        5, 4, GlobalForceDisplacementComponent::ThX, 1500.0)?;
+    println!("{:?}", fe_model.applied_loads);
+    println!();
+    fe_model.delete_applied_load(1)?;
+    println!("{:?}", fe_model.applied_loads);
+    println!();
+
+    fe_model.add_applied_displacement(
+        1, 1, GlobalForceDisplacementComponent::X, 1000.0)?;
+    println!("{:?}", fe_model.applied_displacements);
+    println!();
+    fe_model.add_applied_displacement(
+        5, 2, GlobalForceDisplacementComponent::ThX, 1500.0)?;
+    println!("{:?}", fe_model.applied_displacements);
+    println!();
+    fe_model.update_applied_displacement(
+        5, 4, GlobalForceDisplacementComponent::ThX, 1500.0)?;
+    println!("{:?}", fe_model.applied_displacements);
+    println!();
+    fe_model.delete_applied_displacement(1)?;
+    println!("{:?}", fe_model.applied_displacements);
+    println!();
+
+    fe_model.delete_node(1)?;
+    println!("{:?}", fe_model.applied_displacements);
+    println!();
+    println!("{:?}", fe_model.applied_loads);
+    println!();
+    println!("{:?}", fe_model.elements.len());
+    println!();
+
     Ok(())
 }

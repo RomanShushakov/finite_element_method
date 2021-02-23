@@ -116,7 +116,7 @@ impl<T, V> FEModel<T, V>
         }
         else
         {
-            Err(format!("FEModel: Node {} could not be added because it already exists!",
+            Err(format!("FEModel: Node {} could not be added because it does already exist!",
                         number.into()))
         }
     }
@@ -153,6 +153,20 @@ impl<T, V> FEModel<T, V>
             {
                 self.elements.remove(position);
             }
+            while let Some(position) = self.applied_loads
+                .iter()
+                .position(|force|
+                    force.node_number == number)
+            {
+                self.applied_loads.remove(position);
+            }
+            while let Some(position) = self.applied_displacements
+                .iter()
+                .position(|displacement|
+                    displacement.node_number == number)
+            {
+                self.applied_displacements.remove(position);
+            }
             self.nodes.remove(position);
             self.update_stiffness_groups()?;
             return Ok(());
@@ -169,7 +183,7 @@ impl<T, V> FEModel<T, V>
             element.number_same(data.number)).is_some()
         {
             return Err(format!("FEModel: Element {} could not be added! The element with the same \
-             number already exists!", data.number.into()));
+             number does already exist!", data.number.into()));
         }
         let nodes_numbers_set = HashSet::<T>::from_iter(
             nodes_numbers.iter().cloned());
@@ -183,7 +197,7 @@ impl<T, V> FEModel<T, V>
             element.nodes_numbers_same(nodes_numbers.clone())).is_some()
         {
             return Err(format!("FEModel: Element {} could not be added! The element with the same \
-                type and with same nodes numbers is already exist!", data.number.into()));
+                type and with same nodes numbers does already exist!", data.number.into()));
         }
         for node_number in nodes_numbers.iter()
         {
@@ -294,5 +308,125 @@ impl<T, V> FEModel<T, V>
             }
         }
         Ok(global_stiffness_matrix)
+    }
+
+
+    pub fn add_applied_load(&mut self, force_number: T, node_number: T,
+        component: GlobalForceDisplacementComponent, value: V) -> Result<(), &str>
+    {
+        if self.applied_loads.iter().position(|f|
+            f.force_number == force_number).is_some()
+        {
+            return Err("FEModel: Force could not be added because the same force number does \
+                already exist!");
+        }
+        if self.nodes.iter().position(|node|
+            node.as_ref().borrow().number == node_number).is_none()
+        {
+            return Err("FEModel: Force could not be added because the current node number does \
+                not exist!");
+        }
+        let force = Force::create(force_number, node_number, component, value);
+        self.applied_loads.push(force);
+        Ok(())
+    }
+
+
+    pub fn update_applied_load(&mut self, force_number: T, node_number: T,
+        component: GlobalForceDisplacementComponent, value: V) -> Result<(), &str>
+    {
+        if self.nodes.iter().position(|node|
+            node.as_ref().borrow().number == node_number).is_none()
+        {
+            return Err("FEModel: Force could not be updated because the current node number does \
+                not exist!");
+        }
+        if let Some(position) =  self.applied_loads.iter().position(|f|
+            f.force_number == force_number)
+        {
+
+            self.applied_loads[position].update(node_number, component, value);
+            Ok(())
+        }
+        else
+        {
+            Err("FEModel: Force could not be updated because current force number does not exist!")
+        }
+    }
+
+
+    pub fn delete_applied_load(&mut self, force_number: T) -> Result<(), &str>
+    {
+        if let Some(position) =  self.applied_loads.iter().position(|f|
+            f.force_number == force_number)
+        {
+            self.applied_loads.remove(position);
+            Ok(())
+        }
+        else
+        {
+            Err("FEModel: Force could not be deleted because current force number does not exist!")
+        }
+    }
+
+
+    pub fn add_applied_displacement(&mut self, displacement_number: T, node_number: T,
+        component: GlobalForceDisplacementComponent, value: V) -> Result<(), &str>
+    {
+        if self.applied_displacements.iter().position(|d|
+            d.displacement_number == displacement_number).is_some()
+        {
+            return Err("FEModel: Displacement could not be added because the same displacement \
+                number does already exist!");
+        }
+        if self.nodes.iter().position(|node|
+            node.as_ref().borrow().number == node_number).is_none()
+        {
+            return Err("FEModel: Displacement could not be added because the current node number \
+                does not exist!");
+        }
+        let displacement = Displacement::create(
+            displacement_number, node_number, component, value);
+        self.applied_displacements.push(displacement);
+        Ok(())
+    }
+
+
+    pub fn update_applied_displacement(&mut self, displacement_number: T, node_number: T,
+        component: GlobalForceDisplacementComponent, value: V) -> Result<(), &str>
+    {
+        if self.nodes.iter().position(|node|
+            node.as_ref().borrow().number == node_number).is_none()
+        {
+            return Err("FEModel: Displacement could not be updated because the current node number \
+                does not exist!");
+        }
+        if let Some(position) =  self.applied_displacements.iter().position(|d|
+            d.displacement_number == displacement_number)
+        {
+            self.applied_displacements[position].update(node_number, component, value);
+            Ok(())
+        }
+        else
+        {
+            Err("FEModel: Displacement could not be updated because current displacement number \
+                does not exist!")
+        }
+    }
+
+
+    pub fn delete_applied_displacement(&mut self, displacement_number: T) -> Result<(), &str>
+    {
+        if let Some(position) =  self.applied_displacements.iter().position(|d|
+            d.displacement_number == displacement_number)
+        {
+            self.applied_displacements.remove(position);
+            Ok(())
+        }
+        else
+        {
+            Err("FEModel: Displacement could not be deleted because current displacement number \
+                does not exist!")
+        }
     }
 }
