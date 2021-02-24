@@ -1,11 +1,11 @@
 use crate::fem::GLOBAL_DOF;
 
 use std::slice::Iter;
-use self::GlobalForceDisplacementComponent::*;
+use self::GlobalDOFParameter::*;
 
 
 #[derive(PartialEq, Debug, Copy, Clone)]
-pub enum GlobalForceDisplacementComponent
+pub enum GlobalDOFParameter
 {
     X,
     Y,
@@ -15,50 +15,51 @@ pub enum GlobalForceDisplacementComponent
     ThZ,
 }
 
-impl GlobalForceDisplacementComponent
+impl GlobalDOFParameter
 {
-    pub fn iterator() -> Iter<'static, GlobalForceDisplacementComponent>
+    pub fn iterator() -> Iter<'static, GlobalDOFParameter>
      {
-        static COMPONENTS: [GlobalForceDisplacementComponent; GLOBAL_DOF as usize] =
+        static PARAMETERS: [GlobalDOFParameter; GLOBAL_DOF as usize] =
             [
                 X, Y, Z, ThX, ThY, ThZ,
             ];
-        COMPONENTS.iter()
+        PARAMETERS.iter()
     }
+}
+
+
+#[derive(Debug)]
+pub struct DOFParameterData<T>
+{
+    pub node_number: T,
+    pub dof_parameter: GlobalDOFParameter,
+
 }
 
 
 #[derive(Debug)]
 pub struct Force<T, V>
 {
-    pub node_number: T,
-    component: GlobalForceDisplacementComponent,
-    value: V,
-}
-
-
-#[derive(Debug)]
-pub struct ForceBC<T, V>
-{
     pub number: T,
-    pub force: Force<T, V>
+    pub dof_parameter_data: DOFParameterData<T>,
+    pub value: V,
 }
 
 
-impl<T, V> ForceBC<T, V>
+impl<T, V> Force<T, V>
 {
-    pub fn create(number: T, node_number: T, component: GlobalForceDisplacementComponent,
-        value: V) -> Self
+    pub fn create(number: T, node_number: T, dof_parameter: GlobalDOFParameter,
+                  value: V) -> Self
     {
-        ForceBC { number, force: Force { node_number, component, value } }
+        Force { number, dof_parameter_data: DOFParameterData { node_number, dof_parameter }, value }
     }
 
 
-    pub fn update(&mut self, node_number: T, component: GlobalForceDisplacementComponent, value: V)
+    pub fn update(&mut self, node_number: T, dof_parameter: GlobalDOFParameter, value: V)
     {
-        self.force.node_number = node_number;
-        self.force.component = component;
-        self.force.value = value;
+        self.dof_parameter_data.node_number = node_number;
+        self.dof_parameter_data.dof_parameter = dof_parameter;
+        self.value = value;
     }
 }
 
@@ -66,33 +67,25 @@ impl<T, V> ForceBC<T, V>
 #[derive(Debug)]
 pub struct Displacement<T, V>
 {
-    pub node_number: T,
-    pub component: GlobalForceDisplacementComponent,
+    pub number: T,
+    pub dof_parameter_data: DOFParameterData<T>,
     pub value: V,
 }
 
 
-#[derive(Debug)]
-pub struct DisplacementBC<T, V>
+impl<T, V> Displacement<T, V>
 {
-    pub number: T,
-    pub displacement: Displacement<T, V>,
-}
-
-
-impl<T, V> DisplacementBC<T, V>
-{
-    pub fn create(number: T, node_number: T,
-        component: GlobalForceDisplacementComponent, value: V) -> Self
+    pub fn create(number: T, node_number: T, dof_parameter: GlobalDOFParameter, value: V) -> Self
     {
-        DisplacementBC { number, displacement: Displacement { node_number, component, value } }
+        Displacement { number,
+            dof_parameter_data: DOFParameterData { node_number, dof_parameter }, value }
     }
 
 
-    pub fn update(&mut self, node_number: T, component: GlobalForceDisplacementComponent, value: V)
+    pub fn update(&mut self, node_number: T, component: GlobalDOFParameter, value: V)
     {
-        self.displacement.node_number = node_number;
-        self.displacement.component = component;
-        self.displacement.value = value;
+        self.dof_parameter_data.node_number = node_number;
+        self.dof_parameter_data.dof_parameter = component;
+        self.value = value;
     }
 }

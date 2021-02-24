@@ -1,6 +1,6 @@
 use crate::fem::{FiniteElementTrait};
-use crate::fem::{GlobalCoordinates, FeNode, StiffnessGroup, FEData, Displacement};
-use crate::fem::{StiffnessType, GlobalForceDisplacementComponent};
+use crate::fem::{GlobalCoordinates, FeNode, StiffnessGroup, FEData, DOFParameterData};
+use crate::fem::{StiffnessType, GlobalDOFParameter};
 use crate::fem::compare_with_tolerance;
 use crate::extended_matrix::{ExtendedMatrix, MatrixElementPosition};
 use crate::{ElementsNumbers, ElementsValues};
@@ -221,21 +221,21 @@ impl<T, V> TrussAuxFunctions<T, V>
     }
 
 
-    fn compose_default_node_displacements<'a>(node_number: T)
-        -> Result<Vec<Displacement<T, V>>, &'a str>
+    fn compose_node_dof_parameters<'a>(node_number: T)
+        -> Result<Vec<DOFParameterData<T>>, &'a str>
     {
-        let mut nodes_displacements = Vec::new();
+        let mut node_dof_parameters = Vec::new();
         for dof in 0..TRUSS_NODE_DOF
         {
-            let displacement_component =
-                GlobalForceDisplacementComponent::iterator().nth(dof as usize)
+            let dof_parameter =
+                GlobalDOFParameter::iterator().nth(dof as usize)
                     .ok_or("Truss2n2ip: Could not find displacement component!")?;
-            let displacement = Displacement { node_number,
-                component: *displacement_component,
-                value: V::default() };
-            nodes_displacements.push(displacement);
+            let dof_parameter = DOFParameterData { node_number,
+                dof_parameter: *dof_parameter
+            };
+            node_dof_parameters.push(dof_parameter);
         }
-        Ok(nodes_displacements)
+        Ok(node_dof_parameters)
     }
 }
 
@@ -252,7 +252,7 @@ struct State<T, V>
     rotation_matrix: ExtendedMatrix<T, V>,
     integration_points: Vec<IntegrationPoint<V>>,
     local_stiffness_matrix: ExtendedMatrix<T, V>,
-    nodes_global_displacements: Vec<Displacement<T, V>>,
+    nodes_dof_parameters_global: Vec<DOFParameterData<T>>,
 }
 
 
@@ -302,15 +302,15 @@ impl<T, V> Truss2n2ip<T, V>
                 &local_stiffness_matrix)?;
             local_stiffness_matrix = matrix;
         }
-        let mut nodes_displacements =
-            TrussAuxFunctions::compose_default_node_displacements(node_1.as_ref()
-                .borrow().number)?;
-        let node_2_displacements =
-            TrussAuxFunctions::compose_default_node_displacements(node_2.as_ref()
-                .borrow().number)?;
-        nodes_displacements.extend(node_2_displacements);
+        let mut nodes_dof_parameters =
+            TrussAuxFunctions::<T, V>::compose_node_dof_parameters(
+                node_1.as_ref().borrow().number)?;
+        let node_2_dof_parameters =
+            TrussAuxFunctions::<T, V>::compose_node_dof_parameters(
+                node_2.as_ref().borrow().number)?;
+        nodes_dof_parameters.extend(node_2_dof_parameters);
         let state = State { rotation_matrix, integration_points, local_stiffness_matrix,
-            nodes_global_displacements: nodes_displacements
+            nodes_dof_parameters_global: nodes_dof_parameters
         };
         Ok(Truss2n2ip { number, node_1, node_2, young_modulus, area, area_2, state })
     }
@@ -335,13 +335,13 @@ impl<T, V> Truss2n2ip<T, V>
                 &local_stiffness_matrix)?;
             local_stiffness_matrix = matrix;
         }
-        let mut nodes_displacements =
-            TrussAuxFunctions::compose_default_node_displacements(node_1.as_ref()
-                .borrow().number)?;
-        let node_2_displacements =
-            TrussAuxFunctions::compose_default_node_displacements(node_2.as_ref()
-                .borrow().number)?;
-        nodes_displacements.extend(node_2_displacements);
+        let mut nodes_dof_parameters =
+            TrussAuxFunctions::<T, V>::compose_node_dof_parameters(
+                node_1.as_ref().borrow().number)?;
+        let node_2_dof_parameters =
+            TrussAuxFunctions::<T, V>::compose_node_dof_parameters(
+                node_2.as_ref().borrow().number)?;
+        nodes_dof_parameters.extend(node_2_dof_parameters);
         self.node_1 = node_1;
         self.node_2 = node_2;
         self.young_modulus = young_modulus;
@@ -349,7 +349,7 @@ impl<T, V> Truss2n2ip<T, V>
         self.area_2 = area_2;
         self.state.rotation_matrix = rotation_matrix;
         self.state.local_stiffness_matrix = local_stiffness_matrix;
-        self.state.nodes_global_displacements = nodes_displacements;
+        self.state.nodes_dof_parameters_global = nodes_dof_parameters;
         Ok(())
     }
 

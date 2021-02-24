@@ -1,5 +1,8 @@
-use crate::fem::{FeNode, FEData, FiniteElement, StiffnessGroup, ForceBC, DisplacementBC};
-use crate::fem::{FEType, GlobalForceDisplacementComponent};
+use crate::fem::
+    {
+        FeNode, FEData, FiniteElement, StiffnessGroup, Force, Displacement, DOFParameterData
+    };
+use crate::fem::{FEType, GlobalDOFParameter};
 use crate::fem::compose_stiffness_sub_groups;
 use crate::{ElementsNumbers, ElementsValues};
 use crate::extended_matrix::ExtendedMatrix;
@@ -16,13 +19,20 @@ use std::iter::FromIterator;
 pub const GLOBAL_DOF: ElementsNumbers = 6;
 
 
+pub struct State<T>
+{
+    pub nodes_dof_parameters_global: Vec<DOFParameterData<T>>
+}
+
+
 pub struct FEModel<T, V>
 {
     pub nodes: Vec<Rc<RefCell<FeNode<T, V>>>>,
     pub elements: Vec<FiniteElement<T, V>>,
     pub stiffness_groups: Vec<StiffnessGroup<T>>,
-    pub applied_loads: Vec<ForceBC<T, V>>,
-    pub applied_displacements: Vec<DisplacementBC<T, V>>,
+    pub applied_loads: Vec<Force<T, V>>,
+    pub applied_displacements: Vec<Displacement<T, V>>,
+    pub state: State<T>,
 }
 
 
@@ -36,8 +46,9 @@ impl<T, V> FEModel<T, V>
 {
     pub fn create() -> Self
     {
+        let state = State { nodes_dof_parameters_global: Vec::new() };
         FEModel { nodes: Vec::new(), elements: Vec::new(), stiffness_groups: Vec::new(),
-            applied_loads: Vec::new(), applied_displacements: Vec::new() }
+            applied_loads: Vec::new(), applied_displacements: Vec::new(), state }
     }
 
 
@@ -104,6 +115,28 @@ impl<T, V> FEModel<T, V>
     }
 
 
+    fn update_nodes_dof_parameters_global(&mut self) -> Result<(), &str>
+    {
+        let mut nodes_dof_parameters = Vec::new();
+        for node in &self.nodes
+        {
+            for dof in 0..GLOBAL_DOF
+            {
+                let dof_parameter =
+                    GlobalDOFParameter::iterator().nth(dof as usize)
+                        .ok_or("FEModel: Could not find displacement component!")?;
+                let dof_parameter_data = DOFParameterData {
+                    node_number: node.as_ref().borrow().number,
+                    dof_parameter: *dof_parameter
+                };
+                nodes_dof_parameters.push(dof_parameter_data);
+            }
+        }
+        self.state.nodes_dof_parameters_global = nodes_dof_parameters;
+        Ok(())
+    }
+
+
     pub fn add_node(&mut self, number: T, x: V, y: V, z: V) -> Result<(), String>
     {
         if self.nodes.iter().position(|node|
@@ -112,6 +145,7 @@ impl<T, V> FEModel<T, V>
             let node = FeNode::create(number, x, y, z);
             self.nodes.push(Rc::new(RefCell::new(node)));
             self.update_stiffness_groups()?;
+            self.update_nodes_dof_parameters_global()?;
             Ok(())
         }
         else
@@ -156,19 +190,20 @@ impl<T, V> FEModel<T, V>
             while let Some(position) = self.applied_loads
                 .iter()
                 .position(|force_bc|
-                    force_bc.force.node_number == number)
+                    force_bc.dof_parameter_data.node_number == number)
             {
                 self.applied_loads.remove(position);
             }
             while let Some(position) = self.applied_displacements
                 .iter()
                 .position(|displacement_bc|
-                    displacement_bc.displacement.node_number == number)
+                    displacement_bc.dof_parameter_data.node_number == number)
             {
                 self.applied_displacements.remove(position);
             }
             self.nodes.remove(position);
             self.update_stiffness_groups()?;
+            self.update_nodes_dof_parameters_global()?;
             return Ok(());
         }
         Err(format!("FEModel: Node {} could not be deleted because it does not exist!",
@@ -312,7 +347,7 @@ impl<T, V> FEModel<T, V>
 
 
     pub fn add_load(&mut self, number: T, node_number: T,
-        component: GlobalForceDisplacementComponent, value: V) -> Result<(), &str>
+                    component: GlobalDOFParameter, value: V) -> Result<(), &str>
     {
         if self.applied_loads.iter().position(|f|
             f.number == number).is_some()
@@ -326,14 +361,14 @@ impl<T, V> FEModel<T, V>
             return Err("FEModel: Force could not be added because the current node number does \
                 not exist!");
         }
-        let force_bc = ForceBC::create(number, node_number, component, value);
+        let force_bc = Force::create(number, node_number, component, value);
         self.applied_loads.push(force_bc);
         Ok(())
     }
 
 
     pub fn update_load(&mut self, number: T, node_number: T,
-        component: GlobalForceDisplacementComponent, value: V) -> Result<(), &str>
+                       component: GlobalDOFParameter, value: V) -> Result<(), &str>
     {
         if self.nodes.iter().position(|node|
             node.as_ref().borrow().number == node_number).is_none()
@@ -371,7 +406,7 @@ impl<T, V> FEModel<T, V>
 
 
     pub fn add_displacement(&mut self, number: T, node_number: T,
-        component: GlobalForceDisplacementComponent, value: V) -> Result<(), &str>
+                            component: GlobalDOFParameter, value: V) -> Result<(), &str>
     {
         if self.applied_displacements.iter().position(|d|
             d.number == number).is_some()
@@ -385,7 +420,7 @@ impl<T, V> FEModel<T, V>
             return Err("FEModel: Displacement could not be added because the current node number \
                 does not exist!");
         }
-        let displacement_bc = DisplacementBC::create(
+        let displacement_bc = Displacement::create(
             number, node_number, component, value);
         self.applied_displacements.push(displacement_bc);
         Ok(())
@@ -393,7 +428,7 @@ impl<T, V> FEModel<T, V>
 
 
     pub fn update_displacement(&mut self, number: T, node_number: T,
-        component: GlobalForceDisplacementComponent, value: V) -> Result<(), &str>
+                               component: GlobalDOFParameter, value: V) -> Result<(), &str>
     {
         if self.nodes.iter().position(|node|
             node.as_ref().borrow().number == node_number).is_none()
