@@ -1,4 +1,4 @@
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct GlobalCoordinates<T>
 {
     pub x: T,
@@ -16,6 +16,8 @@ pub struct FeNode<T, V>
 
 
 impl<T, V> FeNode<T, V>
+    where T: PartialEq,
+          V: PartialEq,
 {
     pub fn create(number: T, x: V, y: V, z: V) -> Self
     {
@@ -26,5 +28,17 @@ impl<T, V> FeNode<T, V>
     pub fn update(&mut self, x: V, y: V, z: V)
     {
         self.coordinates = GlobalCoordinates { x, y, z };
+    }
+
+
+    pub fn number_same(&self, number: T) -> bool
+    {
+        number == self.number
+    }
+
+
+    pub fn coordinates_same(&self, x: V, y: V, z: V) -> bool
+    {
+        GlobalCoordinates { x, y, z } == self.coordinates
     }
 }
