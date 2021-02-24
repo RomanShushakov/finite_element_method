@@ -229,7 +229,7 @@ impl<T, V> TrussAuxFunctions<T, V>
         {
             let dof_parameter =
                 GlobalDOFParameter::iterator().nth(dof as usize)
-                    .ok_or("Truss2n2ip: Could not find displacement component!")?;
+                    .ok_or("Truss2n2ip: Could not find dof parameter!")?;
             let dof_parameter = DOFParameterData { node_number,
                 dof_parameter: *dof_parameter
             };

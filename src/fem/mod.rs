@@ -11,7 +11,7 @@ pub use crate::fem::finite_elements::fe_node::{FeNode, GlobalCoordinates};
 pub use crate::fem::finite_elements::truss::truss2n2ip::Truss2n2ip;
 pub use crate::fem::finite_elements::aux_functions_finite_elements::compare_with_tolerance;
 
-pub use crate::fem::fe_model::FEModel;
+pub use crate::fem::fe_model::{FEModel, SeparatedMatrix};
 pub use crate::fem::fe_model::GLOBAL_DOF;
 
 pub use crate::fem::fe_force_displacement::{DOFParameterData, Force, Displacement};

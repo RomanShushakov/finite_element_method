@@ -12,6 +12,7 @@ use fem::finite_elements::truss::truss2n2ip::Truss2n2ip;
 use crate::extended_matrix::basic_matrix::basic_matrix::BasicMatrixTrait;
 
 use std::mem;
+use crate::extended_matrix::MatrixElementPosition;
 
 
 pub type ElementsNumbers = u16;
@@ -59,49 +60,64 @@ fn main() -> Result<(), String>
         println!("{} {:?}", removed_force_node_number, removed_force_component);
 
     }
+    println!();
     global_stiffness_matrix.show_matrix();
-    println!("{:?}", removed_zeros_rows_columns);
-
-
-    fe_model.add_load(
-        1, 1, GlobalDOFParameter::X, 1000.0)?;
-    println!("{:?}", fe_model.applied_loads);
     println!();
-    fe_model.add_load(
-        5, 2, GlobalDOFParameter::ThX, 1500.0)?;
-    println!("{:?}", fe_model.applied_loads);
+    // println!("{:?}", removed_zeros_rows_columns);
+    // println!();
+    let separated_matrix = global_stiffness_matrix.separate(
+        vec![
+            MatrixElementPosition { row: 1, column: 1 },
+            MatrixElementPosition { row: 4, column: 4 }])?;
+    separated_matrix.k_aa.show_matrix();
     println!();
-    fe_model.update_load(
-        5, 4, GlobalDOFParameter::ThX, 1500.0)?;
-    println!("{:?}", fe_model.applied_loads);
+    separated_matrix.k_ab.show_matrix();
     println!();
-    fe_model.delete_load(1)?;
-    println!("{:?}", fe_model.applied_loads);
+    separated_matrix.k_ba.show_matrix();
+    println!();
+    separated_matrix.k_bb.show_matrix();
     println!();
 
-    fe_model.add_displacement(
-        1, 1, GlobalDOFParameter::X, 1000.0)?;
-    println!("{:?}", fe_model.applied_displacements);
-    println!();
-    fe_model.add_displacement(
-        5, 2, GlobalDOFParameter::ThX, 1500.0)?;
-    println!("{:?}", fe_model.applied_displacements);
-    println!();
-    fe_model.update_displacement(
-        5, 4, GlobalDOFParameter::ThX, 1500.0)?;
-    println!("{:?}", fe_model.applied_displacements);
-    println!();
-    fe_model.delete_displacement(1)?;
-    println!("{:?}", fe_model.applied_displacements);
-    println!();
 
-    fe_model.delete_node(1)?;
-    println!("{:?}", fe_model.applied_displacements);
-    println!();
-    println!("{:?}", fe_model.applied_loads);
-    println!();
-    println!("{:?}", fe_model.elements.len());
-    println!();
+    // fe_model.add_load(
+    //     1, 1, GlobalDOFParameter::X, 1000.0)?;
+    // println!("{:?}", fe_model.applied_loads);
+    // println!();
+    // fe_model.add_load(
+    //     5, 2, GlobalDOFParameter::ThX, 1500.0)?;
+    // println!("{:?}", fe_model.applied_loads);
+    // println!();
+    // fe_model.update_load(
+    //     5, 4, GlobalDOFParameter::ThX, 1500.0)?;
+    // println!("{:?}", fe_model.applied_loads);
+    // println!();
+    // fe_model.delete_load(1)?;
+    // println!("{:?}", fe_model.applied_loads);
+    // println!();
+    //
+    // fe_model.add_displacement(
+    //     1, 1, GlobalDOFParameter::X, 1000.0)?;
+    // println!("{:?}", fe_model.applied_displacements);
+    // println!();
+    // fe_model.add_displacement(
+    //     5, 2, GlobalDOFParameter::ThX, 1500.0)?;
+    // println!("{:?}", fe_model.applied_displacements);
+    // println!();
+    // fe_model.update_displacement(
+    //     5, 4, GlobalDOFParameter::ThX, 1500.0)?;
+    // println!("{:?}", fe_model.applied_displacements);
+    // println!();
+    // fe_model.delete_displacement(1)?;
+    // println!("{:?}", fe_model.applied_displacements);
+    // println!();
+    //
+    // fe_model.delete_node(1)?;
+    // println!("{:?}", fe_model.applied_displacements);
+    // println!();
+    // println!("{:?}", fe_model.applied_loads);
+    // println!();
+    // println!("{:?}", fe_model.elements.len());
+    // println!();
 
     Ok(())
 }

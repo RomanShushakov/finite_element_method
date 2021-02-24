@@ -48,8 +48,7 @@ pub struct Force<T, V>
 
 impl<T, V> Force<T, V>
 {
-    pub fn create(number: T, node_number: T, dof_parameter: GlobalDOFParameter,
-                  value: V) -> Self
+    pub fn create(number: T, node_number: T, dof_parameter: GlobalDOFParameter, value: V) -> Self
     {
         Force { number, dof_parameter_data: DOFParameterData { node_number, dof_parameter }, value }
     }

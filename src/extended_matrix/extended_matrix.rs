@@ -3,10 +3,13 @@ use crate::extended_matrix::
     {
         NonSymmetricMatrix, MatrixElementPosition, ZerosRowColumn
     };
-use crate::extended_matrix::aux_functions_extended_matrix::
+use crate::extended_matrix::
     {
         matrices_dimensions_conformity_check, extract_element_value, remove_zero_values
     };
+
+use crate::fem::SeparatedMatrix;
+
 use crate::{ElementsNumbers, ElementsValues, TOLERANCE};
 
 use std::fmt::Debug;
@@ -466,5 +469,105 @@ impl<T, V> ExtendedMatrix<T, V>
     pub fn remove_zeros_row(&mut self, row: T)
     {
         self.basic_matrix = self.basic_matrix.remove_zeros_row(row)
+    }
+
+
+    pub fn separate<'a>(self, positions: Vec<MatrixElementPosition<T>>)
+        -> Result<SeparatedMatrix<T, V>, &'a str>
+    {
+        let shape = self.basic_matrix.get_shape();
+        let all_elements_values =
+            self.basic_matrix.extract_all_elements_values();
+        let k_aa_rows_number = shape.0 - T::from(positions.len() as ElementsNumbers);
+        let k_aa_columns_number = shape.1 - T::from(positions.len() as ElementsNumbers);
+        let mut k_aa_elements = Vec::new();
+        for i in 0..shape.0.into()
+        {
+            for j in 0..shape.1.into()
+            {
+                if positions.iter().position(|p|
+                        p.row == T::from(i)).is_none() &&
+                    positions.iter().position(|p|
+                        p.column == T::from(j)).is_none()
+                {
+                    let row = T::from(i);
+                    let column = T::from(j);
+                    let value = extract_element_value(row, column, &all_elements_values);
+                    k_aa_elements.push(value);
+                }
+            }
+        }
+        let k_aa_matrix =
+            ExtendedMatrix::create(k_aa_rows_number, k_aa_columns_number, k_aa_elements);
+        let k_ab_rows_number = shape.0 - T::from(positions.len() as ElementsNumbers);
+        let k_ab_columns_number = T::from(positions.len() as ElementsNumbers);
+        let mut k_ab_elements = Vec::new();
+        for i in 0..shape.0.into()
+        {
+            if positions.iter().position(|p| p.row == T::from(i)).is_none()
+            {
+                for j in 0..positions.len()
+                {
+                    let row = T::from(i);
+                    let column = positions[j].column;
+                    if column > shape.1
+                    {
+                        return Err("Extended matrix: Matrix could not be separated! Matrix Kab \
+                            could not be composed!");
+                    }
+                    let value = extract_element_value(row, column, &all_elements_values);
+                    k_ab_elements.push(value);
+                }
+            }
+        }
+        let k_ab_matrix =
+            ExtendedMatrix::create(k_ab_rows_number, k_ab_columns_number, k_ab_elements);
+        let k_ba_rows_number = T::from(positions.len() as ElementsNumbers);
+        let k_ba_columns_number = shape.1 - T::from(positions.len() as ElementsNumbers);
+        let mut k_ba_elements = Vec::new();
+        for i in 0..positions.len()
+        {
+            for j in 0..shape.1.into()
+            {
+                if positions.iter().position(|p|
+                    p.column == T::from(j)).is_none()
+                {
+                    let row = positions[i].row;
+                    let column = T::from(j);
+                    if row > shape.0
+                    {
+                        return Err("Extended matrix: Matrix could not be separated! Matrix Kba \
+                            could not be composed!");
+                    }
+                    let value = extract_element_value(row, column, &all_elements_values);
+                    k_ba_elements.push(value);
+                }
+            }
+        }
+        let k_ba_matrix =
+            ExtendedMatrix::create(k_ba_rows_number, k_ba_columns_number, k_ba_elements);
+        let k_bb_rows_number = T::from(positions.len() as ElementsNumbers);
+        let k_bb_columns_number = T::from(positions.len() as ElementsNumbers);
+        let mut k_bb_elements = Vec::new();
+        for i in 0..positions.len()
+        {
+            for j in 0..positions.len()
+            {
+                let row = positions[i].row;
+                let column = positions[j].column;
+                if row > shape.0 || column > shape.1
+                {
+                    return Err("Extended matrix: Matrix could not be separated! Matrix Kbb could \
+                        not be composed!");
+                }
+                let value = extract_element_value(row, column, &all_elements_values);
+                k_bb_elements.push(value);
+            }
+        }
+        let k_bb_matrix =
+            ExtendedMatrix::create(k_bb_rows_number, k_bb_columns_number, k_bb_elements);
+        Ok(SeparatedMatrix {
+            k_aa: k_aa_matrix, k_ab: k_ab_matrix, k_ba: k_ba_matrix, k_bb: k_bb_matrix
+        })
     }
 }

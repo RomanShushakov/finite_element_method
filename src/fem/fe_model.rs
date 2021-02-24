@@ -19,6 +19,15 @@ use std::iter::FromIterator;
 pub const GLOBAL_DOF: ElementsNumbers = 6;
 
 
+pub struct SeparatedMatrix<T, V>
+{
+    pub k_aa: ExtendedMatrix<T, V>,
+    pub k_ab: ExtendedMatrix<T, V>,
+    pub k_ba: ExtendedMatrix<T, V>,
+    pub k_bb: ExtendedMatrix<T, V>,
+}
+
+
 pub struct State<T>
 {
     pub nodes_dof_parameters_global: Vec<DOFParameterData<T>>
@@ -124,7 +133,7 @@ impl<T, V> FEModel<T, V>
             {
                 let dof_parameter =
                     GlobalDOFParameter::iterator().nth(dof as usize)
-                        .ok_or("FEModel: Could not find displacement component!")?;
+                        .ok_or("FEModel: Could not find dof parameter!")?;
                 let dof_parameter_data = DOFParameterData {
                     node_number: node.as_ref().borrow().number,
                     dof_parameter: *dof_parameter
