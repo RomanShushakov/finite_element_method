@@ -3,11 +3,7 @@ use extended_matrix::ExtendedMatrix;
 use extended_matrix::{return_symmetric_matrix_struct, return_non_symmetric_matrix_struct};
 
 mod fem;
-use crate::fem::
-    {
-        FeNode, GlobalCoordinates, FEModel, FEType, FEData, GLOBAL_DOF, DOFParameterData,
-        GlobalDOFParameter
-    };
+use crate::fem::{FeNode, GlobalCoordinates, FEModel, FEType, FEData, GLOBAL_DOF, DOFParameterData, GlobalDOFParameter, BCType};
 use fem::finite_elements::truss::truss2n2ip::Truss2n2ip;
 use crate::extended_matrix::basic_matrix::basic_matrix::BasicMatrixTrait;
 
@@ -26,8 +22,8 @@ pub const TOLERANCE: ElementsValues = 1e-6;
 fn main() -> Result<(), String>
 {
     let mut fe_model = FEModel::<ElementsNumbers,ElementsValues>::create();
-    fe_model.add_node(1, 4.0, 0.0, 0.0)?;
     fe_model.add_node(2, 4.0, 3.0, 0.0)?;
+    fe_model.add_node(1, 4.0, 0.0, 0.0)?;
     fe_model.add_node(3, 0.0, 0.0, 0.0)?;
     fe_model.add_node(4, 0.0, 3.0, 0.0)?;
     fe_model.add_element(
@@ -77,34 +73,49 @@ fn main() -> Result<(), String>
     println!();
 
 
-    fe_model.add_load(
-        1, 1, GlobalDOFParameter::X, 1000.0)?;
-    println!("{:?}", fe_model.applied_loads);
+    fe_model.add_bc(
+        BCType::Force, 1, 1,
+        GlobalDOFParameter::X, 1000.0)?;
+    for bc in &fe_model.boundary_conditions
+    {
+        bc.show();
+    }
     println!();
-    fe_model.add_load(
-        2, 1, GlobalDOFParameter::Y, 1500.0)?;
-    println!("{:?}", fe_model.applied_loads);
-    println!();
-    fe_model.update_load(
-        2, 1, GlobalDOFParameter::Y, 1600.0)?;
-    println!("{:?}", fe_model.applied_loads);
-    println!();
-    fe_model.delete_load(1)?;
-    println!("{:?}", fe_model.applied_loads);
-    println!();
+    fe_model.add_bc(
+        BCType::Force, 2, 1,
+        GlobalDOFParameter::X, 1500.0)?;
+    for bc in &fe_model.boundary_conditions
+    {
+        bc.show();
+    }
+    // println!();
+    // fe_model.update_bc(
+    //     BCType::Force, 2, 1,
+    //     GlobalDOFParameter::Y, 1600.0)?;
+    // for bc in &fe_model.boundary_conditions
+    // {
+    //     bc.show();
+    // }
+    // println!();
+    // fe_model.delete_bc(BCType::Force, 1)?;
+    // for bc in &fe_model.boundary_conditions
+    // {
+    //     bc.show();
+    // }
+    // println!();
 
-    fe_model.add_displacement(
-        1, 2, GlobalDOFParameter::X, -1.0)?;
-    println!("{:?}", fe_model.applied_displacements);
-    println!();
-    fe_model.add_displacement(
-        5, 2, GlobalDOFParameter::ThX, 0.25)?;
-    println!("{:?}", fe_model.applied_displacements);
-    println!();
-    fe_model.update_displacement(
-        5, 1, GlobalDOFParameter::Y, -1.2)?;
-    println!("{:?}", fe_model.applied_displacements);
-    println!();
+    // fe_model.add_displacement(
+    //     1, 2, GlobalDOFParameter::X, -1.0)?;
+    // println!("{:?}", fe_model.applied_displacements);
+    // println!();
+    // fe_model.add_displacement(
+    //     5, 2, GlobalDOFParameter::ThX, 0.25)?;
+    // println!("{:?}", fe_model.applied_displacements);
+    // println!();
+    // fe_model.update_displacement(
+    //     5, 1, GlobalDOFParameter::Z, -1.2)?;
+    // println!("{:?}", fe_model.applied_displacements);
+    // println!();
     // fe_model.delete_displacement(1)?;
     // println!("{:?}", fe_model.applied_displacements);
     // println!();
@@ -117,5 +128,6 @@ fn main() -> Result<(), String>
     // println!("{:?}", fe_model.elements.len());
     // println!();
 
+    // println!("{:?}", fe_model.state.nodes_dof_parameters_global);
     Ok(())
 }

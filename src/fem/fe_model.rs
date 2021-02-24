@@ -1,8 +1,8 @@
 use crate::fem::
     {
-        FeNode, FEData, FiniteElement, StiffnessGroup, Force, Displacement, DOFParameterData
+        FeNode, FEData, FiniteElement, StiffnessGroup, DOFParameterData, BoundaryCondition
     };
-use crate::fem::{FEType, GlobalDOFParameter};
+use crate::fem::{FEType, GlobalDOFParameter, BCType};
 use crate::fem::compose_stiffness_sub_groups;
 use crate::{ElementsNumbers, ElementsValues};
 use crate::extended_matrix::ExtendedMatrix;
@@ -39,8 +39,7 @@ pub struct FEModel<T, V>
 {
     pub nodes: Vec<Rc<RefCell<FeNode<T, V>>>>,
     pub elements: Vec<FiniteElement<T, V>>,
-    pub applied_loads: Vec<Force<T, V>>,
-    pub applied_displacements: Vec<Displacement<T, V>>,
+    pub boundary_conditions: Vec<BoundaryCondition<T, V>>,
     pub state: State<T>,
 }
 
@@ -56,8 +55,7 @@ impl<T, V> FEModel<T, V>
     pub fn create() -> Self
     {
         let state = State { stiffness_groups: Vec::new(), nodes_dof_parameters_global: Vec::new() };
-        FEModel { nodes: Vec::new(), elements: Vec::new(), applied_loads: Vec::new(),
-            applied_displacements: Vec::new(), state }
+        FEModel { nodes: Vec::new(), elements: Vec::new(), boundary_conditions: Vec::new(), state }
     }
 
 
@@ -205,19 +203,12 @@ impl<T, V> FEModel<T, V>
             {
                 self.elements.remove(position);
             }
-            while let Some(position) = self.applied_loads
+            while let Some(position) = self.boundary_conditions
                 .iter()
-                .position(|force_bc|
-                    force_bc.node_number_same(number))
+                .position(|bc|
+                    bc.node_number_same(number))
             {
-                self.applied_loads.remove(position);
-            }
-            while let Some(position) = self.applied_displacements
-                .iter()
-                .position(|displacement_bc|
-                    displacement_bc.node_number_same(number))
-            {
-                self.applied_displacements.remove(position);
+                self.boundary_conditions.remove(position);
             }
             self.nodes.remove(position);
             self.update_stiffness_groups()?;
@@ -378,157 +369,78 @@ impl<T, V> FEModel<T, V>
     }
 
 
-    pub fn add_load(&mut self, number: T, node_number: T,
-        dof_parameter: GlobalDOFParameter, value: V) -> Result<(), &str>
+    pub fn add_bc(&mut self, bc_type: BCType, number: T, node_number: T,
+        dof_parameter: GlobalDOFParameter, value: V) -> Result<(), String>
     {
-        if self.applied_loads.iter().position(|f|
-            f.number_same(number)).is_some()
+        if self.boundary_conditions.iter().position(|bc|
+            bc.number_same(number) && bc.type_same(bc_type)).is_some()
         {
-            return Err("FEModel: Force could not be added because the same force number does \
-                already exist!");
+            return Err(format!("FEModel: {} could not be added because the same {} number does \
+                already exist!", bc_type.as_str(), bc_type.as_str().to_lowercase()));
         }
-        if self.applied_loads.iter().position(|f|
-            f.dof_parameter_data_same(dof_parameter, node_number)).is_some() ||
-                self.applied_displacements.iter().position(|d|
-                    d.dof_parameter_data_same(dof_parameter, node_number)).is_some()
+        if self.boundary_conditions.iter().position(|bc|
+            bc.dof_parameter_data_same(dof_parameter, node_number)).is_some()
         {
-            return Err("FEModel: Force could not be added because the the force or displacement \
-                with the same dof parameter data does already exist!");
+            return Err(format!("FEModel: {} could not be added because the the force or \
+                displacement with the same dof parameter data does already exist!",
+                               bc_type.as_str()));
         }
         if self.nodes.iter().position(|node|
             node.as_ref().borrow().number_same(node_number)).is_none()
         {
-            return Err("FEModel: Force could not be added because the current node number does \
-                not exist!");
+            return Err(format!("FEModel: {} could not be added because the current node number \
+                does not exist!", bc_type.as_str()));
         }
-        let force_bc = Force::create(number, node_number, dof_parameter, value);
-        self.applied_loads.push(force_bc);
+        let bc = BoundaryCondition::create(
+            bc_type, number, node_number, dof_parameter, value);
+        self.boundary_conditions.push(bc);
         Ok(())
     }
 
 
-    pub fn update_load(&mut self, number: T, node_number: T,
-        dof_parameter: GlobalDOFParameter, value: V) -> Result<(), &str>
+    pub fn update_bc(&mut self, bc_type: BCType, number: T, node_number: T,
+        dof_parameter: GlobalDOFParameter, value: V) -> Result<(), String>
     {
         if self.nodes.iter().position(|node|
             node.as_ref().borrow().number_same(node_number)).is_none()
         {
-            return Err("FEModel: Force could not be updated because the current node number does \
-                not exist!");
+            return Err(format!("FEModel: {} could not be updated because the current node number \
+                does not exist!", bc_type.as_str()));
         }
-        if self.applied_loads.iter().position(|f|
-                f.dof_parameter_data_same(
-                    dof_parameter, node_number) && !f.number_same(number)).is_some() ||
-            self.applied_displacements.iter().position(|d|
-                d.dof_parameter_data_same(
-                    dof_parameter, node_number) && !d.number_same(number)).is_some()
+        if self.boundary_conditions.iter().position(|bc|
+                bc.dof_parameter_data_same(
+                    dof_parameter, node_number) && !bc.number_same(number)).is_some()
         {
-            return Err("FEModel: Force could not be updated because the the force or displacement \
-                with the same dof parameter data does already exist!");
+            return Err(format!("FEModel: {} could not be updated because the the force or \
+                displacement with the same dof parameter data does already exist!",
+                               bc_type.as_str()));
         }
-        if let Some(position) =  self.applied_loads.iter().position(|f|
-            f.number_same(number))
+        if let Some(position) =  self.boundary_conditions.iter().position(|bc|
+            bc.number_same(number) && bc.type_same(bc_type))
         {
-            self.applied_loads[position].update(node_number, dof_parameter, value);
+            self.boundary_conditions[position].update(node_number, dof_parameter, value);
             Ok(())
         }
         else
         {
-            Err("FEModel: Force could not be updated because current force number does not exist!")
+            Err(format!("FEModel: {} could not be updated because current {} number does not \
+                exist!", bc_type.as_str(), bc_type.as_str().to_lowercase()))
         }
     }
 
 
-    pub fn delete_load(&mut self, number: T) -> Result<(), &str>
+    pub fn delete_bc(&mut self, bc_type: BCType, number: T) -> Result<(), String>
     {
-        if let Some(position) =  self.applied_loads.iter().position(|f|
-            f.number_same(number))
+        if let Some(position) =  self.boundary_conditions.iter().position(|bc|
+            bc.number_same(number) && bc.type_same(bc_type))
         {
-            self.applied_loads.remove(position);
+            self.boundary_conditions.remove(position);
             Ok(())
         }
         else
         {
-            Err("FEModel: Force could not be deleted because current force number does not exist!")
-        }
-    }
-
-
-    pub fn add_displacement(&mut self, number: T, node_number: T,
-        dof_parameter: GlobalDOFParameter, value: V) -> Result<(), &str>
-    {
-        if self.applied_displacements.iter().position(|d|
-            d.number_same(number)).is_some()
-        {
-            return Err("FEModel: Displacement could not be added because the same displacement \
-                number does already exist!");
-        }
-        if self.applied_loads.iter().position(|f|
-                f.dof_parameter_data_same(
-                    dof_parameter, node_number) && !f.number_same(number)).is_some() ||
-            self.applied_displacements.iter().position(|d|
-                d.dof_parameter_data_same(
-                    dof_parameter, node_number) && !d.number_same(number)).is_some()
-        {
-            return Err("FEModel: Force could not be added because the the force or displacement \
-                with the same dof parameter data does already exist!");
-        }
-        if self.nodes.iter().position(|node|
-            node.as_ref().borrow().number_same(node_number)).is_none()
-        {
-            return Err("FEModel: Displacement could not be added because the current node number \
-                does not exist!");
-        }
-        let displacement_bc = Displacement::create(
-            number, node_number, dof_parameter, value);
-        self.applied_displacements.push(displacement_bc);
-        Ok(())
-    }
-
-
-    pub fn update_displacement(&mut self, number: T, node_number: T,
-        dof_parameter: GlobalDOFParameter, value: V) -> Result<(), &str>
-    {
-        if self.nodes.iter().position(|node|
-            node.as_ref().borrow().number_same(node_number)).is_none()
-        {
-            return Err("FEModel: Displacement could not be updated because the current node number \
-                does not exist!");
-        }
-        if self.applied_loads.iter().position(|f|
-            f.dof_parameter_data_same(dof_parameter, node_number)).is_some() ||
-                self.applied_displacements.iter().position(|d|
-                    d.dof_parameter_data_same(dof_parameter, node_number)).is_some()
-        {
-            return Err("FEModel: Force could not be added because the the force or displacement \
-                with the same dof parameter data does already exist!");
-        }
-        if let Some(position) =  self.applied_displacements.iter().position(|d|
-            d.number_same(number))
-        {
-            self.applied_displacements[position].update(node_number, dof_parameter, value);
-            Ok(())
-        }
-        else
-        {
-            Err("FEModel: Displacement could not be updated because current displacement number \
-                does not exist!")
-        }
-    }
-
-
-    pub fn delete_displacement(&mut self, number: T) -> Result<(), &str>
-    {
-        if let Some(position) =  self.applied_displacements.iter().position(|d|
-            d.number_same(number))
-        {
-            self.applied_displacements.remove(position);
-            Ok(())
-        }
-        else
-        {
-            Err("FEModel: Displacement could not be deleted because current displacement number \
-                does not exist!")
+            Err(format!("FEModel: {} could not be deleted because current {} number does not \
+                exist!", bc_type.as_str(), bc_type.as_str().to_lowercase()))
         }
     }
 }
