@@ -28,7 +28,7 @@ impl StiffnessType
 {
     pub fn iterator() -> Iter<'static, StiffnessType>
      {
-        static TYPES: [StiffnessType; STIFFNESS_TYPES_NUMBER as usize] =
+        const TYPES: [StiffnessType; STIFFNESS_TYPES_NUMBER as usize] =
             [
                 Kuu, Kuth, Kthu, Kthth,
             ];
@@ -37,7 +37,6 @@ impl StiffnessType
 }
 
 
-#[derive(Debug)]
 pub struct StiffnessGroup<T>
 {
     pub stiffness_type: StiffnessType,

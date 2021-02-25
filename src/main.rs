@@ -83,51 +83,66 @@ fn main() -> Result<(), String>
     println!();
     fe_model.add_bc(
         BCType::Force, 2, 1,
-        GlobalDOFParameter::X, 1500.0)?;
+        GlobalDOFParameter::Y, 1500.0)?;
     for bc in &fe_model.boundary_conditions
     {
         bc.show();
     }
-    // println!();
-    // fe_model.update_bc(
-    //     BCType::Force, 2, 1,
-    //     GlobalDOFParameter::Y, 1600.0)?;
-    // for bc in &fe_model.boundary_conditions
-    // {
-    //     bc.show();
-    // }
-    // println!();
-    // fe_model.delete_bc(BCType::Force, 1)?;
-    // for bc in &fe_model.boundary_conditions
-    // {
-    //     bc.show();
-    // }
-    // println!();
+    println!();
+    fe_model.update_bc(
+        BCType::Force, 2, 1,
+        GlobalDOFParameter::Y, 1600.0)?;
+    for bc in &fe_model.boundary_conditions
+    {
+        bc.show();
+    }
+    println!();
+    fe_model.delete_bc(BCType::Force, 1)?;
+    for bc in &fe_model.boundary_conditions
+    {
+        bc.show();
+    }
+    println!();
 
-    // fe_model.add_displacement(
-    //     1, 2, GlobalDOFParameter::X, -1.0)?;
-    // println!("{:?}", fe_model.applied_displacements);
-    // println!();
-    // fe_model.add_displacement(
-    //     5, 2, GlobalDOFParameter::ThX, 0.25)?;
-    // println!("{:?}", fe_model.applied_displacements);
-    // println!();
-    // fe_model.update_displacement(
-    //     5, 1, GlobalDOFParameter::Z, -1.2)?;
-    // println!("{:?}", fe_model.applied_displacements);
-    // println!();
-    // fe_model.delete_displacement(1)?;
-    // println!("{:?}", fe_model.applied_displacements);
-    // println!();
-    //
-    // fe_model.delete_node(1)?;
-    // println!("{:?}", fe_model.applied_displacements);
-    // println!();
-    // println!("{:?}", fe_model.applied_loads);
-    // println!();
-    // println!("{:?}", fe_model.elements.len());
-    // println!();
+    fe_model.add_bc(
+        BCType::Displacement, 1, 2,
+        GlobalDOFParameter::X, -1.0)?;
+    for bc in &fe_model.boundary_conditions
+    {
+        bc.show();
+    }
+    println!();
+    fe_model.add_bc(
+        BCType::Displacement, 5, 2,
+        GlobalDOFParameter::ThX, 0.025)?;
+    for bc in &fe_model.boundary_conditions
+    {
+        bc.show();
+    }
+    println!();
+    fe_model.update_bc(
+        BCType::Displacement, 5, 1,
+        GlobalDOFParameter::Z, -1.2)?;
+    for bc in &fe_model.boundary_conditions
+    {
+        bc.show();
+    }
+    println!();
+    fe_model.delete_bc(BCType::Displacement, 1)?;
+    for bc in &fe_model.boundary_conditions
+    {
+        bc.show();
+    }
+    println!();
 
-    // println!("{:?}", fe_model.state.nodes_dof_parameters_global);
+    fe_model.delete_node(1)?;
+    for bc in &fe_model.boundary_conditions
+    {
+        bc.show();
+    }
+    println!();
+
+
+    println!("{:?}", fe_model.state.nodes_dof_parameters_global);
     Ok(())
 }

@@ -314,11 +314,25 @@ impl<T, V> Truss2n2ip<T, V>
         };
         Ok(Truss2n2ip { number, node_1, node_2, young_modulus, area, area_2, state })
     }
+}
 
 
-    pub fn update(&mut self, node_1: Rc<RefCell<FeNode<T, V>>>, node_2: Rc<RefCell<FeNode<T, V>>>,
-        young_modulus: V, area: V, area_2: Option<V>) -> Result<(), String>
+impl<T, V> FiniteElementTrait<T, V> for Truss2n2ip<T, V>
+    where T: Copy + Add<Output = T> + Sub<Output = T> + Div<Output = T> + Rem<Output = T> +
+             Mul<Output = T> + From<ElementsNumbers> + Into<ElementsNumbers> + Eq + Hash + Debug +
+             SubAssign + PartialOrd + Default + 'static,
+          V: Copy + Sub<Output = V> + Mul<Output = V> + Add<Output = V> + Div<Output = V> +
+             Into<ElementsValues> + From<ElementsValues> + SubAssign + AddAssign + MulAssign +
+             PartialEq + Debug + Default + 'static,
+{
+    fn update(&mut self, data: FEData<T, V>) -> Result<(), String>
     {
+        let node_1 = Rc::clone(&data.nodes[0]);
+        let node_2 = Rc::clone(&data.nodes[1]);
+        let young_modulus = data.properties[0];
+        let area = data.properties[1];
+        let area_2 =
+            if data.properties.len() == 3 { Some(data.properties[2]) } else { None };
         let rotation_matrix =
             TrussAuxFunctions::rotation_matrix(Rc::clone(&node_1),
                                                Rc::clone(&node_2));
@@ -354,7 +368,7 @@ impl<T, V> Truss2n2ip<T, V>
     }
 
 
-    pub fn extract_stiffness_matrix(&self) -> Result<ExtendedMatrix<T, V>, &str>
+    fn extract_stiffness_matrix(&self) -> Result<ExtendedMatrix<T, V>, &str>
     {
         let mut interim_matrix = self.state.rotation_matrix.clone();
         interim_matrix.transpose();
@@ -371,7 +385,7 @@ impl<T, V> Truss2n2ip<T, V>
     }
 
 
-    pub fn extract_stiffness_groups(&self) -> Vec<StiffnessGroup<T>>
+    fn extract_stiffness_groups(&self) -> Vec<StiffnessGroup<T>>
     {
         let (rows_number, columns_number) =
             (T::from(TRUSS2N2IP_NODES_NUMBER * TRUSS_NODE_DOF),
@@ -420,14 +434,14 @@ impl<T, V> Truss2n2ip<T, V>
     }
 
 
-    pub fn node_belong_element(&self, node_number: T) -> bool
+    fn node_belong_element(&self, node_number: T) -> bool
     {
         self.node_1.as_ref().borrow().number == node_number ||
         self.node_2.as_ref().borrow().number == node_number
     }
 
 
-    pub fn refresh(&mut self) -> Result<(), String>
+    fn refresh(&mut self) -> Result<(), String>
     {
         let rotation_matrix =
             TrussAuxFunctions::rotation_matrix(Rc::clone(&self.node_1),
@@ -447,60 +461,6 @@ impl<T, V> Truss2n2ip<T, V>
         }
         self.state.rotation_matrix = rotation_matrix;
         self.state.local_stiffness_matrix = local_stiffness_matrix;
-        Ok(())
-    }
-}
-
-
-impl<T, V> FiniteElementTrait<T, V> for Truss2n2ip<T, V>
-    where T: Copy + Add<Output = T> + Sub<Output = T> + Div<Output = T> + Rem<Output = T> +
-             Mul<Output = T> + From<ElementsNumbers> + Into<ElementsNumbers> + Eq + Hash + Debug +
-             SubAssign + PartialOrd + Default + 'static,
-          V: Copy + Sub<Output = V> + Mul<Output = V> + Add<Output = V> + Div<Output = V> +
-             Into<ElementsValues> + From<ElementsValues> + SubAssign + AddAssign + MulAssign +
-             PartialEq + Debug + Default + 'static,
-{
-    fn update(&mut self, data: FEData<T, V>) -> Result<(), String>
-    {
-        if data.properties.len() == 3
-        {
-            self.update(
-                Rc::clone(&data.nodes[0]), Rc::clone(&data.nodes[1]),
-                data.properties[0], data.properties[1],
-                Some(data.properties[2]))?;
-        }
-        else
-        {
-            self.update(
-                Rc::clone(&data.nodes[0]), Rc::clone(&data.nodes[1]),
-                data.properties[0], data.properties[1],
-                None)?;
-        }
-        Ok(())
-    }
-
-
-    fn extract_stiffness_matrix(&self) -> Result<ExtendedMatrix<T, V>, &str>
-    {
-        self.extract_stiffness_matrix()
-    }
-
-
-    fn extract_stiffness_groups(&self) -> Vec<StiffnessGroup<T>>
-    {
-        self.extract_stiffness_groups()
-    }
-
-
-    fn node_belong_element(&self, node_number: T) -> bool
-    {
-        self.node_belong_element(node_number)
-    }
-
-
-    fn refresh(&mut self) -> Result<(), String>
-    {
-        self.refresh()?;
         Ok(())
     }
 

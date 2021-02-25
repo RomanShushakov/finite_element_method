@@ -2,7 +2,6 @@ use crate::fem::{GlobalDOFParameter, DOFParameterData};
 use std::fmt::Debug;
 
 
-#[derive(Debug)]
 struct Force<T, V>
 {
     number: T,
@@ -21,7 +20,6 @@ impl<T, V> Force<T, V>
 }
 
 
-#[derive(Debug)]
 struct Displacement<T, V>
 {
     number: T,
@@ -151,7 +149,7 @@ impl<T, V> BCTrait<T, V> for Displacement<T, V>
 }
 
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Copy, Clone, PartialEq)]
 pub enum BCType
 {
     Force,

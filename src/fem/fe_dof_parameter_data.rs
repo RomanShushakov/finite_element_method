@@ -20,7 +20,7 @@ impl GlobalDOFParameter
 {
     pub fn iterator() -> Iter<'static, GlobalDOFParameter>
      {
-        static PARAMETERS: [GlobalDOFParameter; GLOBAL_DOF as usize] =
+        const PARAMETERS: [GlobalDOFParameter; GLOBAL_DOF as usize] =
             [
                 X, Y, Z, ThX, ThY, ThZ,
             ];
