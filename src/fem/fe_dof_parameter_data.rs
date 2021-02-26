@@ -1,7 +1,10 @@
-use crate::fem::GLOBAL_DOF;
+use crate::ElementsNumbers;
 
 use std::slice::Iter;
 use self::GlobalDOFParameter::*;
+
+
+pub const GLOBAL_DOF: ElementsNumbers = 6;
 
 
 #[derive(PartialEq, Debug, Copy, Clone)]
@@ -29,7 +32,7 @@ impl GlobalDOFParameter
 }
 
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct DOFParameterData<T>
 {
     pub node_number: T,

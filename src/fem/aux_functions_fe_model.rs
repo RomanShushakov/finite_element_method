@@ -4,6 +4,7 @@ use crate::fem::{STIFFNESS_TYPES_NUMBER, GLOBAL_DOF};
 use crate::ElementsNumbers;
 
 use crate::extended_matrix::MatrixElementPosition;
+
 use std::ops::{Div, Rem, Mul, Add, AddAssign};
 use std::fmt::Debug;
 

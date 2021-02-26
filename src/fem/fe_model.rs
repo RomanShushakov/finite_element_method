@@ -1,11 +1,15 @@
 use crate::fem::
     {
-        FeNode, FEData, FiniteElement, StiffnessGroup, DOFParameterData, BoundaryCondition
+        FeNode, FEData, FiniteElement, StiffnessGroup, DOFParameterData, BoundaryCondition,
+        GlobalAnalysisResult
     };
 use crate::fem::{FEType, GlobalDOFParameter, BCType};
 use crate::fem::compose_stiffness_sub_groups;
+use crate::fem::GLOBAL_DOF;
+
+use crate::extended_matrix::{ExtendedMatrix, MatrixElementPosition, ZerosRowColumn, Operation};
+
 use crate::{ElementsNumbers, ElementsValues};
-use crate::extended_matrix::ExtendedMatrix;
 
 use std::ops::{Sub, Div, Rem, SubAssign, Mul, Add, AddAssign, MulAssign};
 use std::hash::Hash;
@@ -14,9 +18,6 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::iter::FromIterator;
-
-
-pub const GLOBAL_DOF: ElementsNumbers = 6;
 
 
 pub struct SeparatedMatrix<T, V>
@@ -326,7 +327,7 @@ impl<T, V> FEModel<T, V>
     }
 
 
-    pub fn compose_global_stiffness_matrix(&self) -> Result<ExtendedMatrix<T, V>, &str>
+    fn compose_global_stiffness_matrix(&self) -> Result<ExtendedMatrix<T, V>, &str>
     {
         if self.elements.is_empty()
         {
@@ -442,5 +443,153 @@ impl<T, V> FEModel<T, V>
             Err(format!("FEModel: {} could not be deleted because current {} number does not \
                 exist!", bc_type.as_str(), bc_type.as_str().to_lowercase()))
         }
+    }
+
+
+    fn shrink_of_nodes_dof_parameters(&mut self, zeros_rows_columns: &Vec<ZerosRowColumn<T>>)
+        -> Result<(), String>
+    {
+        for row_column in zeros_rows_columns
+        {
+            let dof_parameter_data =
+                self.state.nodes_dof_parameters_global.remove(
+                    row_column.column.into() as usize);
+            if let Some(position) = self.boundary_conditions
+                .iter()
+                .position(|bc|
+                    bc.dof_parameter_data_same(
+                        dof_parameter_data.dof_parameter, dof_parameter_data.node_number))
+            {
+                let bc_type = self.boundary_conditions[position].extract_bc_type();
+                let dof_parameter = dof_parameter_data.dof_parameter;
+                let node_number = dof_parameter_data.node_number;
+                return Err(format!("FEModel: Model could not be analyzed because where are \
+                    no stiffness to withstand {}::{:?} applied at node {:?}!",
+                                   bc_type.as_str(), dof_parameter, node_number))
+            }
+        }
+        Ok(())
+    }
+
+
+    fn compose_separation_positions(&self, ub_rb_rows_numbers: &mut Vec<T>,
+        separation_positions: &mut Vec<MatrixElementPosition<T>>)
+    {
+        for bc in &self.boundary_conditions
+        {
+            if bc.type_same(BCType::Displacement)
+            {
+                let mut row = T::default();
+                for dof_parameter_data in
+                    &self.state.nodes_dof_parameters_global
+                {
+                    if bc.dof_parameter_data_same(
+                        dof_parameter_data.dof_parameter, dof_parameter_data.node_number)
+                    {
+                        separation_positions.push(MatrixElementPosition { row, column: row });
+                        ub_rb_rows_numbers.push(row);
+                    }
+                    row += T::from(1);
+                }
+            }
+        }
+    }
+
+
+    fn compose_ua_ra_rows_numbers(&self, ub_rb_rows_numbers: &Vec<T>,
+        ua_ra_rows_numbers: &mut Vec<T>)
+    {
+        for i in 0..self.state.nodes_dof_parameters_global.len()
+        {
+            if ub_rb_rows_numbers.iter().position(|n|
+                *n == T::from(i as ElementsNumbers)).is_none()
+            {
+                ua_ra_rows_numbers.push(T::from(i as ElementsNumbers));
+            }
+        }
+    }
+
+
+    fn compose_matrix_by_rows_numbers(&self, rows_numbers: &Vec<T>) -> ExtendedMatrix<T, V>
+    {
+        let mut all_elements = Vec::new();
+        for row_number in rows_numbers
+        {
+            let node_dof_parameter =
+                self.state.nodes_dof_parameters_global[(*row_number).into() as usize];
+            if let Some(position) = self.boundary_conditions
+                .iter()
+                .position(|bc|
+                    bc.dof_parameter_data_same(
+                        node_dof_parameter.dof_parameter, node_dof_parameter.node_number))
+            {
+                let value = self.boundary_conditions[position].extract_value();
+                all_elements.push(value);
+            }
+            else
+            {
+                all_elements.push(V::default());
+            }
+        }
+        let matrix = ExtendedMatrix::create(
+            T::from(rows_numbers.len() as ElementsNumbers),
+            T::from(1),
+            all_elements);
+        matrix
+    }
+
+
+    pub fn global_analysis(&mut self) -> Result<(), String>
+    // pub fn global_analysis(&self) -> Result<GlobalAnalysisResult<T, V>, &str>
+    {
+        if self.boundary_conditions.iter().position(|bc|
+            bc.type_same(BCType::Displacement)).is_none()
+        {
+            return Err("FEModel: Model could not be analyzed because there are no restraints were \
+                applied!".into())
+        }
+
+        let mut global_stiffness_matrix =
+            self.compose_global_stiffness_matrix()?;
+
+        let removed_zeros_rows_columns =
+            global_stiffness_matrix.remove_zeros_rows_columns();
+
+        self.shrink_of_nodes_dof_parameters(&removed_zeros_rows_columns)?;
+        println!("{:?}", self.state.nodes_dof_parameters_global);
+        global_stiffness_matrix.show_matrix();
+
+        let mut ub_rb_rows_numbers = Vec::new();
+        let mut separation_positions = Vec::new();
+        self.compose_separation_positions(&mut ub_rb_rows_numbers, &mut separation_positions);
+
+        let mut ua_ra_rows_numbers = Vec::new();
+        self.compose_ua_ra_rows_numbers(&ub_rb_rows_numbers, &mut ua_ra_rows_numbers);
+
+        let ra_matrix = self.compose_matrix_by_rows_numbers(&ua_ra_rows_numbers);
+
+        let ub_matrix = self.compose_matrix_by_rows_numbers(&ub_rb_rows_numbers);
+
+        let separated_matrix =
+            global_stiffness_matrix.separate(separation_positions)?;
+
+        let ua_matrix = separated_matrix.k_aa
+            .naive_gauss_elimination(&ra_matrix.add_subtract_matrix(
+            &separated_matrix.k_ab.multiply_by_matrix(&ub_matrix)?,
+            Operation::Subtraction)?)?;
+        // ua_matrix.show_matrix();
+
+        let rr_matrix = separated_matrix.k_ba
+            .multiply_by_matrix(&ua_matrix)?
+            .add_subtract_matrix(
+                &separated_matrix.k_bb
+                    .multiply_by_matrix(&ub_matrix)?, Operation::Addition)?;
+        rr_matrix.show_matrix();
+        for i in ub_rb_rows_numbers
+        {
+            println!("{:?}", self.state.nodes_dof_parameters_global[i.into() as usize]);
+        }
+        Ok(())
+
     }
 }
