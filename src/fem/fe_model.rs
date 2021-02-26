@@ -7,7 +7,9 @@ use crate::fem::{FEType, GlobalDOFParameter, BCType};
 use crate::fem::compose_stiffness_sub_groups;
 use crate::fem::GLOBAL_DOF;
 
-use crate::extended_matrix::{ExtendedMatrix, MatrixElementPosition, ZerosRowColumn, Operation};
+use crate::extended_matrix::{ExtendedMatrix, MatrixElementPosition, ZerosRowColumn};
+use crate::extended_matrix::Operation;
+use crate::extended_matrix::extract_element_value;
 
 use crate::{ElementsNumbers, ElementsValues};
 
@@ -539,8 +541,36 @@ impl<T, V> FEModel<T, V>
     }
 
 
-    pub fn global_analysis(&mut self) -> Result<(), String>
-    // pub fn global_analysis(&self) -> Result<GlobalAnalysisResult<T, V>, &str>
+    fn compose_displacements_matrix(&self, ua_matrix: ExtendedMatrix<T, V>,
+        ub_matrix: ExtendedMatrix<T, V>, ua_ra_rows_numbers: &Vec<T>,
+        ub_rb_rows_numbers: &Vec<T>) -> ExtendedMatrix<T, V>
+    {
+        let ua_values = ua_matrix.extract_all_elements_values();
+        let ub_values = ub_matrix.extract_all_elements_values();
+        let mut all_displacements_values =
+            vec![V::default(); self.state.nodes_dof_parameters_global.len()];
+        for i in  0..ua_ra_rows_numbers.len()
+        {
+            let displacement_value = extract_element_value(
+                T::from(i as ElementsNumbers), T::from(0), &ua_values);
+            all_displacements_values[ua_ra_rows_numbers[i].into() as usize] = displacement_value;
+        }
+        for j in  0..ub_values.len()
+        {
+            let displacement_value = extract_element_value(
+                T::from(j as ElementsNumbers), T::from(0), &ub_values);
+            all_displacements_values[ub_rb_rows_numbers[j].into() as usize] = displacement_value;
+        }
+        let rows_number =
+            T::from(self.state.nodes_dof_parameters_global.len() as ElementsNumbers);
+        let displacement_matrix =
+            ExtendedMatrix::create(
+                rows_number, T::from(1), all_displacements_values);
+        displacement_matrix
+    }
+
+
+    pub fn global_analysis(&mut self) -> Result<GlobalAnalysisResult<T, V>, String>
     {
         if self.boundary_conditions.iter().position(|bc|
             bc.type_same(BCType::Displacement)).is_none()
@@ -548,48 +578,43 @@ impl<T, V> FEModel<T, V>
             return Err("FEModel: Model could not be analyzed because there are no restraints were \
                 applied!".into())
         }
-
         let mut global_stiffness_matrix =
             self.compose_global_stiffness_matrix()?;
-
         let removed_zeros_rows_columns =
             global_stiffness_matrix.remove_zeros_rows_columns();
-
         self.shrink_of_nodes_dof_parameters(&removed_zeros_rows_columns)?;
-        println!("{:?}", self.state.nodes_dof_parameters_global);
-        global_stiffness_matrix.show_matrix();
-
         let mut ub_rb_rows_numbers = Vec::new();
         let mut separation_positions = Vec::new();
         self.compose_separation_positions(&mut ub_rb_rows_numbers, &mut separation_positions);
-
         let mut ua_ra_rows_numbers = Vec::new();
         self.compose_ua_ra_rows_numbers(&ub_rb_rows_numbers, &mut ua_ra_rows_numbers);
-
         let ra_matrix = self.compose_matrix_by_rows_numbers(&ua_ra_rows_numbers);
-
         let ub_matrix = self.compose_matrix_by_rows_numbers(&ub_rb_rows_numbers);
-
         let separated_matrix =
             global_stiffness_matrix.separate(separation_positions)?;
-
         let ua_matrix = separated_matrix.k_aa
             .naive_gauss_elimination(&ra_matrix.add_subtract_matrix(
             &separated_matrix.k_ab.multiply_by_matrix(&ub_matrix)?,
             Operation::Subtraction)?)?;
-        // ua_matrix.show_matrix();
-
-        let rr_matrix = separated_matrix.k_ba
+        let reactions_values = separated_matrix.k_ba
             .multiply_by_matrix(&ua_matrix)?
             .add_subtract_matrix(
                 &separated_matrix.k_bb
                     .multiply_by_matrix(&ub_matrix)?, Operation::Addition)?;
-        rr_matrix.show_matrix();
-        for i in ub_rb_rows_numbers
+        let mut reactions_dof_parameters_data = Vec::new();
+        for row_number in &ub_rb_rows_numbers
         {
-            println!("{:?}", self.state.nodes_dof_parameters_global[i.into() as usize]);
+            reactions_dof_parameters_data.push(
+                self.state.nodes_dof_parameters_global[(*row_number).into() as usize]);
         }
-        Ok(())
-
+        let displacements_dof_parameters_data =
+            self.state.nodes_dof_parameters_global.clone();
+        let displacements_values = self.compose_displacements_matrix(
+            ua_matrix, ub_matrix, &ua_ra_rows_numbers, &ub_rb_rows_numbers);
+        let global_analysis_result =
+            GlobalAnalysisResult::create(
+                reactions_values, reactions_dof_parameters_data,
+                displacements_values, displacements_dof_parameters_data);
+        Ok(global_analysis_result)
     }
 }

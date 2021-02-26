@@ -1,7 +1,7 @@
 use crate::extended_matrix::BasicMatrixTrait;
 use crate::extended_matrix::
     {
-        NonSymmetricMatrix, MatrixElementPosition, ZerosRowColumn
+        NonSymmetricMatrix, MatrixElementPosition, ZerosRowColumn, Shape
     };
 use crate::extended_matrix::
     {
@@ -16,6 +16,7 @@ use std::fmt::Debug;
 use std::convert::{From, Into};
 use std::ops::{Mul, Add, Sub, Div, Rem, MulAssign, AddAssign, SubAssign};
 use std::hash::Hash;
+use std::collections::HashMap;
 
 
 #[derive(Copy, Clone)]
@@ -30,13 +31,13 @@ pub enum Operation
 #[derive(Clone)]
 pub struct ExtendedMatrix<T, V>
 {
-    pub basic_matrix: Box<dyn BasicMatrixTrait<T, V>>
+    basic_matrix: Box<dyn BasicMatrixTrait<T, V>>
 }
 
 
 impl<T, V> ExtendedMatrix<T, V>
     where T: Copy + From<ElementsNumbers> + Into<ElementsNumbers> + Debug + Mul<Output = T> +
-             PartialOrd + Add + Sub + Add<Output = T> + Sub<Output = T> + Default + Div + Rem +
+             PartialOrd + Add<Output = T> + Sub<Output = T> + Default +
              Div<Output = T> + Rem<Output = T> + Eq + Hash + SubAssign + 'static,
           V: Copy + Debug + PartialEq + Default + AddAssign + MulAssign + Mul<Output = V> +
              Div<Output = V> + SubAssign + Sub<Output = V> + Into<ElementsValues> +
@@ -76,6 +77,18 @@ impl<T, V> ExtendedMatrix<T, V>
             });
         let basic_matrix = basic_matrix.into_symmetric();
         ExtendedMatrix { basic_matrix }
+    }
+
+
+    pub fn get_shape(&self) -> Shape<T>
+    {
+        self.basic_matrix.get_shape()
+    }
+
+
+    pub fn extract_all_elements_values(&self) -> HashMap<MatrixElementPosition<T>, V>
+    {
+        self.basic_matrix.extract_all_elements_values()
     }
 
 

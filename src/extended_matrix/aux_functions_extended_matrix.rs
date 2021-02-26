@@ -1,19 +1,25 @@
 use crate::extended_matrix::{Shape, MatrixElementPosition, ExtendedMatrix};
 use crate::extended_matrix::Operation;
-use crate::{ElementsValues, TOLERANCE};
+use crate::{ElementsValues, TOLERANCE, ElementsNumbers};
 
 use std::collections::HashMap;
 use std::hash::Hash;
-use crate::extended_matrix::extended_matrix::Operation::Subtraction;
+use std::ops::{Mul, Add, Sub, Div, Rem, SubAssign, AddAssign, MulAssign};
+use std::fmt::Debug;
 
 
 pub fn matrices_dimensions_conformity_check<'a, T, V>(
     lhs: &'a ExtendedMatrix<T, V>, rhs: &'a ExtendedMatrix<T, V>, operation: Operation)
     -> Result<(T, Shape<T>), &'a str>
-    where T: PartialEq
+    where T: Copy +PartialEq + Mul<Output = T> + Add<Output = T> + Sub<Output = T> +
+             Div<Output = T> + Rem<Output = T> + Default + From<ElementsNumbers> +
+             Into<ElementsNumbers> + Eq + Hash + SubAssign + Debug + PartialOrd + 'static,
+          V: Copy + Default + Mul<Output = V> + Div<Output = V> + Sub<Output = V> +
+             Add<Output = V> + From<ElementsValues> + Debug + PartialEq + AddAssign + MulAssign +
+             SubAssign + Into<ElementsValues> + 'static,
 {
-    let lhs_shape = lhs.basic_matrix.get_shape();
-    let rhs_shape = rhs.basic_matrix.get_shape();
+    let lhs_shape = lhs.get_shape();
+    let rhs_shape = rhs.get_shape();
     match operation
     {
         Operation::Multiplication =>

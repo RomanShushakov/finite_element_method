@@ -22,63 +22,68 @@ pub const TOLERANCE: ElementsValues = 1e-6;
 fn main() -> Result<(), String>
 {
     let mut fe_model = FEModel::<ElementsNumbers,ElementsValues>::create();
-    fe_model.add_node(1, 4.0, 0.0, 0.0)?;
-    fe_model.add_node(2, 4.0, 3.0, 0.0)?;
+    fe_model.add_node(1, 0.0, 4.0, 0.0)?;
+    fe_model.add_node(2, 3.0, 4.0, 0.0)?;
     fe_model.add_node(3, 0.0, 0.0, 0.0)?;
-    fe_model.add_node(4, 0.0, 3.0, 0.0)?;
+    fe_model.add_node(4, 3.0, 0.0, 0.0)?;
+    fe_model.add_node(5, 6.0, 0.0, 0.0)?;
 
     fe_model.add_element(
         FEType::Truss2n2ip,
         vec![1, 2],
-        FEData { number: 1, nodes: Vec::new(), properties: vec![128000000.0, 0.0625] })?;
+        FEData { number: 1, nodes: Vec::new(), properties: vec![2e11, 1e-5, 1e-5] })?;
     fe_model.add_element(
         FEType::Truss2n2ip,
-        vec![3, 2],
-        FEData { number: 2, nodes: Vec::new(), properties: vec![128000000.0, 0.0625] })?;
+        vec![1, 3],
+        FEData { number: 2, nodes: Vec::new(), properties: vec![2e11, 1e-5, 1e-5] })?;
+    fe_model.add_element(
+        FEType::Truss2n2ip,
+        vec![2, 3],
+        FEData { number: 3, nodes: Vec::new(), properties: vec![2e11, 1e-5, 1e-5] })?;
     fe_model.add_element(
         FEType::Truss2n2ip,
         vec![2, 4],
-        FEData { number: 3, nodes: Vec::new(), properties: vec![128000000.0, 0.0625] })?;
+        FEData { number: 4, nodes: Vec::new(), properties: vec![2e11, 1e-5, 1e-5] })?;
+    fe_model.add_element(
+        FEType::Truss2n2ip,
+        vec![5, 2],
+        FEData { number: 5, nodes: Vec::new(), properties: vec![2e11, 1e-5, 1e-5] })?;
+    fe_model.add_element(
+        FEType::Truss2n2ip,
+        vec![3, 4],
+        FEData { number: 6, nodes: Vec::new(), properties: vec![2e11, 1e-5, 1e-5] })?;
+    fe_model.add_element(
+        FEType::Truss2n2ip,
+        vec![4, 5],
+        FEData { number: 7, nodes: Vec::new(), properties: vec![2e11, 1e-5, 1e-5] })?;
 
     fe_model.add_bc(
         BCType::Displacement, 1, 1,
-        GlobalDOFParameter::Y, -0.025)?;
-    fe_model.add_bc(
-        BCType::Displacement, 2, 3,
         GlobalDOFParameter::X, 0.0)?;
     fe_model.add_bc(
-        BCType::Displacement, 3, 3,
+        BCType::Displacement, 2, 1,
         GlobalDOFParameter::Y, 0.0)?;
     fe_model.add_bc(
-        BCType::Displacement, 4, 4,
+        BCType::Displacement, 3, 3,
         GlobalDOFParameter::X, 0.0)?;
+    fe_model.add_bc(
+        BCType::Displacement, 4, 5,
+        GlobalDOFParameter::X, 0.0)?;
+    fe_model.add_bc(
+        BCType::Displacement, 5, 5,
+        GlobalDOFParameter::Y, 0.0)?;
 
-    fe_model.global_analysis()?;
+    fe_model.add_bc(
+        BCType::Force, 1, 2,
+        GlobalDOFParameter::X, 10000.0)?;
+    fe_model.add_bc(
+        BCType::Force, 2, 4,
+        GlobalDOFParameter::Y, -10000.0)?;
 
-    // let mut global_stiffness_matrix =
-    //     fe_model.compose_global_stiffness_matrix()?;
-    // global_stiffness_matrix.show_matrix();
-    // println!();
-    // let removed_zeros_rows_columns =
-    //     global_stiffness_matrix.remove_zeros_rows_columns();
-    // println!("{:?}", removed_zeros_rows_columns);
-    // println!();
-    // global_stiffness_matrix.show_matrix();
-    // println!();
-    // let separated_matrix = global_stiffness_matrix.separate(
-    //     vec![
-    //         MatrixElementPosition { row: 1, column: 1 },
-    //         MatrixElementPosition { row: 4, column: 4 }])?;
-    // separated_matrix.k_aa.show_matrix();
-    // println!();
-    // separated_matrix.k_ab.show_matrix();
-    // println!();
-    // separated_matrix.k_ba.show_matrix();
-    // println!();
-    // separated_matrix.k_bb.show_matrix();
-    // println!();
-    //
-    // println!("{:?}", fe_model.state.nodes_dof_parameters_global);
+    let global_analysis_result = fe_model.global_analysis()?;
+    global_analysis_result.show_reactions();
+    println!();
+    global_analysis_result.show_displacements();
 
     Ok(())
 }
