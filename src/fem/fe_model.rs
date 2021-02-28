@@ -156,7 +156,6 @@ impl<T, V> FEModel<T, V>
             let node = FeNode::create(number, x, y, z);
             self.nodes.push(Rc::new(RefCell::new(node)));
             self.update_stiffness_groups()?;
-            self.update_nodes_dof_parameters_global()?;
             Ok(())
         }
         else
@@ -215,7 +214,6 @@ impl<T, V> FEModel<T, V>
             }
             self.nodes.remove(position);
             self.update_stiffness_groups()?;
-            self.update_nodes_dof_parameters_global()?;
             return Ok(());
         }
         Err(format!("FEModel: Node {} could not be deleted because it does not exist!",
@@ -572,6 +570,7 @@ impl<T, V> FEModel<T, V>
 
     pub fn global_analysis(&mut self) -> Result<GlobalAnalysisResult<T, V>, String>
     {
+        self.update_nodes_dof_parameters_global()?;
         if self.boundary_conditions.iter().position(|bc|
             bc.type_same(BCType::Displacement)).is_none()
         {
@@ -596,11 +595,25 @@ impl<T, V> FEModel<T, V>
             .naive_gauss_elimination(&ra_matrix.add_subtract_matrix(
             &separated_matrix.k_ab.multiply_by_matrix(&ub_matrix)?,
             Operation::Subtraction)?)?;
-        let reactions_values = separated_matrix.k_ba
+        let reactions_values_matrix = separated_matrix.k_ba
             .multiply_by_matrix(&ua_matrix)?
             .add_subtract_matrix(
                 &separated_matrix.k_bb
                     .multiply_by_matrix(&ub_matrix)?, Operation::Addition)?;
+        let all_reactions =
+            reactions_values_matrix.extract_all_elements_values();
+        let reactions_values_matrix_shape = reactions_values_matrix.get_shape();
+        let mut reactions_values = Vec::new();
+        for row in 0..reactions_values_matrix_shape.0.into()
+        {
+            for column in 0..reactions_values_matrix_shape.1.into()
+            {
+                let reaction_value =
+                    extract_element_value(T::from(row),
+                        T::from(column), &all_reactions);
+                reactions_values.push(reaction_value);
+            }
+        }
         let mut reactions_dof_parameters_data = Vec::new();
         for row_number in &ub_rb_rows_numbers
         {
@@ -609,8 +622,22 @@ impl<T, V> FEModel<T, V>
         }
         let displacements_dof_parameters_data =
             self.state.nodes_dof_parameters_global.clone();
-        let displacements_values = self.compose_displacements_matrix(
+        let displacements_values_matrix = self.compose_displacements_matrix(
             ua_matrix, ub_matrix, &ua_ra_rows_numbers, &ub_rb_rows_numbers);
+        let all_displacements =
+            displacements_values_matrix.extract_all_elements_values();
+        let displacements_values_matrix_shape = displacements_values_matrix.get_shape();
+        let mut displacements_values = Vec::new();
+        for row in 0..displacements_values_matrix_shape.0.into()
+        {
+            for column in 0..displacements_values_matrix_shape.1.into()
+            {
+                let displacement_value =
+                    extract_element_value(T::from(row),
+                        T::from(column), &all_displacements);
+                displacements_values.push(displacement_value);
+            }
+        }
         let global_analysis_result =
             GlobalAnalysisResult::create(
                 reactions_values, reactions_dof_parameters_data,

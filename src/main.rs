@@ -23,7 +23,7 @@ fn main() -> Result<(), String>
 {
     let mut fe_model = FEModel::<ElementsNumbers,ElementsValues>::create();
     fe_model.add_node(1, 0.0, 4.0, 0.0)?;
-    fe_model.add_node(2, 3.0, 4.0, 0.0)?;
+    fe_model.add_node(2, 5.0, 4.0, 0.0)?;
     fe_model.add_node(3, 0.0, 0.0, 0.0)?;
     fe_model.add_node(4, 3.0, 0.0, 0.0)?;
     fe_model.add_node(5, 6.0, 0.0, 0.0)?;
@@ -31,7 +31,7 @@ fn main() -> Result<(), String>
     fe_model.add_element(
         FEType::Truss2n2ip,
         vec![1, 2],
-        FEData { number: 1, nodes: Vec::new(), properties: vec![2e11, 1e-5, 1e-5] })?;
+        FEData { number: 1, nodes: Vec::new(), properties: vec![2e11, 1e-6] })?;
     fe_model.add_element(
         FEType::Truss2n2ip,
         vec![1, 3],
@@ -46,7 +46,7 @@ fn main() -> Result<(), String>
         FEData { number: 4, nodes: Vec::new(), properties: vec![2e11, 1e-5, 1e-5] })?;
     fe_model.add_element(
         FEType::Truss2n2ip,
-        vec![5, 2],
+        vec![2, 5],
         FEData { number: 5, nodes: Vec::new(), properties: vec![2e11, 1e-5, 1e-5] })?;
     fe_model.add_element(
         FEType::Truss2n2ip,
@@ -81,9 +81,64 @@ fn main() -> Result<(), String>
         GlobalDOFParameter::Y, -10000.0)?;
 
     let global_analysis_result = fe_model.global_analysis()?;
-    global_analysis_result.show_reactions();
+    let reactions = global_analysis_result.extract_reactions();
+    for (reaction, dof_parameter_data) in
+        reactions.reactions_values.iter().zip(reactions.dof_parameters_data)
+    {
+        println!("{}, node: {}, parameter: {:?}", reaction, dof_parameter_data.node_number,
+                 dof_parameter_data.dof_parameter);
+    }
     println!();
-    global_analysis_result.show_displacements();
+    let displacements = global_analysis_result.extract_displacements();
+    for (displacement, dof_parameter_data) in
+        displacements.displacements_values.iter().zip(displacements.dof_parameters_data)
+    {
+        println!("{}, node: {}, parameter: {:?}", displacement, dof_parameter_data.node_number,
+                 dof_parameter_data.dof_parameter);
+    }
+    println!();
+
+    fe_model.update_node(2, 3.0, 4.0, 0.0)?;
+
+    let global_analysis_result = fe_model.global_analysis()?;
+    let reactions = global_analysis_result.extract_reactions();
+    for (reaction, dof_parameter_data) in
+        reactions.reactions_values.iter().zip(reactions.dof_parameters_data)
+    {
+        println!("{}, node: {}, parameter: {:?}", reaction, dof_parameter_data.node_number,
+                 dof_parameter_data.dof_parameter);
+    }
+    println!();
+    let displacements = global_analysis_result.extract_displacements();
+    for (displacement, dof_parameter_data) in
+        displacements.displacements_values.iter().zip(displacements.dof_parameters_data)
+    {
+        println!("{}, node: {}, parameter: {:?}", displacement, dof_parameter_data.node_number,
+                 dof_parameter_data.dof_parameter);
+    }
+    println!();
+
+    fe_model.update_element(
+        vec![1, 2],
+        FEData { number: 1, nodes: Vec::new(), properties: vec![2e11, 1e-5, 1e-5] })?;
+
+    let global_analysis_result = fe_model.global_analysis()?;
+    let reactions = global_analysis_result.extract_reactions();
+    for (reaction, dof_parameter_data) in
+        reactions.reactions_values.iter().zip(reactions.dof_parameters_data)
+    {
+        println!("{}, node: {}, parameter: {:?}", reaction, dof_parameter_data.node_number,
+                 dof_parameter_data.dof_parameter);
+    }
+    println!();
+    let displacements = global_analysis_result.extract_displacements();
+    for (displacement, dof_parameter_data) in
+        displacements.displacements_values.iter().zip(displacements.dof_parameters_data)
+    {
+        println!("{}, node: {}, parameter: {:?}", displacement, dof_parameter_data.node_number,
+                 dof_parameter_data.dof_parameter);
+    }
+    println!();
 
     Ok(())
 }

@@ -13,6 +13,7 @@ use std::cell::RefCell;
 
 
 const TRUSS_NODE_DOF: ElementsNumbers = 3;
+const TRUSS_STRESS_STRAIN_COMPONENTS_NUMBERS: [ElementsNumbers; 1] = [0];
 const TRUSS2N2IP_NODES_NUMBER: ElementsNumbers = 2;
 
 

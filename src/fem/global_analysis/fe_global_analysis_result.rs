@@ -1,4 +1,4 @@
-use crate::fem::DOFParameterData;
+use crate::fem::{DOFParameterData};
 use crate::extended_matrix::ExtendedMatrix;
 
 use crate::{ElementsNumbers, ElementsValues};
@@ -8,17 +8,17 @@ use std::hash::Hash;
 use std::fmt::Debug;
 
 
-struct Displacements<T, V>
+pub struct Displacements<T, V>
 {
-    displacements_values: ExtendedMatrix<T, V>,
-    dof_parameters_data: Vec<DOFParameterData<T>>,
+    pub displacements_values: Vec<V>,
+    pub dof_parameters_data: Vec<DOFParameterData<T>>,
 }
 
 
-struct Reactions<T, V>
+pub struct Reactions<T, V>
 {
-    reactions_values: ExtendedMatrix<T, V>,
-    dof_parameters_data: Vec<DOFParameterData<T>>,
+    pub reactions_values: Vec<V>,
+    pub dof_parameters_data: Vec<DOFParameterData<T>>,
 }
 
 
@@ -38,9 +38,9 @@ impl<T, V> GlobalAnalysisResult<T, V>
              SubAssign + Into<ElementsValues> + 'static,
 {
     pub fn create(
-        reactions_values: ExtendedMatrix<T, V>,
+        reactions_values: Vec<V>,
         reactions_dof_parameters_data: Vec<DOFParameterData<T>>,
-        displacements_values: ExtendedMatrix<T, V>,
+        displacements_values: Vec<V>,
         displacements_dof_parameters_data: Vec<DOFParameterData<T>>,) -> Self
     {
         let reactions = Reactions { reactions_values,
@@ -51,26 +51,30 @@ impl<T, V> GlobalAnalysisResult<T, V>
     }
 
 
-    pub fn show_reactions(&self)
+    pub fn extract_reactions(&self) -> Reactions<T, V>
     {
-        println!("Reactions values:");
-        self.reactions.reactions_values.show_matrix();
-        println!("Reactions dof parameters data:");
-        for parameter_data in &self.reactions.dof_parameters_data
+        let mut reactions_values = Vec::new();
+        let mut dof_parameters_data = Vec::new();
+        for (reaction_value, dof_parameter_data) in
+            self.reactions.reactions_values.iter().zip(&self.reactions.dof_parameters_data)
         {
-            println!("{:?}", parameter_data);
+            reactions_values.push(*reaction_value);
+            dof_parameters_data.push(*dof_parameter_data);
         }
+        Reactions { reactions_values, dof_parameters_data }
     }
 
 
-    pub fn show_displacements(&self)
+    pub fn extract_displacements(&self) -> Displacements<T, V>
     {
-        println!("Displacements values:");
-        self.displacements.displacements_values.show_matrix();
-        println!("Displacements dof parameters data:");
-        for parameter_data in &self.displacements.dof_parameters_data
+        let mut displacements_values = Vec::new();
+        let mut dof_parameters_data = Vec::new();
+        for (reaction_value, dof_parameter_data) in
+            self.displacements.displacements_values.iter().zip(&self.displacements.dof_parameters_data)
         {
-            println!("{:?}", parameter_data);
+            displacements_values.push(*reaction_value);
+            dof_parameters_data.push(*dof_parameter_data);
         }
+        Displacements { displacements_values, dof_parameters_data }
     }
 }
