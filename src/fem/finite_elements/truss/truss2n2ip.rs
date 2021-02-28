@@ -18,6 +18,7 @@ use crate::fem::element_analysis::fe_stress_strain_components::STRESS_STRAIN_COM
 
 const TRUSS_NODE_DOF: ElementsNumbers = 3;
 const TRUSS_STRESS_STRAIN_COMPONENTS_NUMBERS: [ElementsNumbers; 1] = [0];
+const POINTS_NUMBER_FOR_TAPERED_TRUSS: ElementsNumbers = 5;
 const TRUSS2N2IP_NODES_NUMBER: ElementsNumbers = 2;
 
 
@@ -181,8 +182,10 @@ impl<T, V> TrussAuxFunctions<T, V>
     {
         if let Some(area_2) = area_2
         {
-            V::from((area_1.into().sqrt() + (area_2.into().sqrt() - area_1.into().sqrt()) *
-                (r.into() + 1.0) / 2.0).powi(2))
+            // V::from((area_1.into().sqrt() + (area_2.into().sqrt() - area_1.into().sqrt()) *
+            //     (r.into() + 1.0) / 2.0).powi(2))
+            (area_2 - area_1) / V::from(2.0) * r + area_1 -
+                (area_2 - area_1) / V::from(2.0) * V::from(-1.0)
         }
         else
         {
@@ -318,6 +321,35 @@ impl<T, V> Truss2n2ip<T, V>
             nodes_dof_parameters_global: nodes_dof_parameters
         };
         Ok(Truss2n2ip { number, node_1, node_2, young_modulus, area, area_2, state })
+    }
+
+
+    fn extract_local_displacements(&self, global_displacements: &Displacements<T, V>)
+        -> Result<ExtendedMatrix<T, V>, String>
+    {
+        let mut element_global_displacements_values = Vec::new();
+        for lhs_dof_parameter_data in &self.state.nodes_dof_parameters_global
+        {
+            if let Some(position) = global_displacements.dof_parameters_data
+                .iter()
+                .position(|rhs_dof_parameter_data|
+                    rhs_dof_parameter_data == lhs_dof_parameter_data)
+            {
+                let displacement_value = global_displacements.displacements_values[position];
+                element_global_displacements_values.push(displacement_value);
+            }
+            else
+            {
+                element_global_displacements_values.push(V::default());
+            }
+        }
+        let element_global_displacements = ExtendedMatrix::create(
+            T::from(self.state.nodes_dof_parameters_global.len() as ElementsNumbers),
+            T::from(1),
+            element_global_displacements_values);
+        let element_local_displacements =
+            self.state.rotation_matrix.multiply_by_matrix(&element_global_displacements)?;
+        Ok(element_local_displacements)
     }
 }
 
@@ -488,46 +520,89 @@ impl<T, V> FiniteElementTrait<T, V> for Truss2n2ip<T, V>
     fn extract_element_analysis_data(&self, global_displacements: &Displacements<T, V>)
         -> Result<(), String> // -> Result<ElementAnalysisData<T, V>, String>
     {
-        let mut element_global_displacements_values = Vec::new();
-        for lhs_dof_parameter_data in &self.state.nodes_dof_parameters_global
-        {
-            if let Some(position) = global_displacements.dof_parameters_data
-                .iter()
-                .position(|rhs_dof_parameter_data|
-                    rhs_dof_parameter_data == lhs_dof_parameter_data)
-            {
-                let displacement_value = global_displacements.displacements_values[position];
-                element_global_displacements_values.push(displacement_value);
-            }
-            else
-            {
-                element_global_displacements_values.push(V::default());
-            }
-        }
-        let element_global_displacements = ExtendedMatrix::create(
-            T::from(self.state.nodes_dof_parameters_global.len() as ElementsNumbers),
-            T::from(1),
-            element_global_displacements_values);
         let element_local_displacements =
-            self.state.rotation_matrix.multiply_by_matrix(&element_global_displacements)?;
-
-        element_global_displacements.show_matrix();
-        println!();
-        element_local_displacements.show_matrix();
-        println!();
-
-        for ip in &self.state.integration_points
+            self.extract_local_displacements(global_displacements)?;
+        if self.area_2.is_some()
         {
+            let mut forces_components = Vec::new();
+            let mut forces_values = Vec::new();
+            let mut axial_force = V::default();
+            for ip in &self.state.integration_points
+            {
+                let mut stresses_values = Vec::new();
+                let strain_displacement_matrix =
+                    TrussAuxFunctions::strain_displacement_matrix(
+                        Rc::clone(&self.node_1), Rc::clone(&self.node_2), ip.r);
+                let strains_matrix =
+                    strain_displacement_matrix.multiply_by_matrix(&element_local_displacements)?;
+                let stresses_matrix =
+                    {
+                        let mut matrix = strains_matrix.clone();
+                        matrix.multiply_by_number(self.young_modulus);
+                        matrix
+                    };
+                let stresses_matrix_shape = stresses_matrix.get_shape();
+                let extracted_stresses_values =
+                    stresses_matrix.extract_all_elements_values();
+                for row in 0..stresses_matrix_shape.0.into()
+                {
+                    for column in 0..stresses_matrix_shape.1.into()
+                    {
+                        let stress_value = extract_element_value(T::from(row),
+                            T::from(column), &extracted_stresses_values);
+                        stresses_values.push(stress_value);
+                    }
+                }
+                for stress in &stresses_values
+                {
+                    let area = TrussAuxFunctions::<T, V>::area(self.area, self.area_2, ip.r);
+                    axial_force += *stress * area;
+                }
+            }
+            axial_force = axial_force / V::from(self.state.integration_points.len() as ElementsValues);
+            forces_components.push(ForceComponent::Axial);
+            forces_values.push(axial_force);
+            for i in 0..POINTS_NUMBER_FOR_TAPERED_TRUSS
+            {
+                let mut strains_components = Vec::new();
+                let mut strains_values = Vec::new();
+                let mut stresses_components = Vec::new();
+                let mut stresses_values = Vec::new();
+                for component_number in &TRUSS_STRESS_STRAIN_COMPONENTS_NUMBERS
+                {
+                    let stress_strain_component =
+                        StressStrainComponent::iterator().nth(*component_number as usize)
+                            .ok_or(format!("Truss2n2ip: Stress strain component number {} \
+                                could not be extracted", component_number))?;
+                    strains_components.push(stress_strain_component);
+                    stresses_components.push(stress_strain_component);
+                }
+
+                let r = V::from(-1.0) + V::from(2.0) /
+                    V::from(POINTS_NUMBER_FOR_TAPERED_TRUSS as ElementsValues - 1.0) *
+                    V::from(i as ElementsValues);
+                let area = TrussAuxFunctions::<T, V>::area(self.area, self.area_2, r);
+                let stress_value = axial_force / area;
+                stresses_values.push(stress_value);
+                let strain_value = stress_value / self.young_modulus;
+                strains_values.push(strain_value);
+                println!("Strains: {:?} - {:?}", strains_components, strains_values);
+                println!("Stresses: {:?} - {:?}", stresses_components, stresses_values);
+            }
+            println!("Forces: {:?} - {:?}", forces_components, forces_values);
+        }
+        else
+        {
+            let r = self.state.integration_points[0].r;
             let mut strains_components = Vec::new();
             let mut strains_values = Vec::new();
             let mut stresses_components = Vec::new();
             let mut stresses_values = Vec::new();
             let mut forces_components = Vec::new();
             let mut forces_values = Vec::new();
-
             let strain_displacement_matrix =
                 TrussAuxFunctions::strain_displacement_matrix(
-                Rc::clone(&self.node_1), Rc::clone(&self.node_2), ip.r);
+                Rc::clone(&self.node_1), Rc::clone(&self.node_2), r);
             let strains_matrix =
                 strain_displacement_matrix.multiply_by_matrix(&element_local_displacements)?;
             let stresses_matrix =
@@ -545,7 +620,6 @@ impl<T, V> FiniteElementTrait<T, V> for Truss2n2ip<T, V>
                 strains_components.push(stress_strain_component);
                 stresses_components.push(stress_strain_component);
             }
-
             let strains_matrix_shape = strains_matrix.get_shape();
             let extracted_strains_values =
                 strains_matrix.extract_all_elements_values();
@@ -558,7 +632,6 @@ impl<T, V> FiniteElementTrait<T, V> for Truss2n2ip<T, V>
                     strains_values.push(strain_value);
                 }
             }
-
             let stresses_matrix_shape = stresses_matrix.get_shape();
             let extracted_stresses_values =
                 stresses_matrix.extract_all_elements_values();
@@ -571,20 +644,17 @@ impl<T, V> FiniteElementTrait<T, V> for Truss2n2ip<T, V>
                     stresses_values.push(stress_value);
                 }
             }
-
             for stress in &stresses_values
             {
-                let area = TrussAuxFunctions::<T, V>::area(self.area, self.area_2, ip.r);
+                let area = TrussAuxFunctions::<T, V>::area(self.area, self.area_2, r);
                 let axial_force = *stress * area;
                 forces_components.push(ForceComponent::Axial);
                 forces_values.push(axial_force);
             }
-
             println!("Strains: {:?} - {:?}", strains_components, strains_values);
             println!("Stresses: {:?} - {:?}", stresses_components, stresses_values);
-            println!("Stresses: {:?} - {:?}", forces_components, forces_values);
+            println!("Forces: {:?} - {:?}", forces_components, forces_values);
         }
-
         Ok(())
     }
 }
