@@ -32,7 +32,7 @@ impl GlobalDOFParameter
 }
 
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct DOFParameterData<T>
 {
     pub node_number: T,

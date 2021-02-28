@@ -1,5 +1,6 @@
 pub use crate::fem::element_analysis::fe_stress_strain_components::{StressStrainComponent};
 pub use crate::fem::element_analysis::fe_force_moment_components::ForceComponent;
+pub use crate::fem::element_analysis::fe_element_analysis_result::ElementAnalysisData;
 
 pub use crate::fem::aux_functions_fe_model::compose_stiffness_sub_groups;
 pub use crate::fem::fe_model::{FEModel, SeparatedMatrix};
@@ -17,6 +18,7 @@ pub use crate::fem::global_analysis::fe_global_analysis_result::GlobalAnalysisRe
 pub use crate::fem::global_analysis::fe_stiffness::STIFFNESS_TYPES_NUMBER;
 pub use crate::fem::global_analysis::fe_stiffness::StiffnessGroup;
 pub use crate::fem::global_analysis::fe_stiffness::StiffnessType;
+pub use crate::fem::global_analysis::fe_global_analysis_result::Displacements;
 
 pub mod finite_elements;
 pub mod fe_model;

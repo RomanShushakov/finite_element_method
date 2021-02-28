@@ -1,4 +1,4 @@
-use crate::fem::{FeNode, Truss2n2ip, StiffnessGroup};
+use crate::fem::{FeNode, Truss2n2ip, StiffnessGroup, ElementAnalysisData, Displacements};
 
 use crate::{ElementsNumbers, ElementsValues};
 use crate::extended_matrix::{ExtendedMatrix, MatrixElementPosition};
@@ -34,6 +34,8 @@ pub trait FiniteElementTrait<T, V>
     fn refresh(&mut self) -> Result<(), String>;
     fn number_same(&self, number: T) -> bool;
     fn nodes_numbers_same(&self, nodes_numbers: Vec<T>) -> bool;
+    fn extract_element_analysis_data(&self, global_displacements: &Displacements<T, V>)
+        -> Result<(), String>; // ElementAnalysisData<T, V>;
 }
 
 
@@ -145,5 +147,14 @@ impl<T, V> FiniteElement<T, V>
     pub fn nodes_numbers_same(&self, nodes_numbers: Vec<T>) -> bool
     {
         self.element.nodes_numbers_same(nodes_numbers)
+    }
+
+
+    pub fn extract_element_analysis_data(&self, global_displacements: &Displacements<T, V>)
+        -> Result<(), String> //ElementAnalysisData<T, V>
+    {
+        let element_analysis_data =
+            self.element.extract_element_analysis_data(global_displacements)?;
+        Ok(())
     }
 }

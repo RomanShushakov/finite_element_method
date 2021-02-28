@@ -133,12 +133,14 @@ fn main() -> Result<(), String>
     println!();
     let displacements = global_analysis_result.extract_displacements();
     for (displacement, dof_parameter_data) in
-        displacements.displacements_values.iter().zip(displacements.dof_parameters_data)
+        displacements.displacements_values.iter().zip(displacements.dof_parameters_data.iter())
     {
         println!("{}, node: {}, parameter: {:?}", displacement, dof_parameter_data.node_number,
                  dof_parameter_data.dof_parameter);
     }
-    println!();
 
+    println!();
+    fe_model.elements[4].extract_element_analysis_data(&displacements)?;
+    println!();
     Ok(())
 }

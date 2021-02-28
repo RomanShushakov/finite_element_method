@@ -70,7 +70,8 @@ impl<T, V> GlobalAnalysisResult<T, V>
         let mut displacements_values = Vec::new();
         let mut dof_parameters_data = Vec::new();
         for (reaction_value, dof_parameter_data) in
-            self.displacements.displacements_values.iter().zip(&self.displacements.dof_parameters_data)
+            self.displacements.displacements_values
+                .iter().zip(&self.displacements.dof_parameters_data)
         {
             displacements_values.push(*reaction_value);
             dof_parameters_data.push(*dof_parameter_data);
