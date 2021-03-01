@@ -1,8 +1,4 @@
-use crate::fem::
-    {
-        FeNode, FEData, FiniteElement, StiffnessGroup, DOFParameterData, BoundaryCondition,
-        GlobalAnalysisResult
-    };
+use crate::fem::{FeNode, FEData, FiniteElement, StiffnessGroup, DOFParameterData, BoundaryCondition, GlobalAnalysisResult, Displacements};
 use crate::fem::{FEType, GlobalDOFParameter, BCType};
 use crate::fem::compose_stiffness_sub_groups;
 use crate::fem::GLOBAL_DOF;
@@ -20,6 +16,7 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::iter::FromIterator;
+use crate::fem::element_analysis::fe_element_analysis_result::ElementsAnalysisResult;
 
 
 pub struct SeparatedMatrix<T, V>
@@ -238,7 +235,7 @@ impl<T, V> FEModel<T, V>
                 should be unique!", data.number.into()));
         }
         if self.elements.iter().position(|element|
-            element.element_type == element_type &&
+            element.type_same(&element_type) &&
             element.nodes_numbers_same(nodes_numbers.clone())).is_some()
         {
             return Err(format!("FEModel: Element {} could not be added! The element with the same \
@@ -643,5 +640,21 @@ impl<T, V> FEModel<T, V>
                 reactions_values, reactions_dof_parameters_data,
                 displacements_values, displacements_dof_parameters_data);
         Ok(global_analysis_result)
+    }
+
+
+    pub fn elements_analysis(&self, global_displacements: &Displacements<T, V>)
+        -> Result<ElementsAnalysisResult<T, V>, String>
+    {
+        let mut elements_analysis_data = Vec::new();
+        for element in &self.elements
+        {
+            let element_analysis_data =
+                element.extract_element_analysis_data(global_displacements)?;
+            elements_analysis_data.push(element_analysis_data);
+        }
+        let elements_analysis_results =
+            ElementsAnalysisResult::create(elements_analysis_data);
+        Ok(elements_analysis_results)
     }
 }

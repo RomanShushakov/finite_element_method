@@ -35,7 +35,7 @@ pub trait FiniteElementTrait<T, V>
     fn number_same(&self, number: T) -> bool;
     fn nodes_numbers_same(&self, nodes_numbers: Vec<T>) -> bool;
     fn extract_element_analysis_data(&self, global_displacements: &Displacements<T, V>)
-        -> Result<(), String>; // ElementAnalysisData<T, V>;
+        -> Result<ElementAnalysisData<T, V>, String>;
 }
 
 
@@ -85,8 +85,8 @@ impl<T, V> FECreator<T, V>
 
 pub struct FiniteElement<T, V>
 {
-    pub element_type: FEType,
-    pub element: Box<dyn FiniteElementTrait<T, V>>,
+    element_type: FEType,
+    element: Box<dyn FiniteElementTrait<T, V>>,
 }
 
 
@@ -138,6 +138,12 @@ impl<T, V> FiniteElement<T, V>
     }
 
 
+    pub fn type_same(&self, element_type: &FEType) -> bool
+    {
+        self.element_type == *element_type
+    }
+
+
     pub fn number_same(&self, number: T) -> bool
     {
         self.element.number_same(number)
@@ -151,10 +157,10 @@ impl<T, V> FiniteElement<T, V>
 
 
     pub fn extract_element_analysis_data(&self, global_displacements: &Displacements<T, V>)
-        -> Result<(), String> //ElementAnalysisData<T, V>
+        -> Result<ElementAnalysisData<T, V>, String>
     {
         let element_analysis_data =
             self.element.extract_element_analysis_data(global_displacements)?;
-        Ok(())
+        Ok(element_analysis_data)
     }
 }
