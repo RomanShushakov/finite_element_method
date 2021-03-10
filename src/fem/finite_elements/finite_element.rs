@@ -25,6 +25,25 @@ pub struct FEData<T, V>
 }
 
 
+impl<T, V> FEData<T, V>
+    where T: Debug,
+          V: Default + PartialOrd
+{
+    pub fn check_properties(&self) -> Result<(), String>
+    {
+        for value in self.properties.iter()
+        {
+            if *value <= V::default()
+            {
+                return Err(format!("FEData: All properties values for element {:?} should be \
+                    greater than zero!", self.number));
+            }
+        }
+        Ok(())
+    }
+}
+
+
 pub trait FiniteElementTrait<T, V>
 {
     fn update(&mut self, data: FEData<T, V>) -> Result<(), String>;

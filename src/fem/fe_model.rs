@@ -50,7 +50,7 @@ impl<T, V> FEModel<T, V>
              Mul<Output = T> + PartialOrd + Default + Add<Output = T> + AddAssign + 'static,
           V: Copy + From<ElementsValues> + Sub<Output = V> + Default + Mul<Output = V> +
              Add<Output = V> + Div<Output = V> + PartialEq + Debug + AddAssign + MulAssign +
-             SubAssign + Into<ElementsValues> + 'static
+             SubAssign + Into<ElementsValues> + PartialOrd + 'static
 {
     pub fn create() -> Self
     {
@@ -221,6 +221,7 @@ impl<T, V> FEModel<T, V>
     pub fn add_element(&mut self, element_type: FEType, nodes_numbers: Vec<T>,
         mut data: FEData<T, V>) -> Result<(), String>
     {
+        data.check_properties()?;
         if self.elements.iter().position(|element|
             element.number_same(data.number)).is_some()
         {
@@ -266,6 +267,7 @@ impl<T, V> FEModel<T, V>
     pub fn update_element(&mut self, nodes_numbers: Vec<T>,
         mut data: FEData<T, V>) -> Result<(), String>
     {
+        data.check_properties()?;
         let nodes_numbers_set = HashSet::<T>::from_iter(
             nodes_numbers.iter().cloned());
         if nodes_numbers.len() != nodes_numbers_set.len()
@@ -336,7 +338,7 @@ impl<T, V> FEModel<T, V>
                 element.node_belong_element(node.as_ref().borrow().number)).is_none())
         {
             return Err("FEModel: Global stiffness matrix could not be composed because there are \
-                free nodes does exist!");
+                free nodes exist!");
         }
         let mut global_stiffness_matrix = ExtendedMatrix::create(
             T::from(self.nodes.len() as ElementsNumbers * GLOBAL_DOF),
