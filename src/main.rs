@@ -339,5 +339,62 @@ fn main() -> Result<(), String>
     println!("{:?}", elements_analysis_results);
 
 
+
+    // let mut fe_model = FEModel::<ElementsNumbers,ElementsValues>::create();
+    // fe_model.add_node(1, 0.0, 0.0, 0.0)?;
+    // fe_model.add_node(2, 4.0, 0.0, 0.0)?;
+    // fe_model.add_node(3, 0.0, 3.0, 0.0)?;
+    // fe_model.add_node(4, 4.0, 3.0, 0.0)?;
+    //
+    // fe_model.add_element(
+    //     FEType::Truss2n2ip,
+    //     vec![1, 4],
+    //     FEData { number: 1, nodes: Vec::new(), properties: vec![128000000.0, 0.0625] })?;
+    // fe_model.add_element(
+    //     FEType::Truss2n2ip,
+    //     vec![3, 4],
+    //     FEData { number: 2, nodes: Vec::new(), properties: vec![128000000.0, 0.0625] })?;
+    // fe_model.add_element(
+    //     FEType::Truss2n2ip,
+    //     vec![2, 4],
+    //     FEData { number: 3, nodes: Vec::new(), properties: vec![128000000.0, 0.0625] })?;
+    //
+    // fe_model.add_bc(
+    //     BCType::Displacement, 1, 1,
+    //     GlobalDOFParameter::X, 0.0)?;
+    // fe_model.add_bc(
+    //     BCType::Displacement, 2, 1,
+    //     GlobalDOFParameter::Y, 0.0)?;
+    // fe_model.add_bc(
+    //     BCType::Displacement, 3, 3,
+    //     GlobalDOFParameter::X, 0.0)?;
+    // fe_model.add_bc(
+    //     BCType::Displacement, 4, 2,
+    //     GlobalDOFParameter::Y, -0.025)?;
+    //
+    //
+    //
+    // let global_analysis_result = fe_model.global_analysis()?;
+    // let reactions = global_analysis_result.extract_reactions();
+    // for (reaction, dof_parameter_data) in
+    //     reactions.reactions_values.iter().zip(reactions.dof_parameters_data)
+    // {
+    //     println!("{}, node: {}, parameter: {:?}", reaction, dof_parameter_data.node_number,
+    //              dof_parameter_data.dof_parameter);
+    // }
+    // println!();
+    // let displacements = global_analysis_result.extract_displacements();
+    // for (displacement, dof_parameter_data) in
+    //     displacements.displacements_values.iter().zip(displacements.dof_parameters_data.iter())
+    // {
+    //     println!("{}, node: {}, parameter: {:?}", displacement, dof_parameter_data.node_number,
+    //              dof_parameter_data.dof_parameter);
+    // }
+    //
+    // println!();
+    // let elements_analysis_results =
+    //     fe_model.elements_analysis(&displacements)?;
+    // println!("{:?}", elements_analysis_results);
+
     Ok(())
 }

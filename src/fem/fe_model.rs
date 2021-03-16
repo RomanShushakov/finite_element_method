@@ -552,7 +552,7 @@ impl<T, V> FEModel<T, V>
                 T::from(i as ElementsNumbers), T::from(0), &ua_values);
             all_displacements_values[ua_ra_rows_numbers[i].into() as usize] = displacement_value;
         }
-        for j in  0..ub_values.len()
+        for j in  0..ub_rb_rows_numbers.len()
         {
             let displacement_value = extract_element_value(
                 T::from(j as ElementsNumbers), T::from(0), &ub_values);
