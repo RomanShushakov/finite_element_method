@@ -1,3 +1,5 @@
+use crate::{ElementsNumbers, ElementsValues};
+
 #[derive(Debug, PartialEq)]
 pub struct GlobalCoordinates<T>
 {
@@ -7,21 +9,31 @@ pub struct GlobalCoordinates<T>
 }
 
 
+impl<T> GlobalCoordinates<T>
+    where T: Copy + Into<ElementsValues>
+{
+    fn extract(&self) -> (ElementsValues, ElementsValues, ElementsValues)
+    {
+        (self.x.into(), self.y.into(), self.z.into())
+    }
+}
+
+
 #[derive(Debug)]
-pub struct FeNode<T, V>
+pub struct FENode<T, V>
 {
     pub number: T,
     pub coordinates: GlobalCoordinates<V>
 }
 
 
-impl<T, V> FeNode<T, V>
-    where T: PartialEq,
-          V: PartialEq,
+impl<T, V> FENode<T, V>
+    where T: PartialEq + Copy + Into<ElementsNumbers>,
+          V: PartialEq + Copy + Into<ElementsValues>,
 {
     pub fn create(number: T, x: V, y: V, z: V) -> Self
     {
-        FeNode { number, coordinates: GlobalCoordinates { x, y, z } }
+        FENode { number, coordinates: GlobalCoordinates { x, y, z } }
     }
 
 
@@ -41,4 +53,17 @@ impl<T, V> FeNode<T, V>
     {
         GlobalCoordinates { x, y, z } == self.coordinates
     }
+
+
+    pub fn extract_number(&self) -> ElementsNumbers
+    {
+        self.number.into()
+    }
+
+
+    pub fn extract_coordinates(&self) -> (ElementsValues, ElementsValues, ElementsValues)
+    {
+        self.coordinates.extract()
+    }
+
 }

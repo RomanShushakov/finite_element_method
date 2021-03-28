@@ -1,7 +1,7 @@
-use crate::fem::{FeNode, Truss2n2ip, StiffnessGroup, ElementAnalysisData, Displacements};
+use crate::fem::{FENode, Truss2n2ip, StiffnessGroup, ElementAnalysisData, Displacements};
 
 use crate::{ElementsNumbers, ElementsValues};
-use crate::extended_matrix::{ExtendedMatrix, MatrixElementPosition};
+use crate::extended_matrix::{ExtendedMatrix};
 
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -9,18 +9,43 @@ use std::ops::{Sub, Div, Rem, SubAssign, Mul, Add, AddAssign, MulAssign};
 use std::hash::Hash;
 use std::fmt::Debug;
 
+use std::slice::Iter;
+use self::FEType::*;
 
-#[derive(Clone, PartialEq)]
+
+#[derive(Clone, PartialEq, Debug)]
 pub enum FEType
 {
     Truss2n2ip
 }
 
 
+impl FEType
+{
+    pub fn as_str(&self) -> String
+    {
+        match self
+        {
+            FEType::Truss2n2ip => String::from("Truss2n2ip"),
+        }
+    }
+
+
+    pub fn iterator() -> Iter<'static, FEType>
+    {
+        const TYPES: [FEType; 1] =
+            [
+                Truss2n2ip,
+            ];
+        TYPES.iter()
+    }
+}
+
+
 pub struct FEData<T, V>
 {
     pub number: T,
-    pub nodes: Vec<Rc<RefCell<FeNode<T, V>>>>,
+    pub nodes: Vec<Rc<RefCell<FENode<T, V>>>>,
     pub properties: Vec<V>,
 }
 
@@ -55,6 +80,9 @@ pub trait FiniteElementTrait<T, V>
     fn nodes_numbers_same(&self, nodes_numbers: Vec<T>) -> bool;
     fn extract_element_analysis_data(&self, global_displacements: &Displacements<T, V>)
         -> Result<ElementAnalysisData<T, V>, String>;
+    fn extract_fe_number(&self) -> ElementsNumbers;
+    fn extract_nodes_numbers(&self) -> Vec<ElementsNumbers>;
+    fn extract_fe_properties(&self) -> Vec<ElementsValues>;
 }
 
 
@@ -181,5 +209,29 @@ impl<T, V> FiniteElement<T, V>
         let element_analysis_data =
             self.element.extract_element_analysis_data(global_displacements)?;
         Ok(element_analysis_data)
+    }
+
+
+    pub fn extract_fe_type(&self) -> FEType
+    {
+        self.element_type.clone()
+    }
+
+
+    pub fn extract_fe_number(&self) -> ElementsNumbers
+    {
+        self.element.extract_fe_number()
+    }
+
+
+    pub fn extract_nodes_numbers(&self) -> Vec<ElementsNumbers>
+    {
+        self.element.extract_nodes_numbers()
+    }
+
+
+    pub fn extract_fe_properties(&self) -> Vec<ElementsValues>
+    {
+        self.element.extract_fe_properties()
     }
 }

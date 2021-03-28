@@ -45,9 +45,10 @@ trait BCTrait<T, V>
     fn number_same(&self, number: T) -> bool;
     fn node_number_same(&self, node_number: T) -> bool;
     fn dof_parameter_data_same(&self, dof_parameter: GlobalDOFParameter, node_number: T) -> bool;
-    // fn extract_node_number(&self) -> T;
+    fn extract_node_number(&self) -> T;
     fn extract_value(&self) -> V;
-    // fn extract_dof_parameter(&self) -> GlobalDOFParameter;
+    fn extract_dof_parameter(&self) -> GlobalDOFParameter;
+    fn extract_number(&self) -> T;
 }
 
 
@@ -81,22 +82,28 @@ impl<T, V> BCTrait<T, V> for Force<T, V>
     }
 
 
-    // fn extract_node_number(&self) -> T
-    // {
-    //     self.dof_parameter_data.node_number
-    // }
-    //
-    //
+    fn extract_node_number(&self) -> T
+    {
+        self.dof_parameter_data.node_number
+    }
+
+
     fn extract_value(&self) -> V
     {
         self.value
     }
-    //
-    //
-    // fn extract_dof_parameter(&self) -> GlobalDOFParameter
-    // {
-    //     self.dof_parameter_data.dof_parameter
-    // }
+
+
+    fn extract_dof_parameter(&self) -> GlobalDOFParameter
+    {
+        self.dof_parameter_data.dof_parameter
+    }
+
+
+    fn extract_number(&self) -> T
+    {
+        self.number
+    }
 }
 
 
@@ -130,26 +137,32 @@ impl<T, V> BCTrait<T, V> for Displacement<T, V>
     }
 
 
-    // fn extract_node_number(&self) -> T
-    // {
-    //     self.dof_parameter_data.node_number
-    // }
-    //
-    //
+    fn extract_node_number(&self) -> T
+    {
+        self.dof_parameter_data.node_number
+    }
+
+
     fn extract_value(&self) -> V
     {
         self.value
     }
-    //
-    //
-    // fn extract_dof_parameter(&self) -> GlobalDOFParameter
-    // {
-    //     self.dof_parameter_data.dof_parameter
-    // }
+
+
+    fn extract_dof_parameter(&self) -> GlobalDOFParameter
+    {
+        self.dof_parameter_data.dof_parameter
+    }
+
+
+    fn extract_number(&self) -> T
+    {
+        self.number
+    }
 }
 
 
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub enum BCType
 {
     Force,
@@ -250,6 +263,23 @@ impl<T, V> BoundaryCondition<T, V>
         self.boundary_condition.extract_value()
     }
 
+
+    pub fn extract_number(&self) -> T
+    {
+        self.boundary_condition.extract_number()
+    }
+
+
+    pub fn extract_node_number(&self) -> T
+    {
+        self.boundary_condition.extract_node_number()
+    }
+
+
+    pub fn extract_dof_parameter(&self) -> GlobalDOFParameter
+    {
+        self.boundary_condition.extract_dof_parameter()
+    }
 
     // pub fn show(&self)
     // {

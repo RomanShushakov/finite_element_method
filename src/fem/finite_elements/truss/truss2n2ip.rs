@@ -1,7 +1,7 @@
 use crate::fem::{FiniteElementTrait, Displacements, ForceComponent};
 use crate::fem::
     {
-        GlobalCoordinates, FeNode, StiffnessGroup, FEData, DOFParameterData, ElementAnalysisData
+        FENode, StiffnessGroup, FEData, DOFParameterData, ElementAnalysisData
     };
 use crate::fem::{StiffnessType, GlobalDOFParameter, StressStrainComponent};
 use crate::fem::compare_with_tolerance;
@@ -13,7 +13,6 @@ use std::hash::Hash;
 use std::fmt::Debug;
 use std::ops::{Sub, Mul, Add, Div, Rem, SubAssign, AddAssign, MulAssign};
 use std::cell::RefCell;
-use crate::fem::element_analysis::fe_stress_strain_components::STRESS_STRAIN_COMPONENTS_NUMBER;
 
 
 const TRUSS_NODE_DOF: ElementsNumbers = 3;
@@ -33,7 +32,7 @@ impl<T, V> TrussAuxFunctions<T, V>
              Mul<Output = V> + Add<Output = V> + Div<Output = V> + PartialEq + Debug + AddAssign +
              MulAssign + SubAssign + 'static
 {
-    fn length(node_1: Rc<RefCell<FeNode<T, V>>>, node_2: Rc<RefCell<FeNode<T, V>>>) -> V
+    fn length(node_1: Rc<RefCell<FENode<T, V>>>, node_2: Rc<RefCell<FENode<T, V>>>) -> V
     {
         V::from(((node_1.as_ref().borrow().coordinates.x - node_2.as_ref().borrow().coordinates.x)
             .into().powi(2) +
@@ -44,8 +43,8 @@ impl<T, V> TrussAuxFunctions<T, V>
     }
 
 
-    fn rotation_matrix(node_1: Rc<RefCell<FeNode<T, V>>>, node_2: Rc<RefCell<FeNode<T, V>>>)
-        -> ExtendedMatrix<T, V>
+    fn rotation_matrix(node_1: Rc<RefCell<FENode<T, V>>>, node_2: Rc<RefCell<FENode<T, V>>>)
+                       -> ExtendedMatrix<T, V>
     {
         let x = (node_2.as_ref().borrow().coordinates.x -
             node_1.as_ref().borrow().coordinates.x).into();
@@ -124,7 +123,7 @@ impl<T, V> TrussAuxFunctions<T, V>
     }
 
 
-    fn jacobian(node_1: Rc<RefCell<FeNode<T, V>>>, node_2: Rc<RefCell<FeNode<T, V>>>, r: V) -> V
+    fn jacobian(node_1: Rc<RefCell<FENode<T, V>>>, node_2: Rc<RefCell<FENode<T, V>>>, r: V) -> V
     {
         let length = TrussAuxFunctions::length(node_1, node_2);
         let x_1 = V::from(-1.0) * length / V::from(2.0);
@@ -133,15 +132,15 @@ impl<T, V> TrussAuxFunctions<T, V>
     }
 
 
-    fn inverse_jacobian(node_1: Rc<RefCell<FeNode<T, V>>>, node_2: Rc<RefCell<FeNode<T, V>>>, r: V)
-        -> V
+    fn inverse_jacobian(node_1: Rc<RefCell<FENode<T, V>>>, node_2: Rc<RefCell<FENode<T, V>>>, r: V)
+                        -> V
     {
         V::from(1.0) / TrussAuxFunctions::jacobian(node_1, node_2, r)
     }
 
 
-    fn determinant_of_jacobian(node_1: Rc<RefCell<FeNode<T, V>>>,
-       node_2: Rc<RefCell<FeNode<T, V>>>, r: V) -> V
+    fn determinant_of_jacobian(node_1: Rc<RefCell<FENode<T, V>>>,
+                               node_2: Rc<RefCell<FENode<T, V>>>, r: V) -> V
     {
         TrussAuxFunctions::jacobian(node_1, node_2, r)
     }
@@ -165,8 +164,8 @@ impl<T, V> TrussAuxFunctions<T, V>
     }
 
 
-    fn strain_displacement_matrix(node_1: Rc<RefCell<FeNode<T, V>>>,
-        node_2: Rc<RefCell<FeNode<T, V>>>, r: V) -> ExtendedMatrix<T, V>
+    fn strain_displacement_matrix(node_1: Rc<RefCell<FENode<T, V>>>,
+                                  node_2: Rc<RefCell<FENode<T, V>>>, r: V) -> ExtendedMatrix<T, V>
     {
         let elements = vec![TrussAuxFunctions::<T, V>::dh1_dr(r), V::from(0.0),
             V::from(0.0), TrussAuxFunctions::<T, V>::dh2_dr(r), V::from(0.0), V::from(0.0)];
@@ -194,10 +193,10 @@ impl<T, V> TrussAuxFunctions<T, V>
     }
 
 
-    fn local_stiffness_matrix(node_1: Rc<RefCell<FeNode<T, V>>>,
-        node_2: Rc<RefCell<FeNode<T, V>>>, young_modulus: V, area_1: V, area_2: Option<V>,
-        alpha: V, r: V, local_stiffness_matrix: &ExtendedMatrix<T, V>)
-        -> Result<ExtendedMatrix<T, V>, String>
+    fn local_stiffness_matrix(node_1: Rc<RefCell<FENode<T, V>>>,
+                              node_2: Rc<RefCell<FENode<T, V>>>, young_modulus: V, area_1: V, area_2: Option<V>,
+                              alpha: V, r: V, local_stiffness_matrix: &ExtendedMatrix<T, V>)
+                              -> Result<ExtendedMatrix<T, V>, String>
     {
         let current_area = TrussAuxFunctions::<T, V>::area(area_1, area_2, r);
         let mut lhs_matrix =
@@ -285,8 +284,8 @@ struct State<T, V>
 pub struct Truss2n2ip<T, V>
 {
     number: T,
-    node_1: Rc<RefCell<FeNode<T, V>>>,
-    node_2: Rc<RefCell<FeNode<T, V>>>,
+    node_1: Rc<RefCell<FENode<T, V>>>,
+    node_2: Rc<RefCell<FENode<T, V>>>,
     young_modulus: V,
     area: V,
     area_2: Option<V>,
@@ -302,9 +301,9 @@ impl<T, V> Truss2n2ip<T, V>
              Mul<Output = V> + Add<Output = V> + Div<Output = V> + PartialEq + Debug + AddAssign +
              MulAssign + SubAssign + 'static
 {
-    pub fn create(number: T, node_1: Rc<RefCell<FeNode<T, V>>>,
-        node_2: Rc<RefCell<FeNode<T, V>>>, young_modulus: V, area: V, area_2: Option<V>)
-        -> Result<Self, String>
+    pub fn create(number: T, node_1: Rc<RefCell<FENode<T, V>>>,
+                  node_2: Rc<RefCell<FENode<T, V>>>, young_modulus: V, area: V, area_2: Option<V>)
+                  -> Result<Self, String>
     {
         let integration_point_1 = IntegrationPoint {
             r: V::from(- 1.0 / (3.0 as ElementsValues).sqrt()), weight: V::from(1.0) };
@@ -645,5 +644,35 @@ impl<T, V> FiniteElementTrait<T, V> for Truss2n2ip<T, V>
                 stresses_values, stresses_components, forces_values, forces_components);
             Ok(element_analysis_data)
         }
+    }
+
+
+    fn extract_fe_number(&self) -> ElementsNumbers
+    {
+        self.number.into()
+    }
+
+
+    fn extract_nodes_numbers(&self) -> Vec<ElementsNumbers>
+    {
+        let mut numbers = Vec::new();
+        let node_1_number = self.node_1.borrow().extract_number();
+        let node_2_number = self.node_2.borrow().extract_number();
+        numbers.push(node_1_number);
+        numbers.push(node_2_number);
+        numbers
+    }
+
+
+    fn extract_fe_properties(&self) -> Vec<ElementsValues>
+    {
+        let mut properties = Vec::new();
+        properties.push(self.young_modulus.into());
+        properties.push(self.area.into());
+        if let Some(area) = self.area_2
+        {
+            properties.push(area.into());
+        }
+        properties
     }
 }

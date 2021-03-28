@@ -1,4 +1,8 @@
-use crate::fem::{FeNode, FEData, FiniteElement, StiffnessGroup, DOFParameterData, BoundaryCondition, GlobalAnalysisResult, Displacements};
+use crate::fem::
+    {
+        FENode, FEData, FiniteElement, StiffnessGroup, DOFParameterData, BoundaryCondition,
+        GlobalAnalysisResult, Displacements
+    };
 use crate::fem::{FEType, GlobalDOFParameter, BCType};
 use crate::fem::compose_stiffness_sub_groups;
 use crate::fem::GLOBAL_DOF;
@@ -7,7 +11,10 @@ use crate::extended_matrix::{ExtendedMatrix, MatrixElementPosition, ZerosRowColu
 use crate::extended_matrix::Operation;
 use crate::extended_matrix::extract_element_value;
 
-use crate::{ElementsNumbers, ElementsValues};
+use crate::{ElementsNumbers, ElementsValues, UIDNumbers};
+
+use crate::fem::element_analysis::fe_element_analysis_result::ElementsAnalysisResult;
+use crate::auxiliary::{FEDrawnElementData, FEDrawnBCData, FEDrawnNodeData};
 
 use std::ops::{Sub, Div, Rem, SubAssign, Mul, Add, AddAssign, MulAssign};
 use std::hash::Hash;
@@ -16,7 +23,6 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::iter::FromIterator;
-use crate::fem::element_analysis::fe_element_analysis_result::ElementsAnalysisResult;
 
 
 pub struct SeparatedMatrix<T, V>
@@ -37,7 +43,7 @@ pub struct State<T>
 
 pub struct FEModel<T, V>
 {
-    pub nodes: Vec<Rc<RefCell<FeNode<T, V>>>>,
+    pub nodes: Vec<Rc<RefCell<FENode<T, V>>>>,
     pub elements: Vec<FiniteElement<T, V>>,
     pub boundary_conditions: Vec<BoundaryCondition<T, V>>,
     pub state: State<T>,
@@ -150,7 +156,7 @@ impl<T, V> FEModel<T, V>
             node.as_ref().borrow().number_same(number) ||
             node.as_ref().borrow().coordinates_same(x, y, z)).is_none()
         {
-            let node = FeNode::create(number, x, y, z);
+            let node = FENode::create(number, x, y, z);
             self.nodes.push(Rc::new(RefCell::new(node)));
             self.update_stiffness_groups()?;
             Ok(())
@@ -408,8 +414,10 @@ impl<T, V> FEModel<T, V>
                 does not exist!", bc_type.as_str()));
         }
         if self.boundary_conditions.iter().position(|bc|
-                bc.dof_parameter_data_same(
-                    dof_parameter, node_number) && !bc.number_same(number)).is_some()
+            (bc.dof_parameter_data_same(dof_parameter, node_number) &&
+            !bc.number_same(number)) ||
+            (bc.dof_parameter_data_same(dof_parameter, node_number) &&
+            bc.number_same(number) && !bc.type_same(bc_type))).is_some()
         {
             return Err(format!("FEModel: {} could not be updated because the the force or \
                 displacement with the same dof parameter data does already exist!",
@@ -658,5 +666,129 @@ impl<T, V> FEModel<T, V>
         let elements_analysis_results =
             ElementsAnalysisResult::create(elements_analysis_data);
         Ok(elements_analysis_results)
+    }
+
+
+    pub fn drawn_nodes_rc(&self, drawn_uid_number: &mut UIDNumbers) -> Rc<Vec<FEDrawnNodeData>>
+    {
+        let mut nodes = Vec::new();
+        for node in self.nodes.iter()
+        {
+            *drawn_uid_number += 1;
+            let uid = *drawn_uid_number;
+            let number = node.borrow().extract_number();
+            let (x, y, z) = node.borrow().extract_coordinates();
+            let drawn_node_data = FEDrawnNodeData { uid, number, x, y, z };
+            nodes.push(drawn_node_data);
+        }
+        Rc::new(nodes)
+    }
+
+
+    pub fn drawn_elements_rc(&self, drawn_uid_number: &mut UIDNumbers) -> Rc<Vec<FEDrawnElementData>>
+    {
+        let mut drawn_elements = Vec::new();
+        for element in self.elements.iter()
+        {
+            *drawn_uid_number += 1;
+            let uid = *drawn_uid_number;
+            let fe_type = element.extract_fe_type();
+            let number = element.extract_fe_number();
+            let nodes_numbers = element.extract_nodes_numbers();
+            let properties = element.extract_fe_properties();
+            let drawn_element_data =
+                FEDrawnElementData { uid, fe_type, number, nodes_numbers, properties };
+            drawn_elements.push(drawn_element_data);
+        }
+        Rc::new(drawn_elements)
+    }
+
+
+    pub fn drawn_bcs_rc(&self, drawn_uid_number: &mut UIDNumbers) -> Rc<Vec<FEDrawnBCData>>
+    {
+        let mut drawn_bcs = Vec::new();
+        for bc in &self.boundary_conditions
+        {
+            *drawn_uid_number += 1;
+            let uid = *drawn_uid_number;
+            let bc_type = bc.extract_bc_type();
+            let number = bc.extract_number().into() / GLOBAL_DOF;
+            let node_number = bc.extract_node_number().into();
+            let value = bc.extract_value().into();
+            let mut drawn_bc = FEDrawnBCData { uid, bc_type, number, node_number,
+                    is_rotation_stiffness_enabled: false, x_direction_value: None,
+                    y_direction_value: None, z_direction_value: None, xy_plane_value: None,
+                    yz_plane_value: None, zx_plane_value: None
+                };
+
+            for i in 0..GLOBAL_DOF
+            {
+                let dof_parameter =
+                    GlobalDOFParameter::iterator().nth(i as usize).unwrap();
+                if bc.dof_parameter_data_same(*dof_parameter,
+                                              T::from(node_number))
+                {
+                    match dof_parameter
+                    {
+                        GlobalDOFParameter::X => drawn_bc.x_direction_value = Some(value),
+                        GlobalDOFParameter::Y => drawn_bc.y_direction_value = Some(value),
+                        GlobalDOFParameter::Z => drawn_bc.z_direction_value = Some(value),
+                        GlobalDOFParameter::ThX => drawn_bc.yz_plane_value = Some(value),
+                        GlobalDOFParameter::ThY => drawn_bc.zx_plane_value = Some(value),
+                        GlobalDOFParameter::ThZ => drawn_bc.xy_plane_value = Some(value),
+                    }
+                    if i > 2 as ElementsNumbers
+                    {
+                        drawn_bc.is_rotation_stiffness_enabled = true;
+                    }
+                    break;
+                }
+            }
+            if let Some(position) = drawn_bcs
+                .iter().position(|data: &FEDrawnBCData|
+                    data.number == number && data.bc_type == bc_type)
+            {
+                if !drawn_bcs[position].is_rotation_stiffness_enabled
+                {
+                    drawn_bcs[position].is_rotation_stiffness_enabled =
+                        drawn_bc.is_rotation_stiffness_enabled;
+                }
+                if drawn_bcs[position].x_direction_value.is_none()
+                {
+                    drawn_bcs[position].x_direction_value =
+                        drawn_bc.x_direction_value;
+                }
+                if drawn_bcs[position].y_direction_value.is_none()
+                {
+                    drawn_bcs[position].y_direction_value =
+                        drawn_bc.y_direction_value;
+                }
+                if drawn_bcs[position].z_direction_value.is_none()
+                {
+                    drawn_bcs[position].z_direction_value =
+                        drawn_bc.z_direction_value;
+                }
+                if drawn_bcs[position].xy_plane_value.is_none()
+                {
+                    drawn_bcs[position].xy_plane_value =
+                        drawn_bc.xy_plane_value;
+                }
+                if drawn_bcs[position].yz_plane_value.is_none()
+                {
+                    drawn_bcs[position].yz_plane_value =
+                        drawn_bc.yz_plane_value;
+                }
+                if drawn_bcs[position].zx_plane_value.is_none()
+                {
+                    drawn_bcs[position].zx_plane_value =
+                        drawn_bc.zx_plane_value;
+                }
+            }
+            else
+            {
+                drawn_bcs.push(drawn_bc);
+            }
+        }
+        Rc::new(drawn_bcs)
     }
 }

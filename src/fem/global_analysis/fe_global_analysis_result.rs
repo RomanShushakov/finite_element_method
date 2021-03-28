@@ -1,5 +1,4 @@
 use crate::fem::{DOFParameterData};
-use crate::extended_matrix::ExtendedMatrix;
 
 use crate::{ElementsNumbers, ElementsValues};
 
@@ -69,11 +68,11 @@ impl<T, V> GlobalAnalysisResult<T, V>
     {
         let mut displacements_values = Vec::new();
         let mut dof_parameters_data = Vec::new();
-        for (reaction_value, dof_parameter_data) in
+        for (displacement_value, dof_parameter_data) in
             self.displacements.displacements_values
                 .iter().zip(&self.displacements.dof_parameters_data)
         {
-            displacements_values.push(*reaction_value);
+            displacements_values.push(*displacement_value);
             dof_parameters_data.push(*dof_parameter_data);
         }
         Displacements { displacements_values, dof_parameters_data }

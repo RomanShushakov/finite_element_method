@@ -3,7 +3,7 @@ use crate::extended_matrix::{MatrixElementPosition, ZerosRowColumn, Shape, Symme
 use crate::extended_matrix::BasicMatrixType;
 use crate::extended_matrix::
     {
-        matrix_size_check, extract_value_by_index, return_non_symmetric_matrix_struct
+        matrix_size_check, extract_value_by_index
     };
 
 use crate::ElementsNumbers;
@@ -11,7 +11,7 @@ use crate::ElementsNumbers;
 use std::ops::{Mul, Add, Sub, Div, Rem, MulAssign, SubAssign};
 use std::fmt::Debug;
 use std::any::Any;
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap};
 use std::hash::Hash;
 
 
