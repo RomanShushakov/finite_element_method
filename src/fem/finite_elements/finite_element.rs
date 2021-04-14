@@ -1,4 +1,7 @@
-use crate::fem::{FENode, Truss2n2ip, StiffnessGroup, ElementAnalysisData, Displacements};
+use crate::fem::
+    {
+        FENode, Truss2n2ip, StiffnessGroup, ElementAnalysisData, Displacements, Beam2n1ipT,
+    };
 
 use crate::{ElementsNumbers, ElementsValues};
 use crate::extended_matrix::{ExtendedMatrix};
@@ -16,7 +19,8 @@ use self::FEType::*;
 #[derive(Clone, PartialEq, Debug)]
 pub enum FEType
 {
-    Truss2n2ip
+    Truss2n2ip,
+    Beam2n1ipT,
 }
 
 
@@ -27,15 +31,16 @@ impl FEType
         match self
         {
             FEType::Truss2n2ip => String::from("Truss2n2ip"),
+            FEType::Beam2n1ipT => String::from("Beam2n1ipT"),
         }
     }
 
 
     pub fn iterator() -> Iter<'static, FEType>
     {
-        const TYPES: [FEType; 1] =
+        const TYPES: [FEType; 2] =
             [
-                Truss2n2ip,
+                Truss2n2ip, Beam2n1ipT,
             ];
         TYPES.iter()
     }
@@ -123,6 +128,29 @@ impl<T, V> FECreator<T, V>
                             None
                         )?;
                         Ok(Box::new(truss_element))
+                    }
+                },
+            FEType::Beam2n1ipT =>
+                {
+                    if data.properties.len() == 3
+                    {
+                        let beam_element = Beam2n1ipT::create(
+                            data.number, Rc::clone(&data.nodes[0]),
+                            Rc::clone(&data.nodes[1]),
+                            data.properties[0], data.properties[1],
+                            Some(data.properties[2])
+                        )?;
+                        Ok(Box::new(beam_element))
+                    }
+                    else
+                    {
+                        let beam_element = Beam2n1ipT::create(
+                            data.number, Rc::clone(&data.nodes[0]),
+                            Rc::clone(&data.nodes[1]),
+                            data.properties[0], data.properties[1],
+                            None
+                        )?;
+                        Ok(Box::new(beam_element))
                     }
                 }
         }

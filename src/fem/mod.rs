@@ -13,6 +13,7 @@ pub use crate::fem::finite_elements::finite_element::{FEData, FiniteElement};
 pub use crate::fem::finite_elements::finite_element::FEType;
 pub use crate::fem::finite_elements::finite_element::FiniteElementTrait;
 pub use crate::fem::finite_elements::truss::truss2n2ip::Truss2n2ip;
+pub use crate::fem::finite_elements::beam::beam2n1ipt::Beam2n1ipT;
 pub use crate::fem::global_analysis::fe_boundary_condition::BCType;
 pub use crate::fem::global_analysis::fe_boundary_condition::BoundaryCondition;
 pub use crate::fem::global_analysis::fe_dof_parameter_data::{DOFParameterData, GlobalDOFParameter};

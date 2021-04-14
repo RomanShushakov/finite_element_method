@@ -81,6 +81,43 @@ impl FEDrawnElementData
                             2.0 as GLElementsValues;
                     }
                 },
+            FEType::Beam2n1ipT =>
+                {
+                    let start_node_number = self.nodes_numbers[0] as GLElementsNumbers;
+                    let start_node_coordinates = if let Some(position) =
+                        normalized_nodes.iter().position(|node|
+                            node.number == start_node_number)
+                        {
+                            [normalized_nodes[position].x, normalized_nodes[position].y,
+                             normalized_nodes[position].z]
+                        }
+                    else
+                    {
+                        return Err(format!("FEDrawnElementData: Node {} does not \
+                            exist!", start_node_number));
+                    };
+                    let end_node_number = self.nodes_numbers[1] as GLElementsNumbers;
+                    let end_node_coordinates = if let Some(position) =
+                        normalized_nodes.iter().position(|node|
+                            node.number == end_node_number)
+                        {
+                            [normalized_nodes[position].x, normalized_nodes[position].y,
+                             normalized_nodes[position].z]
+                        }
+                    else
+                    {
+                        return Err(format!("FEDrawnElementData: Node {} does not \
+                            exist!", end_node_number));
+                    };
+
+                    for (i, (start_coordinate, end_coordinate)) in
+                        start_node_coordinates.iter().zip(end_node_coordinates.iter())
+                            .enumerate()
+                    {
+                        denotation_coordinates[i] = (start_coordinate + end_coordinate) /
+                            2.0 as GLElementsValues;
+                    }
+                },
         }
         Ok(denotation_coordinates)
     }
