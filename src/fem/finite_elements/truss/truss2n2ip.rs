@@ -305,14 +305,17 @@ impl<T, V> Truss2n2ip<T, V>
                   node_2: Rc<RefCell<FENode<T, V>>>, young_modulus: V, area: V, area_2: Option<V>)
                   -> Result<Self, String>
     {
+        // let integration_point_1 = IntegrationPoint {
+        //     r: V::from(- 1.0 / (3.0 as ElementsValues).sqrt()), weight: V::from(1.0) };
+        // let integration_point_2 = IntegrationPoint {
+        //     r: V::from(1.0 / (3.0 as ElementsValues).sqrt()), weight: V::from(1.0) };
         let integration_point_1 = IntegrationPoint {
-            r: V::from(- 1.0 / (3.0 as ElementsValues).sqrt()), weight: V::from(1.0) };
-        let integration_point_2 = IntegrationPoint {
-            r: V::from(1.0 / (3.0 as ElementsValues).sqrt()), weight: V::from(1.0) };
+            r: V::default(), weight: V::from(2.0) };
         let rotation_matrix =
             TrussAuxFunctions::rotation_matrix(Rc::clone(&node_1),
                                                Rc::clone(&node_2));
-        let integration_points = vec![integration_point_1, integration_point_2];
+        // let integration_points = vec![integration_point_1, integration_point_2];
+        let integration_points = vec![integration_point_1];
         let mut local_stiffness_matrix =
             ExtendedMatrix::create(
                 T::from(TRUSS2N2IP_NODES_NUMBER * TRUSS_NODE_DOF),
