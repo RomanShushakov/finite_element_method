@@ -11,6 +11,7 @@ pub enum BasicMatrixType
 }
 
 
+#[derive(PartialEq)]
 pub struct Shape<T>(pub T, pub T);
 
 
@@ -69,5 +70,6 @@ pub trait BasicMatrixTrait<T, V>: BasicMatrixClone<T, V>
     fn define_type(&self) -> BasicMatrixType;
     fn as_any(&self) -> &dyn Any;
     fn remove_zeros_rows_columns(&mut self) -> Vec<ZerosRowColumn<T>>;
-    fn remove_zeros_row(&mut self, row: T) -> Box<dyn BasicMatrixTrait<T, V>>;
+    fn remove_selected_row(&mut self, row: T) -> Box<dyn BasicMatrixTrait<T, V>>;
+    fn remove_selected_column(&mut self, column: T) -> Box<dyn BasicMatrixTrait<T, V>>;
 }

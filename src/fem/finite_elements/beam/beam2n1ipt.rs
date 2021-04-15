@@ -5,7 +5,7 @@ use crate::fem::
     };
 use crate::fem::{StiffnessType, GlobalDOFParameter, StressStrainComponent};
 use crate::fem::compare_with_tolerance;
-use crate::extended_matrix::{ExtendedMatrix, MatrixElementPosition, extract_element_value};
+use crate::extended_matrix::{ExtendedMatrix, MatrixElementPosition, extract_element_value, Shape};
 use crate::{ElementsNumbers, ElementsValues};
 
 use std::rc::Rc;
@@ -40,6 +40,31 @@ impl<T, V> BeamAuxFunctions<T, V>
             .into().powi(2) +
         (node_1.as_ref().borrow().coordinates.z - node_2.as_ref().borrow().coordinates.z)
             .into().powi(2)).sqrt())
+    }
+
+
+    fn angle_between_yz_projections_of_axes<'a>(axis_1: ExtendedMatrix<T, V>,
+                                            axis_2: ExtendedMatrix<T, V>) -> Result<V, &'a str>
+    {
+        let error_message = "Beam2n1ipT: Angle between local n1 and global n1 axes \
+            could not be calculated!";
+        let axis_1_shape = axis_1.get_shape();
+        let axis_2_shape = axis_2.get_shape();
+        let required_shape = Shape(T::from(3), T::from(1));
+        if (axis_1_shape != axis_2_shape) || axis_1_shape != required_shape
+        {
+            return Err(error_message);
+        }
+        let axis_1_values = axis_1.extract_all_elements_values();
+        let axis_2_values = axis_2.extract_all_elements_values();
+        let y_value_position = MatrixElementPosition { row: T::from(2), column: T::from(1) };
+        let z_value_position = MatrixElementPosition { row: T::from(3), column: T::from(1) };
+        let axis_1_y_value = axis_1_values.get(&y_value_position).ok_or(error_message)?;
+        let axis_1_z_value = axis_1_values.get(&z_value_position).ok_or(error_message)?;
+        let axis_2_y_value = axis_2_values.get(&y_value_position).ok_or(error_message)?;
+        let axis_2_z_value = axis_2_values.get(&z_value_position).ok_or(error_message)?;
+        // let cosine_of_angle = axis_1_values.get
+        Ok(V::from(0.0))
     }
 
 
@@ -318,14 +343,21 @@ impl<T, V> Beam2n1ipT<T, V>
         let mut shrinked_rotation_matrix = rotation_matrix.clone();
         for row in 3..shape.0.into()
         {
-            shrinked_rotation_matrix.remove_zeros_row(T::from(row));
-        }
-        for column in 3..shape.1.into()
-        {
-            shrinked_rotation_matrix.remove_zeros_rows_columns(T::from(row));
+            shrinked_rotation_matrix.remove_selected_row(T::from(row));
         }
         shrinked_rotation_matrix.show_matrix();
         println!();
+
+        for column in 3..shape.1.into()
+        {
+            shrinked_rotation_matrix.remove_selected_column(T::from(column));
+        }
+        shrinked_rotation_matrix.show_matrix();
+        println!();
+
+        let n_1_direction = ExtendedMatrix::create(
+            T::from(3), T::from(1),
+            vec![V::from(0.0), V::from(0.0), V::from(-1.0)]);
 
         let local_n_1_direction = ExtendedMatrix::create(
             T::from(3), T::from(1),
@@ -335,7 +367,7 @@ impl<T, V> Beam2n1ipT<T, V>
         println!();
 
 
-        if let Ok(matrix) = rotation_matrix.multiply_by_matrix(&local_n_1_direction)
+        if let Ok(matrix) = shrinked_rotation_matrix.multiply_by_matrix(&local_n_1_direction)
         {
             matrix.show_matrix();
             println!();

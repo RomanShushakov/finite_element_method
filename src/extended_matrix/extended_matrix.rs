@@ -479,9 +479,15 @@ impl<T, V> ExtendedMatrix<T, V>
     }
 
 
-    pub fn remove_zeros_row(&mut self, row: T)
+    pub fn remove_selected_row(&mut self, row: T)
     {
-        self.basic_matrix = self.basic_matrix.remove_zeros_row(row)
+        self.basic_matrix = self.basic_matrix.remove_selected_row(row);
+    }
+
+
+    pub fn remove_selected_column(&mut self, column: T)
+    {
+        self.basic_matrix = self.basic_matrix.remove_selected_column(column);
     }
 
 

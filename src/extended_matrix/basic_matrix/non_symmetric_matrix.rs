@@ -217,8 +217,8 @@ impl<T, V> BasicMatrixTrait<T, V> for NonSymmetricMatrix<T, V>
                 {
                     let zeros_row_column = ZerosRowColumn { row, column };
                     zeros_rows_columns.push(zeros_row_column);
-                    self.remove_zeros_row(row);
-                    self.remove_zeros_column(column);
+                    self.remove_row(row);
+                    self.remove_column(column);
                 }
                 else
                 {
@@ -234,9 +234,16 @@ impl<T, V> BasicMatrixTrait<T, V> for NonSymmetricMatrix<T, V>
     }
 
 
-    fn remove_zeros_row(&mut self, row: T) -> Box<dyn BasicMatrixTrait<T, V>>
+    fn remove_selected_row(&mut self, row: T) -> Box<dyn BasicMatrixTrait<T, V>>
     {
-        self.remove_zeros_row(row);
+        self.remove_row(row);
+        Box::new(self.clone())
+    }
+
+
+    fn remove_selected_column(&mut self, column: T) -> Box<dyn BasicMatrixTrait<T, V>>
+    {
+        self.remove_column(column);
         Box::new(self.clone())
     }
 }
@@ -294,7 +301,7 @@ impl<T, V> NonSymmetricMatrix<T, V>
     }
 
 
-    pub fn remove_zeros_row(&mut self, row: T)
+    pub fn remove_row(&mut self, row: T)
     {
         for index in self.elements_indexes.as_mut_slice()
         {
@@ -307,7 +314,7 @@ impl<T, V> NonSymmetricMatrix<T, V>
     }
 
 
-    fn remove_zeros_column(&mut self, column: T)
+    pub fn remove_column(&mut self, column: T)
     {
         for index in self.elements_indexes.as_mut_slice()
         {
