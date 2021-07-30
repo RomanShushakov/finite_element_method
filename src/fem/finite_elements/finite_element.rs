@@ -26,12 +26,12 @@ pub enum FEType
 
 impl FEType
 {
-    pub fn as_str(&self) -> String
+    pub fn as_str(&self) -> &'static str
     {
         match self
         {
-            FEType::Truss2n2ip => String::from("Truss2n2ip"),
-            FEType::Beam2n1ipT => String::from("Beam2n1ipT"),
+            FEType::Truss2n2ip => "Truss2n2ip",
+            FEType::Beam2n1ipT => "Beam2n1ipT",
         }
     }
 

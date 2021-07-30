@@ -208,140 +208,140 @@ fn main() -> Result<(), String>
     // println!("{:?}", element_analysis_data);
 
 
-    // let mut fe_model = FEModel::<ElementsNumbers,ElementsValues>::create();
-    // fe_model.add_node(1, 0.0, 0.0, 0.0)?;
-    // fe_model.add_node(2, 0.0, 30.0, 0.0)?;
-    // fe_model.add_node(3, 36.0, 0.0, 0.0)?;
-    // fe_model.add_node(4, 36.0, 30.0, 0.0)?;
-    // fe_model.add_node(5, 72.0, 0.0, 0.0)?;
-    // fe_model.add_node(6, 72.0, 30.0, 0.0)?;
-    // fe_model.add_node(7, 108.0, 0.0, 0.0)?;
-    // fe_model.add_node(8, 108.0, 30.0, 0.0)?;
-    // fe_model.add_node(9, 148.0, 0.0, 0.0)?;
-    // fe_model.add_node(10, 148.0, 30.0, 0.0)?;
-    //
-    // fe_model.add_element(
-    //     FEType::Truss2n2ip,
-    //     vec![1, 2],
-    //     FEData { number: 1, nodes: Vec::new(), properties: vec![1e6, 2.0] })?;
-    // fe_model.add_element(
-    //     FEType::Truss2n2ip,
-    //     vec![1, 3],
-    //     FEData { number: 2, nodes: Vec::new(), properties: vec![1e6, 2.0] })?;
-    // fe_model.add_element(
-    //     FEType::Truss2n2ip,
-    //     vec![1, 4],
-    //     FEData { number: 3, nodes: Vec::new(), properties: vec![1e6, 2.0] })?;
-    //
-    // fe_model.add_element(
-    //     FEType::Truss2n2ip,
-    //     vec![2, 4],
-    //     FEData { number: 4, nodes: Vec::new(), properties: vec![1e6, 2.0] })?;
-    //
-    // fe_model.add_element(
-    //     FEType::Truss2n2ip,
-    //     vec![3, 4],
-    //     FEData { number: 5, nodes: Vec::new(), properties: vec![1e6, 2.0] })?;
-    // fe_model.add_element(
-    //     FEType::Truss2n2ip,
-    //     vec![3, 5],
-    //     FEData { number: 6, nodes: Vec::new(), properties: vec![1e6, 2.0] })?;
-    // fe_model.add_element(
-    //     FEType::Truss2n2ip,
-    //     vec![3, 6],
-    //     FEData { number: 7, nodes: Vec::new(), properties: vec![1e6, 2.0] })?;
-    //
-    // fe_model.add_element(
-    //     FEType::Truss2n2ip,
-    //     vec![4, 6],
-    //     FEData { number: 8, nodes: Vec::new(), properties: vec![1e6, 2.0] })?;
-    //
-    // fe_model.add_element(
-    //     FEType::Truss2n2ip,
-    //     vec![5, 6],
-    //     FEData { number: 9, nodes: Vec::new(), properties: vec![1e6, 2.0] })?;
-    // fe_model.add_element(
-    //     FEType::Truss2n2ip,
-    //     vec![5, 7],
-    //     FEData { number: 10, nodes: Vec::new(), properties: vec![1e6, 2.0] })?;
-    // fe_model.add_element(
-    //     FEType::Truss2n2ip,
-    //     vec![5, 8],
-    //     FEData { number: 11, nodes: Vec::new(), properties: vec![1e6, 2.0] })?;
-    //
-    // fe_model.add_element(
-    //     FEType::Truss2n2ip,
-    //     vec![6, 8],
-    //     FEData { number: 12, nodes: Vec::new(), properties: vec![1e6, 2.0] })?;
-    //
-    // fe_model.add_element(
-    //     FEType::Truss2n2ip,
-    //     vec![7, 8],
-    //     FEData { number: 13, nodes: Vec::new(), properties: vec![1e6, 2.0] })?;
-    // fe_model.add_element(
-    //     FEType::Truss2n2ip,
-    //     vec![7, 9],
-    //     FEData { number: 14, nodes: Vec::new(), properties: vec![1e6, 2.0] })?;
-    // fe_model.add_element(
-    //     FEType::Truss2n2ip,
-    //     vec![7, 10],
-    //     FEData { number: 15, nodes: Vec::new(), properties: vec![1e6, 2.0] })?;
-    //
-    // fe_model.add_element(
-    //     FEType::Truss2n2ip,
-    //     vec![8, 10],
-    //     FEData { number: 16, nodes: Vec::new(), properties: vec![1e6, 2.0] })?;
-    //
-    // fe_model.add_element(
-    //     FEType::Truss2n2ip,
-    //     vec![9, 10],
-    //     FEData { number: 17, nodes: Vec::new(), properties: vec![1e6, 2.0] })?;
-    //
-    //
-    // fe_model.add_bc(
-    //     BCType::Displacement, 1, 1,
-    //     GlobalDOFParameter::X, 0.0)?;
-    // fe_model.add_bc(
-    //     BCType::Displacement, 2, 1,
-    //     GlobalDOFParameter::Y, 0.0)?;
-    // fe_model.add_bc(
-    //     BCType::Displacement, 3, 2,
-    //     GlobalDOFParameter::X, 0.0)?;
-    //
-    // fe_model.add_bc(
-    //     BCType::Force, 1, 4,
-    //     GlobalDOFParameter::Y, 150.0)?;
-    // fe_model.add_bc(
-    //     BCType::Force, 2, 6,
-    //     GlobalDOFParameter::Y, 150.0)?;
-    // fe_model.add_bc(
-    //     BCType::Force, 3, 8,
-    //     GlobalDOFParameter::Y, 150.0)?;
-    // fe_model.add_bc(
-    //     BCType::Force, 4, 10,
-    //     GlobalDOFParameter::Y, 100.0)?;
-    //
-    // let global_analysis_result = fe_model.global_analysis()?;
-    // let reactions = global_analysis_result.extract_reactions();
-    // for (reaction, dof_parameter_data) in
-    //     reactions.reactions_values.iter().zip(reactions.dof_parameters_data)
-    // {
-    //     println!("{}, node: {}, parameter: {:?}", reaction, dof_parameter_data.node_number,
-    //              dof_parameter_data.dof_parameter);
-    // }
-    // println!();
-    // let displacements = global_analysis_result.extract_displacements();
-    // for (displacement, dof_parameter_data) in
-    //     displacements.displacements_values.iter().zip(displacements.dof_parameters_data.iter())
-    // {
-    //     println!("{}, node: {}, parameter: {:?}", displacement, dof_parameter_data.node_number,
-    //              dof_parameter_data.dof_parameter);
-    // }
-    //
-    // println!();
-    // let elements_analysis_results =
-    //     fe_model.elements_analysis(&displacements)?;
-    // println!("{:?}", elements_analysis_results);
+    let mut fe_model = FEModel::<ElementsNumbers,ElementsValues>::create();
+    fe_model.add_node(1, 0.0, 0.0, 0.0)?;
+    fe_model.add_node(2, 0.0, 30.0, 0.0)?;
+    fe_model.add_node(3, 36.0, 0.0, 0.0)?;
+    fe_model.add_node(4, 36.0, 30.0, 0.0)?;
+    fe_model.add_node(5, 72.0, 0.0, 0.0)?;
+    fe_model.add_node(6, 72.0, 30.0, 0.0)?;
+    fe_model.add_node(7, 108.0, 0.0, 0.0)?;
+    fe_model.add_node(8, 108.0, 30.0, 0.0)?;
+    fe_model.add_node(9, 148.0, 0.0, 0.0)?;
+    fe_model.add_node(10, 148.0, 30.0, 0.0)?;
+
+    fe_model.add_element(
+        FEType::Truss2n2ip,
+        vec![1, 2],
+        FEData { number: 1, nodes: Vec::new(), properties: vec![1e6, 2.0] })?;
+    fe_model.add_element(
+        FEType::Truss2n2ip,
+        vec![1, 3],
+        FEData { number: 2, nodes: Vec::new(), properties: vec![1e6, 2.0] })?;
+    fe_model.add_element(
+        FEType::Truss2n2ip,
+        vec![1, 4],
+        FEData { number: 3, nodes: Vec::new(), properties: vec![1e6, 2.0] })?;
+
+    fe_model.add_element(
+        FEType::Truss2n2ip,
+        vec![2, 4],
+        FEData { number: 4, nodes: Vec::new(), properties: vec![1e6, 2.0] })?;
+
+    fe_model.add_element(
+        FEType::Truss2n2ip,
+        vec![3, 4],
+        FEData { number: 5, nodes: Vec::new(), properties: vec![1e6, 2.0] })?;
+    fe_model.add_element(
+        FEType::Truss2n2ip,
+        vec![3, 5],
+        FEData { number: 6, nodes: Vec::new(), properties: vec![1e6, 2.0] })?;
+    fe_model.add_element(
+        FEType::Truss2n2ip,
+        vec![3, 6],
+        FEData { number: 7, nodes: Vec::new(), properties: vec![1e6, 2.0] })?;
+
+    fe_model.add_element(
+        FEType::Truss2n2ip,
+        vec![4, 6],
+        FEData { number: 8, nodes: Vec::new(), properties: vec![1e6, 2.0] })?;
+
+    fe_model.add_element(
+        FEType::Truss2n2ip,
+        vec![5, 6],
+        FEData { number: 9, nodes: Vec::new(), properties: vec![1e6, 2.0] })?;
+    fe_model.add_element(
+        FEType::Truss2n2ip,
+        vec![5, 7],
+        FEData { number: 10, nodes: Vec::new(), properties: vec![1e6, 2.0] })?;
+    fe_model.add_element(
+        FEType::Truss2n2ip,
+        vec![5, 8],
+        FEData { number: 11, nodes: Vec::new(), properties: vec![1e6, 2.0] })?;
+
+    fe_model.add_element(
+        FEType::Truss2n2ip,
+        vec![6, 8],
+        FEData { number: 12, nodes: Vec::new(), properties: vec![1e6, 2.0] })?;
+
+    fe_model.add_element(
+        FEType::Truss2n2ip,
+        vec![7, 8],
+        FEData { number: 13, nodes: Vec::new(), properties: vec![1e6, 2.0] })?;
+    fe_model.add_element(
+        FEType::Truss2n2ip,
+        vec![7, 9],
+        FEData { number: 14, nodes: Vec::new(), properties: vec![1e6, 2.0] })?;
+    fe_model.add_element(
+        FEType::Truss2n2ip,
+        vec![7, 10],
+        FEData { number: 15, nodes: Vec::new(), properties: vec![1e6, 2.0] })?;
+
+    fe_model.add_element(
+        FEType::Truss2n2ip,
+        vec![8, 10],
+        FEData { number: 16, nodes: Vec::new(), properties: vec![1e6, 2.0] })?;
+
+    fe_model.add_element(
+        FEType::Truss2n2ip,
+        vec![9, 10],
+        FEData { number: 17, nodes: Vec::new(), properties: vec![1e6, 2.0] })?;
+
+
+    fe_model.add_bc(
+        BCType::Displacement, 1, 1,
+        GlobalDOFParameter::X, 0.0)?;
+    fe_model.add_bc(
+        BCType::Displacement, 2, 1,
+        GlobalDOFParameter::Y, 0.0)?;
+    fe_model.add_bc(
+        BCType::Displacement, 3, 2,
+        GlobalDOFParameter::X, 0.0)?;
+
+    fe_model.add_bc(
+        BCType::Force, 1, 4,
+        GlobalDOFParameter::Y, 150.0)?;
+    fe_model.add_bc(
+        BCType::Force, 2, 6,
+        GlobalDOFParameter::Y, 150.0)?;
+    fe_model.add_bc(
+        BCType::Force, 3, 8,
+        GlobalDOFParameter::Y, 150.0)?;
+    fe_model.add_bc(
+        BCType::Force, 4, 10,
+        GlobalDOFParameter::Y, 100.0)?;
+
+    let global_analysis_result = fe_model.global_analysis()?;
+    let reactions = global_analysis_result.extract_reactions();
+    for (reaction, dof_parameter_data) in
+        reactions.reactions_values.iter().zip(reactions.dof_parameters_data)
+    {
+        println!("{}, node: {}, parameter: {:?}", reaction, dof_parameter_data.node_number,
+                 dof_parameter_data.dof_parameter);
+    }
+    println!();
+    let displacements = global_analysis_result.extract_displacements();
+    for (displacement, dof_parameter_data) in
+        displacements.displacements_values.iter().zip(displacements.dof_parameters_data.iter())
+    {
+        println!("{}, node: {}, parameter: {:?}", displacement, dof_parameter_data.node_number,
+                 dof_parameter_data.dof_parameter);
+    }
+
+    println!();
+    let elements_analysis_results =
+        fe_model.elements_analysis(&displacements)?;
+    println!("{:?}", elements_analysis_results);
 
 
 
@@ -442,61 +442,67 @@ fn main() -> Result<(), String>
     // println!("{:?}", elements_analysis_results);
 
 
-    let mut fe_model = FEModel::<ElementsNumbers,ElementsValues>::create();
-    fe_model.add_node(99, 0.0, 0.0, 0.0)?;
-    // fe_model.add_node(2, 56.0, 56.0, 56.0)?;
-    fe_model.add_node(2, 80.0, 0.0, 0.0)?;
 
-    fe_model.add_element(
-        FEType::Beam2n1ipT,
-        vec![99, 2],
-        FEData { number: 1, nodes: Vec::new(), properties: vec![1e6, 1.0, 9.0] })?;
 
-    fe_model.add_bc(
-        BCType::Displacement, 1, 99,
-        GlobalDOFParameter::X, 0.0)?;
 
-    // fe_model.add_bc(
-    //     BCType::Displacement, 2, 1,
-    //     GlobalDOFParameter::Y, 0.0)?;
+
+
+
+    // let mut fe_model = FEModel::<ElementsNumbers,ElementsValues>::create();
+    // fe_model.add_node(99, 0.0, 0.0, 0.0)?;
+    // // fe_model.add_node(2, 56.0, 56.0, 56.0)?;
+    // fe_model.add_node(2, 80.0, 0.0, 0.0)?;
+    //
+    // fe_model.add_element(
+    //     FEType::Beam2n1ipT,
+    //     vec![99, 2],
+    //     FEData { number: 1, nodes: Vec::new(), properties: vec![1e6, 1.0, 9.0] })?;
     //
     // fe_model.add_bc(
-    //     BCType::Displacement, 3, 1,
-    //     GlobalDOFParameter::Z, 0.0)?;
-
-    fe_model.add_bc(
-        BCType::Force, 1, 2,
-        GlobalDOFParameter::X, 100.0)?;
-
-    // fe_model.add_bc(
-    //     BCType::Force, 2, 2,
-    //     GlobalDOFParameter::Y, 100.0)?;
+    //     BCType::Displacement, 1, 99,
+    //     GlobalDOFParameter::X, 0.0)?;
+    //
+    // // fe_model.add_bc(
+    // //     BCType::Displacement, 2, 1,
+    // //     GlobalDOFParameter::Y, 0.0)?;
+    // //
+    // // fe_model.add_bc(
+    // //     BCType::Displacement, 3, 1,
+    // //     GlobalDOFParameter::Z, 0.0)?;
     //
     // fe_model.add_bc(
-    //     BCType::Force, 3, 2,
-    //     GlobalDOFParameter::Z, 100.0)?;
-
-    let global_analysis_result = fe_model.global_analysis()?;
-    let reactions = global_analysis_result.extract_reactions();
-    for (reaction, dof_parameter_data) in
-        reactions.reactions_values.iter().zip(reactions.dof_parameters_data)
-    {
-        println!("{}, node: {}, parameter: {:?}", reaction, dof_parameter_data.node_number,
-                 dof_parameter_data.dof_parameter);
-    }
-    println!();
-    let displacements = global_analysis_result.extract_displacements();
-    for (displacement, dof_parameter_data) in
-        displacements.displacements_values.iter().zip(displacements.dof_parameters_data.iter())
-    {
-        println!("{}, node: {}, parameter: {:?}", displacement, dof_parameter_data.node_number,
-                 dof_parameter_data.dof_parameter);
-    }
-
-    println!();
-    let elements_analysis_results =
-        fe_model.elements_analysis(&displacements)?;
-    println!("{:?}", elements_analysis_results);
+    //     BCType::Force, 1, 2,
+    //     GlobalDOFParameter::X, 100.0)?;
+    //
+    // // fe_model.add_bc(
+    // //     BCType::Force, 2, 2,
+    // //     GlobalDOFParameter::Y, 100.0)?;
+    // //
+    // // fe_model.add_bc(
+    // //     BCType::Force, 3, 2,
+    // //     GlobalDOFParameter::Z, 100.0)?;
+    //
+    // let global_analysis_result = fe_model.global_analysis()?;
+    // let reactions = global_analysis_result.extract_reactions();
+    // for (reaction, dof_parameter_data) in
+    //     reactions.reactions_values.iter().zip(reactions.dof_parameters_data)
+    // {
+    //     println!("{}, node: {}, parameter: {:?}", reaction, dof_parameter_data.node_number,
+    //              dof_parameter_data.dof_parameter);
+    // }
+    // println!();
+    // let displacements = global_analysis_result.extract_displacements();
+    // for (displacement, dof_parameter_data) in
+    //     displacements.displacements_values.iter().zip(displacements.dof_parameters_data.iter())
+    // {
+    //     println!("{}, node: {}, parameter: {:?}", displacement, dof_parameter_data.node_number,
+    //              dof_parameter_data.dof_parameter);
+    // }
+    //
+    // println!();
+    // let elements_analysis_results =
+    //     fe_model.elements_analysis(&displacements)?;
+    // println!("{:?}", elements_analysis_results);
 
     Ok(())
 }

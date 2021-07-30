@@ -5,9 +5,9 @@ pub use crate::fem::element_analysis::fe_element_analysis_result::
         ElementAnalysisData, ElementStrains, ElementStresses, ElementForces
     };
 
-pub use crate::fem::aux_functions_fe_model::compose_stiffness_sub_groups;
+pub use crate::fem::functions::compose_stiffness_sub_groups;
 pub use crate::fem::fe_model::{FEModel, SeparatedMatrix};
-pub use crate::fem::finite_elements::aux_functions_finite_elements::compare_with_tolerance;
+pub use crate::fem::finite_elements::functions::compare_with_tolerance;
 pub use crate::fem::finite_elements::fe_node::{FENode, GlobalCoordinates};
 pub use crate::fem::finite_elements::finite_element::{FEData, FiniteElement};
 pub use crate::fem::finite_elements::finite_element::FEType;
@@ -34,5 +34,5 @@ pub mod fe_model;
 pub mod global_analysis;
 pub mod element_analysis;
 
-pub mod aux_functions_fe_model;
+pub mod functions;
 

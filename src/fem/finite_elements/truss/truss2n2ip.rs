@@ -44,7 +44,7 @@ impl<T, V> TrussAuxFunctions<T, V>
 
 
     fn rotation_matrix(node_1: Rc<RefCell<FENode<T, V>>>, node_2: Rc<RefCell<FENode<T, V>>>)
-                       -> ExtendedMatrix<T, V>
+        -> ExtendedMatrix<T, V>
     {
         let x = (node_2.as_ref().borrow().coordinates.x -
             node_1.as_ref().borrow().coordinates.x).into();
