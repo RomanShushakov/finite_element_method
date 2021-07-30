@@ -443,17 +443,17 @@ fn main() -> Result<(), String>
 
 
     let mut fe_model = FEModel::<ElementsNumbers,ElementsValues>::create();
-    fe_model.add_node(1, 0.0, 0.0, 0.0)?;
+    fe_model.add_node(99, 0.0, 0.0, 0.0)?;
     // fe_model.add_node(2, 56.0, 56.0, 56.0)?;
-    fe_model.add_node(2, 56.0, 56.0, 0.0)?;
+    fe_model.add_node(2, 80.0, 0.0, 0.0)?;
 
     fe_model.add_element(
         FEType::Beam2n1ipT,
-        vec![1, 2],
+        vec![99, 2],
         FEData { number: 1, nodes: Vec::new(), properties: vec![1e6, 1.0, 9.0] })?;
 
     fe_model.add_bc(
-        BCType::Displacement, 1, 1,
+        BCType::Displacement, 1, 99,
         GlobalDOFParameter::X, 0.0)?;
 
     // fe_model.add_bc(

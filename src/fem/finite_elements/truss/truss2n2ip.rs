@@ -101,8 +101,7 @@ impl<T, V> TrussAuxFunctions<T, V>
     }
 
 
-    fn derivative_x(f: fn(V, V, i32) -> V,
-                    a: V, x: V, n: i32) -> V
+    fn derivative_x(f: fn(V, V, i32) -> V, a: V, x: V, n: i32) -> V
     {
         f(a * V::from(n as ElementsValues), x, n - 1)
     }
@@ -132,15 +131,13 @@ impl<T, V> TrussAuxFunctions<T, V>
     }
 
 
-    fn inverse_jacobian(node_1: Rc<RefCell<FENode<T, V>>>, node_2: Rc<RefCell<FENode<T, V>>>, r: V)
-                        -> V
+    fn inverse_jacobian(node_1: Rc<RefCell<FENode<T, V>>>, node_2: Rc<RefCell<FENode<T, V>>>, r: V) -> V
     {
         V::from(1.0) / TrussAuxFunctions::jacobian(node_1, node_2, r)
     }
 
 
-    fn determinant_of_jacobian(node_1: Rc<RefCell<FENode<T, V>>>,
-                               node_2: Rc<RefCell<FENode<T, V>>>, r: V) -> V
+    fn determinant_of_jacobian(node_1: Rc<RefCell<FENode<T, V>>>, node_2: Rc<RefCell<FENode<T, V>>>, r: V) -> V
     {
         TrussAuxFunctions::jacobian(node_1, node_2, r)
     }
@@ -194,9 +191,9 @@ impl<T, V> TrussAuxFunctions<T, V>
 
 
     fn local_stiffness_matrix(node_1: Rc<RefCell<FENode<T, V>>>,
-                              node_2: Rc<RefCell<FENode<T, V>>>, young_modulus: V, area_1: V, area_2: Option<V>,
-                              alpha: V, r: V, local_stiffness_matrix: &ExtendedMatrix<T, V>)
-                              -> Result<ExtendedMatrix<T, V>, String>
+        node_2: Rc<RefCell<FENode<T, V>>>, young_modulus: V, area_1: V, area_2: Option<V>,
+        alpha: V, r: V, local_stiffness_matrix: &ExtendedMatrix<T, V>)
+        -> Result<ExtendedMatrix<T, V>, String>
     {
         let current_area = TrussAuxFunctions::<T, V>::area(area_1, area_2, r);
         let mut lhs_matrix =
