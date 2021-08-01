@@ -1,21 +1,3 @@
-use crate::fem::
-    {
-        FENode, FEData, FiniteElement, StiffnessGroup, DOFParameterData, BoundaryCondition,
-        GlobalAnalysisResult, Displacements
-    };
-use crate::fem::{FEType, GlobalDOFParameter, BCType};
-use crate::fem::compose_stiffness_sub_groups;
-use crate::fem::GLOBAL_DOF;
-
-use crate::extended_matrix::{ExtendedMatrix, MatrixElementPosition, ZerosRowColumn};
-use crate::extended_matrix::Operation;
-use crate::extended_matrix::extract_element_value;
-
-use crate::{ElementsNumbers, ElementsValues, UIDNumbers};
-
-use crate::fem::element_analysis::fe_element_analysis_result::ElementsAnalysisResult;
-use crate::auxiliary::{FEDrawnElementData, FEDrawnBCData, FEDrawnNodeData};
-
 use std::ops::{Sub, Div, Rem, SubAssign, Mul, Add, AddAssign, MulAssign};
 use std::hash::Hash;
 use std::fmt::Debug;
@@ -23,6 +5,33 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::iter::FromIterator;
+
+use extended_matrix::one::One;
+
+use extended_matrix::basic_matrix::basic_matrix::{MatrixElementPosition, ZerosRowColumn};
+use extended_matrix::extended_matrix::ExtendedMatrix;
+use extended_matrix::extended_matrix::Operation;
+use extended_matrix::functions::extract_element_value;
+
+use crate::minus_one::MinusOne;
+use crate::float::FloatTrait;
+
+use crate::fem::
+{
+    FENode, FEData, FiniteElement, StiffnessGroup, DOFParameterData, BoundaryCondition,
+    GlobalAnalysisResult, Displacements
+};
+use crate::fem::{FEType, GlobalDOFParameter, BCType};
+use crate::fem::compose_stiffness_sub_groups;
+use crate::fem::GLOBAL_DOF;
+
+use crate::{ElementsNumbers, ElementsValues, UIDNumbers};
+
+use crate::TOLERANCE;
+
+use crate::fem::element_analysis::fe_element_analysis_result::ElementsAnalysisResult;
+use crate::auxiliary::{FEDrawnElementData, FEDrawnBCData, FEDrawnNodeData};
+use crate::fem::functions::{separate, global_dof};
 
 
 pub struct SeparatedMatrix<T, V>
@@ -34,10 +43,11 @@ pub struct SeparatedMatrix<T, V>
 }
 
 
-pub struct State<T>
+pub struct State<T, V>
 {
     pub stiffness_groups: Vec<StiffnessGroup<T>>,
     pub nodes_dof_parameters_global: Vec<DOFParameterData<T>>,
+    pub tolerance: V,
 }
 
 
@@ -46,21 +56,23 @@ pub struct FEModel<T, V>
     pub nodes: Vec<Rc<RefCell<FENode<T, V>>>>,
     pub elements: Vec<FiniteElement<T, V>>,
     pub boundary_conditions: Vec<BoundaryCondition<T, V>>,
-    pub state: State<T>,
+    pub state: State<T, V>,
 }
 
 
 impl<T, V> FEModel<T, V>
-    where T: Copy + PartialEq + Into<ElementsNumbers> + Sub<Output = T> + Div<Output = T> +
-             Rem<Output = T> + From<ElementsNumbers> + Eq + Hash + SubAssign + Debug +
-             Mul<Output = T> + PartialOrd + Default + Add<Output = T> + AddAssign + 'static,
-          V: Copy + From<ElementsValues> + Sub<Output = V> + Default + Mul<Output = V> +
+    where T: Copy + PartialEq + Sub<Output = T> + Div<Output = T> + Rem<Output = T> + Eq + Hash +
+             SubAssign + Debug + Mul<Output = T> + PartialOrd + Default + Add<Output = T> +
+             AddAssign + One + 'static,
+          V: Copy + Sub<Output = V> + Default + Mul<Output = V> +
              Add<Output = V> + Div<Output = V> + PartialEq + Debug + AddAssign + MulAssign +
-             SubAssign + Into<ElementsValues> + PartialOrd + 'static
+             SubAssign + Into<f64> + From<i32> + PartialOrd + One + MinusOne + FloatTrait + 'static,
 {
-    pub fn create() -> Self
+    pub fn create(tolerance: V) -> Self
     {
-        let state = State { stiffness_groups: Vec::new(), nodes_dof_parameters_global: Vec::new() };
+        let state = State { stiffness_groups: Vec::new(), nodes_dof_parameters_global: Vec::new(),
+            tolerance };
+
         FEModel { nodes: Vec::new(), elements: Vec::new(), boundary_conditions: Vec::new(), state }
     }
 
@@ -80,7 +92,10 @@ impl<T, V> FEModel<T, V>
                 nodes_numbers.push(node.borrow().number);
             }
             let mut position = T::default();
-            let columns_number = T::from(nodes_numbers.len() as ElementsNumbers);
+
+            let mut columns_number = T::default();
+            (0..nodes_numbers.len()).for_each(|_| columns_number += T::one());
+
             for i in 1..nodes_numbers.len()
             {
                 let mut v_lhs = nodes_numbers[0..i - 1].to_vec();
@@ -96,16 +111,17 @@ impl<T, V> FEModel<T, V>
                             columns_number, nodes_numbers[j],
                             nodes_numbers[j])?;
                         stiffness_groups.extend(stiffness_sub_groups);
-                        position += T::from(1);
+                        position += T::one();
                     }
                     let stiffness_sub_groups =
                          compose_stiffness_sub_groups(position,
                         columns_number, excluded,
                         v_lhs[j])?;
                     stiffness_groups.extend(stiffness_sub_groups);
-                    position += T::from(1);
+                    position += T::one();
                 }
             }
+
             for i in 0..nodes_numbers.len() - 1
             {
                 let stiffness_sub_groups =
@@ -114,7 +130,7 @@ impl<T, V> FEModel<T, V>
                     nodes_numbers[nodes_numbers.len() - 1],
                     nodes_numbers[i])?;
                 stiffness_groups.extend(stiffness_sub_groups);
-                position += T::from(1);
+                position += T::one();
             }
             let stiffness_sub_groups =
                  compose_stiffness_sub_groups(position,
@@ -163,8 +179,8 @@ impl<T, V> FEModel<T, V>
         }
         else
         {
-            Err(format!("FEModel: Node {} could not be added because node with same number or \
-                with the same coordinates does already exist!", number.into()))
+            Err(format!("FEModel: Node {:?} could not be added because node with same number or \
+                with the same coordinates does already exist!", number))
         }
     }
 
@@ -175,8 +191,8 @@ impl<T, V> FEModel<T, V>
             !node.as_ref().borrow().number_same(number) &&
             node.as_ref().borrow().coordinates_same(x, y, z)).is_some()
         {
-            return Err(format!("FEModel: Node {} could not be updated because the node with the \
-                same coordinates does already exist!", number.into()))
+            return Err(format!("FEModel: Node {:?} could not be updated because the node with the \
+                same coordinates does already exist!", number))
         }
         if let Some(position) = self.nodes.iter().position(|node|
             node.as_ref().borrow().number_same(number))
@@ -191,8 +207,8 @@ impl<T, V> FEModel<T, V>
             }
             return Ok(());
         }
-        Err(format!("FEModel: Node {} could not be updated because it does not \
-            exist!", number.into()))
+        Err(format!("FEModel: Node {:?} could not be updated because it does not \
+            exist!", number))
     }
 
 
@@ -219,8 +235,8 @@ impl<T, V> FEModel<T, V>
             self.update_stiffness_groups()?;
             return Ok(());
         }
-        Err(format!("FEModel: Node {} could not be deleted because it does not exist!",
-                    number.into()))
+        Err(format!("FEModel: Node {:?} could not be deleted because it does not exist!",
+            number))
     }
 
 
@@ -231,22 +247,22 @@ impl<T, V> FEModel<T, V>
         if self.elements.iter().position(|element|
             element.number_same(data.number)).is_some()
         {
-            return Err(format!("FEModel: Element {} could not be added! The element with the same \
-             number does already exist!", data.number.into()));
+            return Err(format!("FEModel: Element {:?} could not be added! The element with the same \
+             number does already exist!", data.number));
         }
         let nodes_numbers_set = HashSet::<T>::from_iter(
             nodes_numbers.iter().cloned());
         if nodes_numbers.len() != nodes_numbers_set.len()
         {
-            return Err(format!("FEModel: Element {} could not be added! All nodes numbers \
-                should be unique!", data.number.into()));
+            return Err(format!("FEModel: Element {:?} could not be added! All nodes numbers \
+                should be unique!", data.number));
         }
         if self.elements.iter().position(|element|
             element.type_same(&element_type) &&
             element.nodes_numbers_same(nodes_numbers.clone())).is_some()
         {
-            return Err(format!("FEModel: Element {} could not be added! The element with the same \
-                type and with same nodes numbers does already exist!", data.number.into()));
+            return Err(format!("FEModel: Element {:?} could not be added! The element with the same \
+                type and with same nodes numbers does already exist!", data.number));
         }
         for node_number in nodes_numbers.iter()
         {
@@ -258,13 +274,14 @@ impl<T, V> FEModel<T, V>
         }
         if nodes_numbers.len() == data.nodes.len()
         {
-            let element = FiniteElement::create(element_type, data)?;
+            let element = FiniteElement::create(element_type, data,
+                self.state.tolerance)?;
             self.elements.push(element);
         }
         else
         {
-            return Err(format!("FEModel: Element {} could not be added! Some node does not exist!",
-                               data.number.into()));
+            return Err(format!("FEModel: Element {:?} could not be added! Some node does not exist!",
+                data.number));
         }
         Ok(())
     }
@@ -278,8 +295,8 @@ impl<T, V> FEModel<T, V>
             nodes_numbers.iter().cloned());
         if nodes_numbers.len() != nodes_numbers_set.len()
         {
-            return Err(format!("FEModel: Element {} could not be updated! All nodes numbers \
-                should be unique!", data.number.into()));
+            return Err(format!("FEModel: Element {:?} could not be updated! All nodes numbers \
+                should be unique!", data.number));
         }
         for node_number in nodes_numbers.iter()
         {
@@ -293,8 +310,8 @@ impl<T, V> FEModel<T, V>
             !element.number_same(data.number) &&
             element.nodes_numbers_same(nodes_numbers.clone())).is_some()
         {
-            return Err(format!("FEModel: Element {} could not be added! The element with the same \
-                nodes numbers does already exist!", data.number.into()));
+            return Err(format!("FEModel: Element {:?} could not be added! The element with the same \
+                nodes numbers does already exist!", data.number));
         }
         if nodes_numbers.len() == data.nodes.len()
         {
@@ -305,15 +322,15 @@ impl<T, V> FEModel<T, V>
             }
             else
             {
-               return Err(format!("FEModel: Element {} could not be updated because it does not \
-                exist!", data.number.into()));
+                return Err(format!("FEModel: Element {:?} could not be updated because it does not \
+                    exist!", data.number));
             }
 
         }
         else
         {
-            return Err(format!("FEModel: Element {} could not be updated! Some node does not exist!",
-                               data.number.into()));
+            return Err(format!("FEModel: Element {:?} could not be updated! Some node does not \
+                exist!", data.number));
         }
         Ok(())
     }
@@ -327,8 +344,8 @@ impl<T, V> FEModel<T, V>
             self.elements.remove(position);
             return Ok(());
         }
-        Err(format!("FEModel: Element {} could not be deleted because it does not exist!",
-                    number.into()))
+        Err(format!("FEModel: Element {:?} could not be deleted because it does not exist!",
+            number))
     }
 
 
@@ -346,11 +363,15 @@ impl<T, V> FEModel<T, V>
             return Err("FEModel: Global stiffness matrix could not be composed because there are \
                 free nodes exist!");
         }
+
+        let mut nodes_len_value = T::default();
+        (0..self.nodes.len()).for_each(|_| nodes_len_value += T::one());
+
         let mut global_stiffness_matrix = ExtendedMatrix::create(
-            T::from(self.nodes.len() as ElementsNumbers * GLOBAL_DOF),
-            T::from(self.nodes.len() as ElementsNumbers * GLOBAL_DOF),
-            vec![V::default(); (self.nodes.len() as ElementsNumbers * GLOBAL_DOF *
-                self.nodes.len() as ElementsNumbers * GLOBAL_DOF) as usize]);
+            nodes_len_value * global_dof::<T>(),
+            nodes_len_value * global_dof::<T>(),
+            vec![V::default(); self.nodes.len() * GLOBAL_DOF as usize *
+                self.nodes.len() * GLOBAL_DOF as usize], self.state.tolerance);
         for element in &self.elements
         {
             let element_stiffness_matrix = element.extract_stiffness_matrix()?;
@@ -367,7 +388,7 @@ impl<T, V> FEModel<T, V>
                     global_stiffness_matrix.add_sub_matrix(
                         &element_stiffness_matrix,
                         &self.state.stiffness_groups[position].positions,
-                        &element_stiffness_group.positions);
+                        &element_stiffness_group.positions, self.state.tolerance);
                 }
             }
         }
@@ -458,9 +479,17 @@ impl<T, V> FEModel<T, V>
     {
         for row_column in zeros_rows_columns
         {
+            let mut row_column_as_index = 0usize;
+            let mut n = T::default();
+            while n < row_column.column()
+            {
+                row_column_as_index += 1usize;
+                n += T::one();
+            }
+
             let dof_parameter_data =
-                self.state.nodes_dof_parameters_global.remove(
-                    row_column.column.into() as usize);
+                self.state.nodes_dof_parameters_global.remove(row_column_as_index);
+
             if let Some(position) = self.boundary_conditions
                 .iter()
                 .position(|bc|
@@ -496,7 +525,7 @@ impl<T, V> FEModel<T, V>
                         separation_positions.push(MatrixElementPosition { row, column: row });
                         ub_rb_rows_numbers.push(row);
                     }
-                    row += T::from(1);
+                    row += T::one();
                 }
             }
         }
@@ -509,9 +538,9 @@ impl<T, V> FEModel<T, V>
         for i in 0..self.state.nodes_dof_parameters_global.len()
         {
             if ub_rb_rows_numbers.iter().position(|n|
-                *n == T::from(i as ElementsNumbers)).is_none()
+                *n == T::from(i)).is_none()
             {
-                ua_ra_rows_numbers.push(T::from(i as ElementsNumbers));
+                ua_ra_rows_numbers.push(T::from(i));
             }
         }
     }
@@ -539,9 +568,9 @@ impl<T, V> FEModel<T, V>
             }
         }
         let matrix = ExtendedMatrix::create(
-            T::from(rows_numbers.len() as ElementsNumbers),
+            T::from(rows_numbers.len()),
             T::from(1),
-            all_elements);
+            all_elements, TOLERANCE);
         matrix
     }
 
@@ -557,20 +586,21 @@ impl<T, V> FEModel<T, V>
         for i in  0..ua_ra_rows_numbers.len()
         {
             let displacement_value = extract_element_value(
-                T::from(i as ElementsNumbers), T::from(0), &ua_values);
+                T::from(i), T::from(0), &ua_values);
             all_displacements_values[ua_ra_rows_numbers[i].into() as usize] = displacement_value;
         }
         for j in  0..ub_rb_rows_numbers.len()
         {
             let displacement_value = extract_element_value(
-                T::from(j as ElementsNumbers), T::from(0), &ub_values);
+                T::from(j), T::from(0), &ub_values);
             all_displacements_values[ub_rb_rows_numbers[j].into() as usize] = displacement_value;
         }
         let rows_number =
-            T::from(self.state.nodes_dof_parameters_global.len() as ElementsNumbers);
+            T::from(self.state.nodes_dof_parameters_global.len());
         let displacement_matrix =
             ExtendedMatrix::create(
-                rows_number, T::from(1), all_displacements_values);
+                rows_number, T::from(1), all_displacements_values,
+                TOLERANCE);
         displacement_matrix
     }
 
@@ -597,16 +627,17 @@ impl<T, V> FEModel<T, V>
         let ra_matrix = self.compose_matrix_by_rows_numbers(&ua_ra_rows_numbers);
         let ub_matrix = self.compose_matrix_by_rows_numbers(&ub_rb_rows_numbers);
         let separated_matrix =
-            global_stiffness_matrix.separate(separation_positions)?;
+            separate(global_stiffness_matrix, separation_positions)?;
         let ua_matrix = separated_matrix.k_aa
             .naive_gauss_elimination(&ra_matrix.add_subtract_matrix(
-            &separated_matrix.k_ab.multiply_by_matrix(&ub_matrix)?,
-            Operation::Subtraction)?)?;
+            &separated_matrix.k_ab.multiply_by_matrix(&ub_matrix, TOLERANCE)?,
+            Operation::Subtraction, TOLERANCE)?, TOLERANCE)?;
         let reactions_values_matrix = separated_matrix.k_ba
-            .multiply_by_matrix(&ua_matrix)?
+            .multiply_by_matrix(&ua_matrix, TOLERANCE)?
             .add_subtract_matrix(
                 &separated_matrix.k_bb
-                    .multiply_by_matrix(&ub_matrix)?, Operation::Addition)?;
+                    .multiply_by_matrix(&ub_matrix, TOLERANCE)?,
+                        Operation::Addition, TOLERANCE)?;
         let all_reactions =
             reactions_values_matrix.extract_all_elements_values();
         let reactions_values_matrix_shape = reactions_values_matrix.get_shape();
@@ -712,10 +743,11 @@ impl<T, V> FEModel<T, V>
             *drawn_uid_number += 1;
             let uid = *drawn_uid_number;
             let bc_type = bc.extract_bc_type();
-            let number = bc.extract_number().into() / GLOBAL_DOF;
+            let number = bc.extract_number().into() / GLOBAL_DOF as usize;
             let node_number = bc.extract_node_number().into();
             let value = bc.extract_value().into();
-            let mut drawn_bc = FEDrawnBCData { uid, bc_type, number, node_number,
+            let mut drawn_bc = FEDrawnBCData { uid, bc_type, number: number as ElementsNumbers,
+                    node_number: node_number as ElementsNumbers,
                     is_rotation_stiffness_enabled: false, x_direction_value: None,
                     y_direction_value: None, z_direction_value: None, xy_plane_value: None,
                     yz_plane_value: None, zx_plane_value: None
@@ -746,7 +778,7 @@ impl<T, V> FEModel<T, V>
             }
             if let Some(position) = drawn_bcs
                 .iter().position(|data: &FEDrawnBCData|
-                    data.number == number && data.bc_type == bc_type)
+                    data.number == number as ElementsNumbers && data.bc_type == bc_type)
             {
                 if !drawn_bcs[position].is_rotation_stiffness_enabled
                 {

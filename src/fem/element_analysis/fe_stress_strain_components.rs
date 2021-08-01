@@ -33,19 +33,19 @@ impl StressStrainComponent
 
 impl StressStrainComponent
 {
-    pub fn as_str(&self) -> String
+    pub fn as_str(&self) -> &'static str
     {
         match self
         {
-            StressStrainComponent::XX => String::from("XX"),
-            StressStrainComponent::XY => String::from("XY"),
-            StressStrainComponent::XZ => String::from("XZ"),
-            StressStrainComponent::YX => String::from("YX"),
-            StressStrainComponent::YY => String::from("YY"),
-            StressStrainComponent::YZ => String::from("YZ"),
-            StressStrainComponent::ZX => String::from("ZX"),
-            StressStrainComponent::ZY => String::from("ZY"),
-            StressStrainComponent::ZZ => String::from("ZZ"),
+            StressStrainComponent::XX => "XX",
+            StressStrainComponent::XY => "XY",
+            StressStrainComponent::XZ => "XZ",
+            StressStrainComponent::YX => "YX",
+            StressStrainComponent::YY => "YY",
+            StressStrainComponent::YZ => "YZ",
+            StressStrainComponent::ZX => "ZX",
+            StressStrainComponent::ZY => "ZY",
+            StressStrainComponent::ZZ => "ZZ",
         }
     }
 }

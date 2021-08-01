@@ -1,7 +1,9 @@
-use crate::extended_matrix::MatrixElementPosition;
+use std::slice::Iter;
+
+use extended_matrix::basic_matrix::basic_matrix::MatrixElementPosition;
+
 use crate::ElementsNumbers;
 
-use std::slice::Iter;
 use self::StiffnessType::*;
 
 

@@ -30,11 +30,11 @@ pub struct GlobalAnalysisResult<T, V>
 
 impl<T, V> GlobalAnalysisResult<T, V>
     where T: Copy +PartialEq + Mul<Output = T> + Add<Output = T> + Sub<Output = T> +
-             Div<Output = T> + Rem<Output = T> + Default + From<ElementsNumbers> +
-             Into<ElementsNumbers> + Eq + Hash + SubAssign + Debug + PartialOrd + 'static,
+             Div<Output = T> + Rem<Output = T> + Default + Eq + Hash + SubAssign + Debug +
+             PartialOrd + 'static,
           V: Copy + Default + Mul<Output = V> + Div<Output = V> + Sub<Output = V> +
-             Add<Output = V> + From<ElementsValues> + Debug + PartialEq + AddAssign + MulAssign +
-             SubAssign + Into<ElementsValues> + 'static,
+             Add<Output = V> + Debug + PartialEq + AddAssign + MulAssign +
+             SubAssign + Into<f64> + 'static,
 {
     pub fn create(
         reactions_values: Vec<V>,

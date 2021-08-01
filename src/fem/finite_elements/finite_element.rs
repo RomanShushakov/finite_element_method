@@ -1,18 +1,23 @@
-use crate::fem::
-    {
-        FENode, Truss2n2ip, StiffnessGroup, ElementAnalysisData, Displacements, Beam2n1ipT,
-    };
-
-use crate::{ElementsNumbers, ElementsValues};
-use crate::extended_matrix::{ExtendedMatrix};
-
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::ops::{Sub, Div, Rem, SubAssign, Mul, Add, AddAssign, MulAssign};
 use std::hash::Hash;
 use std::fmt::Debug;
-
 use std::slice::Iter;
+
+use extended_matrix::one::One;
+use extended_matrix::extended_matrix::ExtendedMatrix;
+
+use crate::minus_one::MinusOne;
+use crate::float::FloatTrait;
+
+use crate::fem::
+    {
+        FENode, Truss2n2ip, StiffnessGroup, ElementAnalysisData, Displacements,
+    };
+
+use crate::{ElementsNumbers, ElementsValues};
+
 use self::FEType::*;
 
 
@@ -20,7 +25,6 @@ use self::FEType::*;
 pub enum FEType
 {
     Truss2n2ip,
-    Beam2n1ipT,
 }
 
 
@@ -31,16 +35,15 @@ impl FEType
         match self
         {
             FEType::Truss2n2ip => "Truss2n2ip",
-            FEType::Beam2n1ipT => "Beam2n1ipT",
         }
     }
 
 
     pub fn iterator() -> Iter<'static, FEType>
     {
-        const TYPES: [FEType; 2] =
+        const TYPES: [FEType; 1] =
             [
-                Truss2n2ip, Beam2n1ipT,
+                Truss2n2ip,
             ];
         TYPES.iter()
     }
@@ -85,9 +88,9 @@ pub trait FiniteElementTrait<T, V>
     fn nodes_numbers_same(&self, nodes_numbers: Vec<T>) -> bool;
     fn extract_element_analysis_data(&self, global_displacements: &Displacements<T, V>)
         -> Result<ElementAnalysisData<T, V>, String>;
-    fn extract_fe_number(&self) -> ElementsNumbers;
-    fn extract_nodes_numbers(&self) -> Vec<ElementsNumbers>;
-    fn extract_fe_properties(&self) -> Vec<ElementsValues>;
+    fn extract_fe_number(&self) -> T;
+    fn extract_nodes_numbers(&self) -> Vec<T>;
+    fn extract_fe_properties(&self) -> Vec<V>;
 }
 
 
@@ -95,14 +98,15 @@ struct FECreator<T, V>(T, V);
 
 
 impl<T, V> FECreator<T, V>
-    where T: Copy + Sub<Output = T> + Div<Output = T> + Rem<Output = T> + From<ElementsNumbers> +
-             Into<ElementsNumbers> + Eq + Hash + SubAssign + Debug + Mul<Output = T> + PartialOrd +
-             Default + Add<Output = T> + 'static,
-          V: Copy + From<ElementsValues> + Into<ElementsValues> + Sub<Output = V> + Default +
+    where T: Copy + Sub<Output = T> + Div<Output = T> + Rem<Output = T> + Eq + Hash + SubAssign +
+             Debug + Mul<Output = T> + PartialOrd + Default + Add<Output = T> + One + AddAssign +
+             'static,
+          V: Copy + Sub<Output = V> + Default +
              Mul<Output = V> + Add<Output = V> + Div<Output = V> + PartialEq + Debug + AddAssign +
-             MulAssign + SubAssign + 'static,
+             MulAssign + SubAssign + From<i32> + One + MinusOne + FloatTrait + PartialOrd +
+             Into<f64> + 'static,
 {
-    fn create(fe_type: FEType, data: FEData<T, V>)
+    fn create(fe_type: FEType, data: FEData<T, V>, tolerance: V)
         -> Result<Box<dyn FiniteElementTrait<T, V>>, String>
     {
         match fe_type
@@ -115,8 +119,8 @@ impl<T, V> FECreator<T, V>
                             data.number, Rc::clone(&data.nodes[0]),
                             Rc::clone(&data.nodes[1]),
                             data.properties[0], data.properties[1],
-                            Some(data.properties[2])
-                        )?;
+                            Some(data.properties[2]), tolerance)?;
+
                         Ok(Box::new(truss_element))
                     }
                     else
@@ -125,34 +129,11 @@ impl<T, V> FECreator<T, V>
                             data.number, Rc::clone(&data.nodes[0]),
                             Rc::clone(&data.nodes[1]),
                             data.properties[0], data.properties[1],
-                            None
-                        )?;
+                            None, tolerance)?;
+
                         Ok(Box::new(truss_element))
                     }
                 },
-            FEType::Beam2n1ipT =>
-                {
-                    if data.properties.len() == 3
-                    {
-                        let beam_element = Beam2n1ipT::create(
-                            data.number, Rc::clone(&data.nodes[0]),
-                            Rc::clone(&data.nodes[1]),
-                            data.properties[0], data.properties[1],
-                            Some(data.properties[2])
-                        )?;
-                        Ok(Box::new(beam_element))
-                    }
-                    else
-                    {
-                        let beam_element = Beam2n1ipT::create(
-                            data.number, Rc::clone(&data.nodes[0]),
-                            Rc::clone(&data.nodes[1]),
-                            data.properties[0], data.properties[1],
-                            None
-                        )?;
-                        Ok(Box::new(beam_element))
-                    }
-                }
         }
     }
 }
@@ -166,16 +147,18 @@ pub struct FiniteElement<T, V>
 
 
 impl<T, V> FiniteElement<T, V>
-    where T: Copy + Sub<Output = T> + Div<Output = T> + Rem<Output = T> + From<ElementsNumbers> +
-             Into<ElementsNumbers> + Eq + Hash + SubAssign + Debug + Mul<Output = T> + PartialOrd +
-             Default + Add<Output = T> + 'static,
-          V: Copy + From<ElementsValues> + Into<ElementsValues> + Sub<Output = V> + Default +
-             Mul<Output = V> + Add<Output = V> + Div<Output = V> + PartialEq + Debug + AddAssign +
-             MulAssign + SubAssign + 'static,
+    where T: Copy + Sub<Output = T> + Div<Output = T> + Rem<Output = T> + Eq + Hash + SubAssign +
+             Debug + Mul<Output = T> + PartialOrd + Default + Add<Output = T> + One + AddAssign +
+             'static,
+          V: Copy + Sub<Output = V> + Default + Mul<Output = V> + Add<Output = V> +
+             Div<Output = V> + PartialEq + Debug + AddAssign + MulAssign + SubAssign + From<i32> +
+             One + MinusOne + FloatTrait + PartialOrd + Into<f64> + 'static,
 {
-    pub fn create(fe_type: FEType, data: FEData<T, V>) -> Result<Self, String>
+    pub fn create(fe_type: FEType, data: FEData<T, V>, tolerance: V) -> Result<Self, String>
     {
-        let element = FECreator::create(fe_type.clone(), data)?;
+        let element = FECreator::create(fe_type.clone(), data,
+            tolerance)?;
+
         Ok(FiniteElement { element_type: fe_type, element })
     }
 
@@ -246,19 +229,19 @@ impl<T, V> FiniteElement<T, V>
     }
 
 
-    pub fn extract_fe_number(&self) -> ElementsNumbers
+    pub fn extract_fe_number(&self) -> T
     {
         self.element.extract_fe_number()
     }
 
 
-    pub fn extract_nodes_numbers(&self) -> Vec<ElementsNumbers>
+    pub fn extract_nodes_numbers(&self) -> Vec<T>
     {
         self.element.extract_nodes_numbers()
     }
 
 
-    pub fn extract_fe_properties(&self) -> Vec<ElementsValues>
+    pub fn extract_fe_properties(&self) -> Vec<V>
     {
         self.element.extract_fe_properties()
     }
