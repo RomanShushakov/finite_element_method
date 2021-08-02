@@ -1,10 +1,8 @@
-use crate::fem::{DOFParameterData};
-
-use crate::{ElementsNumbers, ElementsValues};
-
 use std::ops::{Mul, Add, Sub, Div, Rem, SubAssign, AddAssign, MulAssign};
 use std::hash::Hash;
 use std::fmt::Debug;
+
+use crate::fem::global_analysis::fe_dof_parameter_data::DOFParameterData;
 
 
 pub struct Displacements<T, V>

@@ -13,25 +13,27 @@ use extended_matrix::extended_matrix::ExtendedMatrix;
 use extended_matrix::extended_matrix::Operation;
 use extended_matrix::functions::{extract_element_value, conversion_uint_into_usize};
 
+use crate::fem::finite_elements::fe_node::FENode;
+use crate::fem::finite_elements::finite_element::{FiniteElement, FEType, FEData};
+use crate::fem::global_analysis::fe_stiffness::StiffnessGroup;
+use crate::fem::global_analysis::fe_boundary_condition::{BoundaryCondition, BCType};
+use crate::fem::global_analysis::fe_global_analysis_result::{GlobalAnalysisResult, Displacements};
+use crate::fem::global_analysis::fe_dof_parameter_data::
+{
+    global_dof, DOFParameterData, GLOBAL_DOF, GlobalDOFParameter
+};
+
+use crate::fem::element_analysis::fe_element_analysis_result::ElementsAnalysisResult;
+
+use crate::fem::functions::{separate, compose_stiffness_sub_groups};
+
 use crate::minus_one::MinusOne;
 use crate::float::MyFloatTrait;
 
-use crate::fem::
-{
-    FENode, FEData, FiniteElement, StiffnessGroup, DOFParameterData, BoundaryCondition,
-    GlobalAnalysisResult, Displacements
-};
-use crate::fem::{FEType, GlobalDOFParameter, BCType};
-use crate::fem::compose_stiffness_sub_groups;
-use crate::fem::GLOBAL_DOF;
-
-use crate::{ElementsNumbers, ElementsValues, UIDNumbers};
 
 use crate::TOLERANCE;
 
-use crate::fem::element_analysis::fe_element_analysis_result::ElementsAnalysisResult;
 // use crate::auxiliary::{FEDrawnElementData, FEDrawnBCData, FEDrawnNodeData};
-use crate::fem::functions::{separate, global_dof};
 
 
 pub struct SeparatedMatrix<T, V>
@@ -66,7 +68,7 @@ impl<T, V> FEModel<T, V>
              AddAssign + One + 'static,
           V: Copy + Sub<Output = V> + Default + Mul<Output = V> +
              Add<Output = V> + Div<Output = V> + PartialEq + Debug + AddAssign + MulAssign +
-             SubAssign + Into<f64> + From<i32> + PartialOrd + One + MinusOne + MyFloatTrait + 'static,
+             SubAssign + Into<f64> + PartialOrd + One + MinusOne + MyFloatTrait + 'static,
 {
     pub fn create(tolerance: V) -> Self
     {
@@ -152,7 +154,7 @@ impl<T, V> FEModel<T, V>
             for dof in 0..GLOBAL_DOF
             {
                 let dof_parameter =
-                    GlobalDOFParameter::iterator().nth(dof as usize)
+                    GlobalDOFParameter::iterator().nth(dof)
                         .ok_or("FEModel: Could not find dof parameter!")?;
                 let dof_parameter_data = DOFParameterData {
                     node_number: node.as_ref().borrow().number,
@@ -371,8 +373,8 @@ impl<T, V> FEModel<T, V>
         let mut global_stiffness_matrix = ExtendedMatrix::<T, V>::create(
             nodes_len_value * global_dof::<T>(),
             nodes_len_value * global_dof::<T>(),
-            vec![V::default(); self.nodes.len() * GLOBAL_DOF as usize *
-                self.nodes.len() * GLOBAL_DOF as usize], self.state.tolerance);
+            vec![V::default(); (self.nodes.len() * GLOBAL_DOF).pow(2)],
+            self.state.tolerance);
 
         for element in &self.elements
         {

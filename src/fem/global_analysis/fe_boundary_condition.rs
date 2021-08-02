@@ -1,5 +1,6 @@
-use crate::fem::{GlobalDOFParameter, DOFParameterData};
 use std::fmt::Debug;
+
+use crate::fem::global_analysis::fe_dof_parameter_data::{GlobalDOFParameter, DOFParameterData};
 
 
 struct Force<T, V>
@@ -172,12 +173,12 @@ pub enum BCType
 
 impl BCType
 {
-    pub fn as_str(&self) -> String
+    pub fn as_str(&self) -> &'static str
     {
         match self
         {
-            BCType::Force => String::from("Force"),
-            BCType::Displacement => String::from("Displacement"),
+            BCType::Force => "Force",
+            BCType::Displacement => "Displacement",
         }
     }
 }

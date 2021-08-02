@@ -9,26 +9,29 @@ use extended_matrix::basic_matrix::basic_matrix::MatrixElementPosition;
 use extended_matrix::extended_matrix::ExtendedMatrix;
 use extended_matrix::functions::extract_element_value;
 
-use crate::fem::{FiniteElementTrait, Displacements, ForceComponent};
-use crate::fem::
-{
-    FENode, StiffnessGroup, FEData, DOFParameterData, ElementAnalysisData,
-};
-use crate::fem::{StiffnessType, GlobalDOFParameter, StressStrainComponent};
-use crate::fem::compare_with_tolerance;
-use crate::{ElementsNumbers, ElementsValues};
+use crate::fem::finite_elements::finite_element::FiniteElementTrait;
+use crate::fem::finite_elements::fe_node::FENode;
+use crate::fem::finite_elements::finite_element::FEData;
+
+use crate::fem::global_analysis::fe_stiffness::{StiffnessGroup, StiffnessType};
+use crate::fem::global_analysis::fe_dof_parameter_data::{GlobalDOFParameter, DOFParameterData};
+use crate::fem::global_analysis::fe_global_analysis_result::Displacements;
+
+use crate::fem::element_analysis::fe_force_moment_components::ForceComponent;
+use crate::fem::element_analysis::fe_element_analysis_result::ElementAnalysisData;
+use crate::fem::element_analysis::fe_stress_strain_components::StressStrainComponent;
+
+use crate::fem::finite_elements::functions::compare_with_tolerance;
 
 use crate::minus_one::MinusOne;
-
 use crate::float::MyFloatTrait;
 
-use crate::TOLERANCE;
 
-
-const TRUSS_NODE_DOF: ElementsNumbers = 3;
-const TRUSS_STRESS_STRAIN_COMPONENTS_NUMBERS: [ElementsNumbers; 1] = [0];
-const POINTS_NUMBER_FOR_TAPERED_TRUSS: ElementsNumbers = 5;
-const TRUSS2N2IP_NODES_NUMBER: ElementsNumbers = 2;
+use crate::fem::finite_elements::truss::consts::
+{
+    TRUSS_NODE_DOF, TRUSS2N2IP_NODES_NUMBER, TRUSS_STRESS_STRAIN_COMPONENTS_NUMBERS,
+    POINTS_NUMBER_FOR_TAPERED_TRUSS,
+};
 
 
 struct TrussAuxFunctions<T, V>(T, V);
@@ -38,7 +41,7 @@ impl<T, V> TrussAuxFunctions<T, V>
     where T: Copy + PartialOrd + Default + Add<Output = T> + Sub<Output = T> + Div<Output = T> +
              Rem<Output = T> + Eq + Hash + SubAssign + Debug + Mul<Output = T> + One + AddAssign +
              'static,
-          V: Copy + Into<f64> + From<i32> + Sub<Output = V> + Default + Mul<Output = V> +
+          V: Copy + Into<f64> + Sub<Output = V> + Default + Mul<Output = V> +
              Add<Output = V> + Div<Output = V> + PartialEq + Debug + AddAssign + MulAssign +
              SubAssign + One + MinusOne + MyFloatTrait + PartialOrd + 'static,
 {
@@ -52,15 +55,20 @@ impl<T, V> TrussAuxFunctions<T, V>
             node_2.as_ref().borrow().coordinates.z).my_powi(2)).my_sqrt()
     }
 
+
     fn nodes_number() -> T
     {
-        T::one() + T::one()
+        let mut n = T::default();
+        (0..TRUSS2N2IP_NODES_NUMBER).for_each(|_| n += T::one());
+        n
     }
 
 
     fn node_dof() -> T
     {
-        T::one() + T::one() + T::one()
+        let mut n = T::default();
+        (0..TRUSS_NODE_DOF).for_each(|_| n += T::one());
+        n
     }
 
 
@@ -108,12 +116,12 @@ impl<T, V> TrussAuxFunctions<T, V>
             TrussAuxFunctions::<T, V>::nodes_number() * TrussAuxFunctions::<T, V>::node_dof(),
             TrussAuxFunctions::<T, V>::nodes_number() * TrussAuxFunctions::<T, V>::node_dof(),
             vec![
-                [q_11, q_12, q_13], [V::default(); 3],
-                [q_21, q_22, q_23], [V::default(); 3],
-                [q_31, q_32, q_33], [V::default(); 3],
-                [V::default(); 3], [q_11, q_12, q_13],
-                [V::default(); 3], [q_21, q_22, q_23],
-                [V::default(); 3], [q_31, q_32, q_33],
+                [q_11, q_12, q_13], [V::default(); TRUSS_NODE_DOF],
+                [q_21, q_22, q_23], [V::default(); TRUSS_NODE_DOF],
+                [q_31, q_32, q_33], [V::default(); TRUSS_NODE_DOF],
+                [V::default(); TRUSS_NODE_DOF], [q_11, q_12, q_13],
+                [V::default(); TRUSS_NODE_DOF], [q_21, q_22, q_23],
+                [V::default(); TRUSS_NODE_DOF], [q_31, q_32, q_33],
             ].concat(),
             tolerance,
         )
@@ -128,30 +136,33 @@ impl<T, V> TrussAuxFunctions<T, V>
 
     fn derivative_x(f: fn(V, V, i32) -> V, a: V, x: V, n: i32) -> V
     {
-        f(a * V::from(n), x, n - 1)
+        let mut converted_n = V::default();
+        (0..n).for_each(|_| converted_n += V::one());
+
+        f(a * converted_n, x, n - 1)
     }
 
 
     fn dx_dr(x_1: V, x_2: V, r: V) -> V
     {
         TrussAuxFunctions::<T, V>::derivative_x(
-            TrussAuxFunctions::<T, V>::power_func_x, x_1 / V::from(2),
+            TrussAuxFunctions::<T, V>::power_func_x, x_1 / (V::one() + V::one()),
             V::default(), 0i32) -
         TrussAuxFunctions::<T, V>::derivative_x(
-            TrussAuxFunctions::<T, V>::power_func_x, x_1 / V::from(2), r, 1) +
+            TrussAuxFunctions::<T, V>::power_func_x, x_1 / (V::one() + V::one()), r, 1) +
         TrussAuxFunctions::<T, V>::derivative_x(
-            TrussAuxFunctions::<T, V>::power_func_x, x_2 / V::from(2),
+            TrussAuxFunctions::<T, V>::power_func_x, x_2 / (V::one() + V::one()),
             V::default(), 0i32) +
         TrussAuxFunctions::<T, V>::derivative_x(
-            TrussAuxFunctions::<T, V>::power_func_x, x_2 / V::from(2), r, 1)
+            TrussAuxFunctions::<T, V>::power_func_x, x_2 / (V::one() + V::one()), r, 1)
     }
 
 
     fn jacobian(node_1: Rc<RefCell<FENode<T, V>>>, node_2: Rc<RefCell<FENode<T, V>>>, r: V) -> V
     {
         let length = TrussAuxFunctions::length(node_1, node_2);
-        let x_1 = V::minus_one() * length / V::from(2);
-        let x_2 = length / V::from(2);
+        let x_1 = V::minus_one() * length / (V::one() + V::one());
+        let x_2 = length / (V::one() + V::one());
         TrussAuxFunctions::<T, V>::dx_dr(x_1, x_2, r)
     }
 
@@ -173,20 +184,22 @@ impl<T, V> TrussAuxFunctions<T, V>
     fn dh1_dr(r: V) -> V
     {
         TrussAuxFunctions::<T, V>::derivative_x(
-            TrussAuxFunctions::<T, V>::power_func_x, V::one() / V::from(2), V::default(),
-            0) -
+            TrussAuxFunctions::<T, V>::power_func_x, V::one() / (V::one() + V::one()),
+            V::default(), 0) -
         TrussAuxFunctions::<T, V>::derivative_x(
-            TrussAuxFunctions::<T, V>::power_func_x, V::one() / V::from(2), r, 1)
+            TrussAuxFunctions::<T, V>::power_func_x, V::one() / (V::one() + V::one()), r,
+            1)
     }
 
 
     fn dh2_dr(r: V) -> V
     {
         TrussAuxFunctions::<T, V>::derivative_x(
-            TrussAuxFunctions::<T, V>::power_func_x, V::one() / V::from(2), V::default(),
-            0) +
+            TrussAuxFunctions::<T, V>::power_func_x, V::one() / (V::one() + V::one()),
+            V::default(), 0) +
         TrussAuxFunctions::<T, V>::derivative_x(
-            TrussAuxFunctions::<T, V>::power_func_x, V::one() / V::from(2), r, 1)
+            TrussAuxFunctions::<T, V>::power_func_x, V::one() / (V::one() + V::one()), r,
+            1)
     }
 
 
@@ -210,8 +223,8 @@ impl<T, V> TrussAuxFunctions<T, V>
         {
             // V::from((area_1.into().sqrt() + (area_2.into().sqrt() - area_1.into().sqrt()) *
             //     (r.into() + 1.0) / 2.0).powi(2))
-            (area_2 - area_1) / V::from(2) * r + area_1 -
-                (area_2 - area_1) / V::from(2) * V::minus_one()
+            (area_2 - area_1) / (V::one() + V::one()) * r + area_1 -
+                (area_2 - area_1) / (V::one() + V::one()) * V::minus_one()
         }
         else
         {
@@ -262,7 +275,7 @@ impl<T, V> TrussAuxFunctions<T, V>
         for dof in 0..TRUSS_NODE_DOF
         {
             let dof_parameter =
-                GlobalDOFParameter::iterator().nth(dof as usize)
+                GlobalDOFParameter::iterator().nth(dof)
                     .ok_or("Truss2n2ip: Could not find dof parameter!")?;
             let dof_parameter = DOFParameterData { node_number,
                 dof_parameter: *dof_parameter
@@ -352,7 +365,7 @@ impl<T, V> Truss2n2ip<T, V>
     where T: Copy + PartialOrd + Default + Add<Output = T> + Sub<Output = T> + Div<Output = T> +
              Rem<Output = T> + Eq + Hash + SubAssign + Debug + Mul<Output = T> + One + AddAssign +
              'static,
-          V: Copy + Into<f64> + From<i32> + Sub<Output = V> + Default + Mul<Output = V> +
+          V: Copy + Into<f64> + Sub<Output = V> + Default + Mul<Output = V> +
              Add<Output = V> + Div<Output = V> + PartialEq + Debug + AddAssign + MulAssign +
              SubAssign + One + MinusOne + MyFloatTrait + PartialOrd + 'static
 {
@@ -365,7 +378,7 @@ impl<T, V> Truss2n2ip<T, V>
         //     r: V::from(1.0 / (3.0 as ElementsValues).sqrt()), weight: V::from(1.0) };
 
         let integration_point_1 = IntegrationPoint {
-            r: V::default(), weight: V::from(2) };
+            r: V::default(), weight: (V::one() + V::one()) };
 
         let rotation_matrix = TrussAuxFunctions::<T, V>::rotation_matrix(
             Rc::clone(&node_1), Rc::clone(&node_2), tolerance);
@@ -377,7 +390,7 @@ impl<T, V> Truss2n2ip<T, V>
         let mut local_stiffness_matrix = ExtendedMatrix::create(
             TrussAuxFunctions::<T, V>::nodes_number() * TrussAuxFunctions::<T, V>::node_dof(),
             TrussAuxFunctions::<T, V>::nodes_number() * TrussAuxFunctions::<T, V>::node_dof(),
-            vec![V::default(); 36], tolerance);
+            vec![V::default(); (TRUSS2N2IP_NODES_NUMBER * TRUSS_NODE_DOF).pow(2)], tolerance);
 
         for integration_point in &integration_points
         {
@@ -449,7 +462,7 @@ impl<T, V> FiniteElementTrait<T, V> for Truss2n2ip<T, V>
              Mul<Output = T> + Eq + Hash + Debug + SubAssign + PartialOrd + Default + One +
              AddAssign + 'static,
           V: Copy + Sub<Output = V> + Mul<Output = V> + Add<Output = V> + Div<Output = V> +
-             Into<f64> + From<i32> + SubAssign + AddAssign + MulAssign + PartialEq + Debug +
+             Into<f64> + SubAssign + AddAssign + MulAssign + PartialEq + Debug +
              Default + One + MinusOne + MyFloatTrait + PartialOrd + 'static,
 {
     fn update(&mut self, data: FEData<T, V>) -> Result<(), String>
@@ -471,7 +484,7 @@ impl<T, V> FiniteElementTrait<T, V> for Truss2n2ip<T, V>
         let mut local_stiffness_matrix = ExtendedMatrix::create(
             TrussAuxFunctions::<T, V>::nodes_number() * TrussAuxFunctions::<T, V>::node_dof(),
             TrussAuxFunctions::<T, V>::nodes_number() * TrussAuxFunctions::<T, V>::node_dof(),
-            vec![V::default(); 36], self.state.tolerance);
+            vec![V::default(); (TRUSS2N2IP_NODES_NUMBER * TRUSS_NODE_DOF).pow(2)], self.state.tolerance);
 
         for integration_point in &self.state.integration_points
         {
@@ -618,7 +631,7 @@ impl<T, V> FiniteElementTrait<T, V> for Truss2n2ip<T, V>
         let mut local_stiffness_matrix = ExtendedMatrix::create(
             TrussAuxFunctions::<T, V>::nodes_number() * TrussAuxFunctions::<T, V>::node_dof(),
             TrussAuxFunctions::<T, V>::nodes_number() * TrussAuxFunctions::<T, V>::node_dof(),
-            vec![V::default(); 36], self.state.tolerance);
+            vec![V::default(); (TRUSS2N2IP_NODES_NUMBER * TRUSS_NODE_DOF).pow(2)], self.state.tolerance);
 
         for integration_point in self.state.integration_points.iter()
         {
@@ -687,8 +700,9 @@ impl<T, V> FiniteElementTrait<T, V> for Truss2n2ip<T, V>
                 }
             }
 
-            let integral_axial_force =
-                axial_force / V::from(self.state.integration_points.len() as i32);
+            let mut coeff = V::default();
+            (0..self.state.integration_points.len()).for_each(|_| coeff += V::one());
+            let integral_axial_force = axial_force / coeff;
 
             forces_components.push(ForceComponent::Axial);
             forces_values.push(integral_axial_force);
@@ -708,9 +722,13 @@ impl<T, V> FiniteElementTrait<T, V> for Truss2n2ip<T, V>
                     stresses_components.push(*stress_strain_component);
                 }
 
-                let r = V::minus_one() + V::from(2) /
-                    V::from(POINTS_NUMBER_FOR_TAPERED_TRUSS as i32 - 1) *
-                    V::from(point_number as i32);
+
+                let mut coeff_1 = V::default();
+                (0..POINTS_NUMBER_FOR_TAPERED_TRUSS - 1).for_each(|_| coeff_1 += V::one());
+                let mut coeff_2 = V::default();
+                (0..point_number).for_each(|_| coeff_2 += V::one());
+
+                let r = V::minus_one() + (V::one() + V::one()) / coeff_1 * coeff_2;
 
                 let area = TrussAuxFunctions::<T, V>::area(self.area, self.area_2, r);
                 let stress_value = integral_axial_force / area;
@@ -748,7 +766,7 @@ impl<T, V> FiniteElementTrait<T, V> for Truss2n2ip<T, V>
             for component_number in &TRUSS_STRESS_STRAIN_COMPONENTS_NUMBERS
             {
                 let stress_strain_component =
-                    StressStrainComponent::iterator().nth(*component_number as usize)
+                    StressStrainComponent::iterator().nth(*component_number)
                         .ok_or(format!("Truss2n2ip: Stress strain component number {} could \
                             not be extracted", component_number))?;
                 strains_components.push(*stress_strain_component);

@@ -1,5 +1,3 @@
-use crate::{ElementsNumbers, ElementsValues};
-
 #[derive(Debug, PartialEq)]
 pub struct GlobalCoordinates<V>
 {

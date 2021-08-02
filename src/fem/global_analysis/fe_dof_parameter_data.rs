@@ -1,10 +1,22 @@
-use crate::ElementsNumbers;
-
 use std::slice::Iter;
+use std::ops::AddAssign;
+
+use extended_matrix::one::One;
+
 use self::GlobalDOFParameter::*;
 
 
-pub const GLOBAL_DOF: ElementsNumbers = 6;
+
+pub const GLOBAL_DOF: usize = 6;
+
+
+pub fn global_dof<T>() -> T
+    where T: One + Default + AddAssign
+{
+    let mut global_dof = T::default();
+    (0..GLOBAL_DOF).for_each(|_| global_dof += T::one());
+    global_dof
+}
 
 
 #[derive(PartialEq, Debug, Copy, Clone)]
@@ -23,7 +35,7 @@ impl GlobalDOFParameter
 {
     pub fn iterator() -> Iter<'static, GlobalDOFParameter>
      {
-        const PARAMETERS: [GlobalDOFParameter; GLOBAL_DOF as usize] =
+        const PARAMETERS: [GlobalDOFParameter; GLOBAL_DOF] =
             [
                 X, Y, Z, ThX, ThY, ThZ,
             ];

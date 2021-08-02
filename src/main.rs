@@ -1,13 +1,18 @@
-mod fem;
-use crate::fem::{FENode, GlobalCoordinates, FEModel, FEType, FEData, GLOBAL_DOF, DOFParameterData, GlobalDOFParameter, BCType};
-use fem::finite_elements::truss::truss2n2ip::Truss2n2ip;
-use extended_matrix::extended_matrix::ExtendedMatrix;
 use std::hash::Hash;
 use std::ops::{Rem, Sub, Div, Mul, Add, SubAssign, AddAssign, MulAssign};
 use std::fmt::Debug;
+
+use extended_matrix::extended_matrix::ExtendedMatrix;
 use extended_matrix::one::One;
+
 use crate::float::MyFloatTrait;
 use crate::minus_one::MinusOne;
+use crate::fem::fe_model::FEModel;
+use crate::fem::finite_elements::finite_element::{FEType, FEData};
+use crate::fem::global_analysis::fe_boundary_condition::BCType;
+use crate::fem::global_analysis::fe_dof_parameter_data::GlobalDOFParameter;
+
+mod fem;
 
 mod auxiliary;
 
@@ -16,19 +21,7 @@ mod minus_one;
 mod float;
 
 
-pub type ElementsNumbers = u16;
-pub type ElementsValues = f32;
-
-pub type GLElementsNumbers = u32;
-pub type GLElementsValues = f32;
-
-pub type UIDNumbers = u32;
-
-
-
-pub const TOLERANCE: f64 = 1e-9;
-
-
+pub const TOLERANCE: f32 = 1e-6;
 
 
 fn main() -> Result<(), String>
@@ -216,7 +209,7 @@ fn main() -> Result<(), String>
 
 
     let mut fe_model = FEModel::create(TOLERANCE);
-    fe_model.add_node(1u32, 0f64, 0.0, 0.0)?;
+    fe_model.add_node(1u16, 0f32, 0.0, 0.0)?;
     fe_model.add_node(2, 0.0, 30.0, 0.0)?;
     fe_model.add_node(3, 36.0, 0.0, 0.0)?;
     fe_model.add_node(4, 36.0, 30.0, 0.0)?;

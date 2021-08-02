@@ -11,12 +11,12 @@ use extended_matrix::extended_matrix::ExtendedMatrix;
 use crate::minus_one::MinusOne;
 use crate::float::MyFloatTrait;
 
-use crate::fem::
-    {
-        FENode, Truss2n2ip, StiffnessGroup, ElementAnalysisData, Displacements,
-    };
+use crate::fem::finite_elements::fe_node::FENode;
+use crate::fem::finite_elements::truss::truss2n2ip::Truss2n2ip;
+use crate::fem::global_analysis::fe_stiffness::StiffnessGroup;
+use crate::fem::element_analysis::fe_element_analysis_result::ElementAnalysisData;
+use crate::fem::global_analysis::fe_global_analysis_result::Displacements;
 
-use crate::{ElementsNumbers, ElementsValues};
 
 use self::FEType::*;
 
@@ -103,7 +103,7 @@ impl<T, V> FECreator<T, V>
              'static,
           V: Copy + Sub<Output = V> + Default +
              Mul<Output = V> + Add<Output = V> + Div<Output = V> + PartialEq + Debug + AddAssign +
-             MulAssign + SubAssign + From<i32> + One + MinusOne + MyFloatTrait + PartialOrd +
+             MulAssign + SubAssign + One + MinusOne + MyFloatTrait + PartialOrd +
              Into<f64> + 'static,
 {
     fn create(fe_type: FEType, data: FEData<T, V>, tolerance: V)
@@ -151,7 +151,7 @@ impl<T, V> FiniteElement<T, V>
              Debug + Mul<Output = T> + PartialOrd + Default + Add<Output = T> + One + AddAssign +
              'static,
           V: Copy + Sub<Output = V> + Default + Mul<Output = V> + Add<Output = V> +
-             Div<Output = V> + PartialEq + Debug + AddAssign + MulAssign + SubAssign + From<i32> +
+             Div<Output = V> + PartialEq + Debug + AddAssign + MulAssign + SubAssign +
              One + MinusOne + MyFloatTrait + PartialOrd + Into<f64> + 'static,
 {
     pub fn create(fe_type: FEType, data: FEData<T, V>, tolerance: V) -> Result<Self, String>

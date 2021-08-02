@@ -1,6 +1,7 @@
-use crate::fem::{StressStrainComponent, ForceComponent};
-
 use std::any::Any;
+
+use crate::fem::element_analysis::fe_stress_strain_components::StressStrainComponent;
+use crate::fem::element_analysis::fe_force_moment_components::ForceComponent;
 
 
 #[derive(Debug, Clone, PartialEq)]
@@ -117,13 +118,13 @@ pub enum EARType
 
 impl EARType
 {
-    pub fn as_str(&self) -> String
+    pub fn as_str(&self) -> &'static str
     {
         match self
         {
-            EARType::Stress => String::from("Stress"),
-            EARType::Strain => String::from("Strain"),
-            EARType::Force => String::from("Force"),
+            EARType::Stress => "Stress",
+            EARType::Strain => "Strain",
+            EARType::Force => "Force",
         }
     }
 }

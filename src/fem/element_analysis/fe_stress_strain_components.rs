@@ -1,12 +1,12 @@
-use crate::ElementsNumbers;
-
 use std::slice::Iter;
-use self::StressStrainComponent::*;
-use crate::fem::EARComponentTrait;
 use std::any::Any;
 
+use crate::fem::element_analysis::fe_element_analysis_result::EARComponentTrait;
 
-pub const STRESS_STRAIN_COMPONENTS_NUMBER: ElementsNumbers = 9;
+use self::StressStrainComponent::*;
+
+
+pub const STRESS_STRAIN_COMPONENTS_NUMBER: usize = 9;
 
 
 #[derive(PartialEq, Debug, Copy, Clone)]
@@ -22,7 +22,7 @@ impl StressStrainComponent
 {
     pub fn iterator() -> Iter<'static, StressStrainComponent>
      {
-        const COMPONENTS: [StressStrainComponent; STRESS_STRAIN_COMPONENTS_NUMBER as usize] =
+        const COMPONENTS: [StressStrainComponent; STRESS_STRAIN_COMPONENTS_NUMBER] =
             [
                 XX, XY, XZ, YX, YY, YZ, ZX, ZY, ZZ,
             ];

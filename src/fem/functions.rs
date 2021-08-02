@@ -7,22 +7,16 @@ use extended_matrix::basic_matrix::basic_matrix::MatrixElementPosition;
 use extended_matrix::extended_matrix::ExtendedMatrix;
 use extended_matrix::functions::{extract_element_value, conversion_uint_into_usize};
 
-use crate::fem::{StiffnessGroup, SeparatedMatrix};
-use crate::fem::{StiffnessType};
-use crate::fem::{STIFFNESS_TYPES_NUMBER, GLOBAL_DOF};
-use crate::ElementsNumbers;
+
+use crate::fem::global_analysis::fe_stiffness::
+{
+    stiffness_types_number, StiffnessGroup, StiffnessType
+};
+use crate::fem::global_analysis::fe_dof_parameter_data::global_dof;
+
+use crate::fem::fe_model::SeparatedMatrix;
 
 use crate::TOLERANCE;
-use crate::fem::global_analysis::fe_stiffness::stiffness_types_number;
-
-
-pub fn global_dof<T>() -> T
-    where T: One + Default + AddAssign
-{
-    let mut global_dof = T::default();
-    (0..GLOBAL_DOF).for_each(|_| global_dof += T::one());
-    global_dof
-}
 
 
 pub fn compose_stiffness_sub_groups<'a, T>(global_group_position: T,

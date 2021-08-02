@@ -1,5 +1,7 @@
-use crate::fem::EARComponentTrait;
 use std::any::Any;
+
+use crate::fem::element_analysis::fe_element_analysis_result::EARComponentTrait;
+
 
 #[derive(Debug, Clone, PartialEq, Copy)]
 pub enum ForceComponent
@@ -10,11 +12,11 @@ pub enum ForceComponent
 
 impl ForceComponent
 {
-    pub fn as_str(&self) -> String
+    pub fn as_str(&self) -> &'static str
     {
         match self
         {
-            ForceComponent::Axial => String::from("Axial"),
+            ForceComponent::Axial => "Axial",
         }
     }
 }
