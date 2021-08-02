@@ -352,8 +352,8 @@ fn main() -> Result<(), String>
 
 
 
-    // let mut fe_model = FEModel::<ElementsNumbers,ElementsValues>::create();
-    // fe_model.add_node(1, 0.0, 0.0, 0.0)?;
+    // let mut fe_model = FEModel::create(TOLERANCE);
+    // fe_model.add_node(1u16, 0.0, 0.0, 0.0)?;
     // fe_model.add_node(2, 4.0, 0.0, 0.0)?;
     // fe_model.add_node(3, 0.0, 3.0, 0.0)?;
     // fe_model.add_node(4, 4.0, 3.0, 0.0)?;
