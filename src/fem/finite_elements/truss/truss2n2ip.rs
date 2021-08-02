@@ -20,7 +20,7 @@ use crate::{ElementsNumbers, ElementsValues};
 
 use crate::minus_one::MinusOne;
 
-use crate::float::FloatTrait;
+use crate::float::MyFloatTrait;
 
 use crate::TOLERANCE;
 
@@ -40,16 +40,16 @@ impl<T, V> TrussAuxFunctions<T, V>
              'static,
           V: Copy + Into<f64> + From<i32> + Sub<Output = V> + Default + Mul<Output = V> +
              Add<Output = V> + Div<Output = V> + PartialEq + Debug + AddAssign + MulAssign +
-             SubAssign + One + MinusOne + FloatTrait + PartialOrd + 'static,
+             SubAssign + One + MinusOne + MyFloatTrait + PartialOrd + 'static,
 {
     fn length(node_1: Rc<RefCell<FENode<T, V>>>, node_2: Rc<RefCell<FENode<T, V>>>) -> V
     {
         ((node_1.as_ref().borrow().coordinates.x -
-            node_2.as_ref().borrow().coordinates.x).powi(2) +
+            node_2.as_ref().borrow().coordinates.x).my_powi(2) +
         (node_1.as_ref().borrow().coordinates.y -
-            node_2.as_ref().borrow().coordinates.y).powi(2) +
+            node_2.as_ref().borrow().coordinates.y).my_powi(2) +
         (node_1.as_ref().borrow().coordinates.z -
-            node_2.as_ref().borrow().coordinates.z).powi(2)).sqrt()
+            node_2.as_ref().borrow().coordinates.z).my_powi(2)).my_sqrt()
     }
 
     fn nodes_number() -> T
@@ -74,8 +74,9 @@ impl<T, V> TrussAuxFunctions<T, V>
         let z = (node_2.as_ref().borrow().coordinates.z -
             node_1.as_ref().borrow().coordinates.z);
         let length = TrussAuxFunctions::<T, V>::length(node_1, node_2);
+
         let (u, v, w) = (length, V::default(), V::default());
-        let alpha = ((x * u + y * v + z * w) / (length * length)).acos();
+        let alpha = ((x * u + y * v + z * w) / (length * length)).my_acos();
         let (rotation_axis_coord_x, mut rotation_axis_coord_y,
             mut rotation_axis_coord_z) = (V::default(), V::default(), V::default());
         if x != V::default() && y == V::default() && z == V::default()
@@ -87,11 +88,11 @@ impl<T, V> TrussAuxFunctions<T, V>
             rotation_axis_coord_y = z * length;
             rotation_axis_coord_z = y * V::minus_one() * length;
         }
-        let norm = V::one() / (rotation_axis_coord_x.powi(2) +
-            rotation_axis_coord_y.powi(2) + rotation_axis_coord_z.powi(2)).sqrt();
+        let norm = V::one() / (rotation_axis_coord_x.my_powi(2) +
+            rotation_axis_coord_y.my_powi(2) + rotation_axis_coord_z.my_powi(2)).my_sqrt();
         let (x_n, y_n, z_n) = (rotation_axis_coord_x * norm,
             rotation_axis_coord_y * norm, rotation_axis_coord_z * norm);
-        let (c, s) = (alpha.cos(), alpha.sin());
+        let (c, s) = (alpha.my_cos(), alpha.my_sin());
         let t = V::one() - c;
         let q_11 = compare_with_tolerance(t * x_n * x_n + c, tolerance);
         let q_12 = compare_with_tolerance(t * x_n * y_n - z_n * s, tolerance);
@@ -353,7 +354,7 @@ impl<T, V> Truss2n2ip<T, V>
              'static,
           V: Copy + Into<f64> + From<i32> + Sub<Output = V> + Default + Mul<Output = V> +
              Add<Output = V> + Div<Output = V> + PartialEq + Debug + AddAssign + MulAssign +
-             SubAssign + One + MinusOne + FloatTrait + PartialOrd + 'static
+             SubAssign + One + MinusOne + MyFloatTrait + PartialOrd + 'static
 {
     pub fn create(number: T, node_1: Rc<RefCell<FENode<T, V>>>, node_2: Rc<RefCell<FENode<T, V>>>,
         young_modulus: V, area: V, area_2: Option<V>, tolerance: V) -> Result<Self, String>
@@ -366,9 +367,8 @@ impl<T, V> Truss2n2ip<T, V>
         let integration_point_1 = IntegrationPoint {
             r: V::default(), weight: V::from(2) };
 
-        let rotation_matrix =
-            TrussAuxFunctions::rotation_matrix(Rc::clone(&node_1),
-            Rc::clone(&node_2), tolerance);
+        let rotation_matrix = TrussAuxFunctions::<T, V>::rotation_matrix(
+            Rc::clone(&node_1), Rc::clone(&node_2), tolerance);
 
         // let integration_points = vec![integration_point_1, integration_point_2];
 
@@ -450,7 +450,7 @@ impl<T, V> FiniteElementTrait<T, V> for Truss2n2ip<T, V>
              AddAssign + 'static,
           V: Copy + Sub<Output = V> + Mul<Output = V> + Add<Output = V> + Div<Output = V> +
              Into<f64> + From<i32> + SubAssign + AddAssign + MulAssign + PartialEq + Debug +
-             Default + One + MinusOne + FloatTrait + PartialOrd + 'static,
+             Default + One + MinusOne + MyFloatTrait + PartialOrd + 'static,
 {
     fn update(&mut self, data: FEData<T, V>) -> Result<(), String>
     {

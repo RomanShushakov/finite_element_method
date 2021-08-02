@@ -9,7 +9,7 @@ use extended_matrix::one::One;
 use extended_matrix::extended_matrix::ExtendedMatrix;
 
 use crate::minus_one::MinusOne;
-use crate::float::FloatTrait;
+use crate::float::MyFloatTrait;
 
 use crate::fem::
     {
@@ -103,7 +103,7 @@ impl<T, V> FECreator<T, V>
              'static,
           V: Copy + Sub<Output = V> + Default +
              Mul<Output = V> + Add<Output = V> + Div<Output = V> + PartialEq + Debug + AddAssign +
-             MulAssign + SubAssign + From<i32> + One + MinusOne + FloatTrait + PartialOrd +
+             MulAssign + SubAssign + From<i32> + One + MinusOne + MyFloatTrait + PartialOrd +
              Into<f64> + 'static,
 {
     fn create(fe_type: FEType, data: FEData<T, V>, tolerance: V)
@@ -152,13 +152,12 @@ impl<T, V> FiniteElement<T, V>
              'static,
           V: Copy + Sub<Output = V> + Default + Mul<Output = V> + Add<Output = V> +
              Div<Output = V> + PartialEq + Debug + AddAssign + MulAssign + SubAssign + From<i32> +
-             One + MinusOne + FloatTrait + PartialOrd + Into<f64> + 'static,
+             One + MinusOne + MyFloatTrait + PartialOrd + Into<f64> + 'static,
 {
     pub fn create(fe_type: FEType, data: FEData<T, V>, tolerance: V) -> Result<Self, String>
     {
         let element = FECreator::create(fe_type.clone(), data,
             tolerance)?;
-
         Ok(FiniteElement { element_type: fe_type, element })
     }
 

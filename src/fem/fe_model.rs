@@ -11,10 +11,10 @@ use extended_matrix::one::One;
 use extended_matrix::basic_matrix::basic_matrix::{MatrixElementPosition, ZerosRowColumn};
 use extended_matrix::extended_matrix::ExtendedMatrix;
 use extended_matrix::extended_matrix::Operation;
-use extended_matrix::functions::extract_element_value;
+use extended_matrix::functions::{extract_element_value, conversion_uint_into_usize};
 
 use crate::minus_one::MinusOne;
-use crate::float::FloatTrait;
+use crate::float::MyFloatTrait;
 
 use crate::fem::
 {
@@ -30,7 +30,7 @@ use crate::{ElementsNumbers, ElementsValues, UIDNumbers};
 use crate::TOLERANCE;
 
 use crate::fem::element_analysis::fe_element_analysis_result::ElementsAnalysisResult;
-use crate::auxiliary::{FEDrawnElementData, FEDrawnBCData, FEDrawnNodeData};
+// use crate::auxiliary::{FEDrawnElementData, FEDrawnBCData, FEDrawnNodeData};
 use crate::fem::functions::{separate, global_dof};
 
 
@@ -66,7 +66,7 @@ impl<T, V> FEModel<T, V>
              AddAssign + One + 'static,
           V: Copy + Sub<Output = V> + Default + Mul<Output = V> +
              Add<Output = V> + Div<Output = V> + PartialEq + Debug + AddAssign + MulAssign +
-             SubAssign + Into<f64> + From<i32> + PartialOrd + One + MinusOne + FloatTrait + 'static,
+             SubAssign + Into<f64> + From<i32> + PartialOrd + One + MinusOne + MyFloatTrait + 'static,
 {
     pub fn create(tolerance: V) -> Self
     {
@@ -351,6 +351,7 @@ impl<T, V> FEModel<T, V>
 
     fn compose_global_stiffness_matrix(&self) -> Result<ExtendedMatrix<T, V>, &str>
     {
+
         if self.elements.is_empty()
         {
             return Err("FEModel: Global stiffness matrix could not be composed because there are \
@@ -367,11 +368,12 @@ impl<T, V> FEModel<T, V>
         let mut nodes_len_value = T::default();
         (0..self.nodes.len()).for_each(|_| nodes_len_value += T::one());
 
-        let mut global_stiffness_matrix = ExtendedMatrix::create(
+        let mut global_stiffness_matrix = ExtendedMatrix::<T, V>::create(
             nodes_len_value * global_dof::<T>(),
             nodes_len_value * global_dof::<T>(),
             vec![V::default(); self.nodes.len() * GLOBAL_DOF as usize *
                 self.nodes.len() * GLOBAL_DOF as usize], self.state.tolerance);
+
         for element in &self.elements
         {
             let element_stiffness_matrix = element.extract_stiffness_matrix()?;
@@ -522,7 +524,8 @@ impl<T, V> FEModel<T, V>
                     if bc.dof_parameter_data_same(
                         dof_parameter_data.dof_parameter, dof_parameter_data.node_number)
                     {
-                        separation_positions.push(MatrixElementPosition { row, column: row });
+                        separation_positions.push(
+                            MatrixElementPosition::create(row, row));
                         ub_rb_rows_numbers.push(row);
                     }
                     row += T::one();
@@ -535,14 +538,24 @@ impl<T, V> FEModel<T, V>
     fn compose_ua_ra_rows_numbers(&self, ub_rb_rows_numbers: &Vec<T>,
         ua_ra_rows_numbers: &mut Vec<T>)
     {
-        for i in 0..self.state.nodes_dof_parameters_global.len()
-        {
-            if ub_rb_rows_numbers.iter().position(|n|
-                *n == T::from(i)).is_none()
+        let mut i = T::default();
+        (0..self.state.nodes_dof_parameters_global.len()).for_each(|_|
             {
-                ua_ra_rows_numbers.push(T::from(i));
-            }
-        }
+                if ub_rb_rows_numbers.iter().position(|n| *n == i).is_none()
+                {
+                    ua_ra_rows_numbers.push(i);
+                }
+                i += T::one();
+            });
+
+        // for i in 0..self.state.nodes_dof_parameters_global.len()
+        // {
+        //     if ub_rb_rows_numbers.iter().position(|n|
+        //         *n == T::from(i)).is_none()
+        //     {
+        //         ua_ra_rows_numbers.push(T::from(i));
+        //     }
+        // }
     }
 
 
@@ -551,8 +564,10 @@ impl<T, V> FEModel<T, V>
         let mut all_elements = Vec::new();
         for row_number in rows_numbers
         {
+            let converted_row_number = conversion_uint_into_usize(*row_number);
+
             let node_dof_parameter =
-                self.state.nodes_dof_parameters_global[(*row_number).into() as usize];
+                self.state.nodes_dof_parameters_global[converted_row_number];
             if let Some(position) = self.boundary_conditions
                 .iter()
                 .position(|bc|
@@ -567,10 +582,14 @@ impl<T, V> FEModel<T, V>
                 all_elements.push(V::default());
             }
         }
+
+        let mut converted_rows_numbers = T::default();
+        (0..rows_numbers.len()).for_each(|_| converted_rows_numbers += T::one());
+
         let matrix = ExtendedMatrix::create(
-            T::from(rows_numbers.len()),
-            T::from(1),
-            all_elements, TOLERANCE);
+            converted_rows_numbers,
+            T::one(),
+            all_elements, self.state.tolerance);
         matrix
     }
 
@@ -583,24 +602,53 @@ impl<T, V> FEModel<T, V>
         let ub_values = ub_matrix.extract_all_elements_values();
         let mut all_displacements_values =
             vec![V::default(); self.state.nodes_dof_parameters_global.len()];
-        for i in  0..ua_ra_rows_numbers.len()
-        {
-            let displacement_value = extract_element_value(
-                T::from(i), T::from(0), &ua_values);
-            all_displacements_values[ua_ra_rows_numbers[i].into() as usize] = displacement_value;
-        }
-        for j in  0..ub_rb_rows_numbers.len()
-        {
-            let displacement_value = extract_element_value(
-                T::from(j), T::from(0), &ub_values);
-            all_displacements_values[ub_rb_rows_numbers[j].into() as usize] = displacement_value;
-        }
-        let rows_number =
-            T::from(self.state.nodes_dof_parameters_global.len());
+
+        let mut i = T::default();
+        (0..ua_ra_rows_numbers.len()).for_each(|index|
+            {
+                let displacement_value = extract_element_value(
+                    i, T::default(), &ua_values);
+                let converted_index = conversion_uint_into_usize(ua_ra_rows_numbers[index]);
+                all_displacements_values[converted_index] = displacement_value;
+                i += T::one();
+            });
+
+
+        // for i in 0..ua_ra_rows_numbers.len()
+        // {
+        //     let displacement_value = extract_element_value(
+        //         T::from(i), T::from(0), &ua_values);
+        //     all_displacements_values[ua_ra_rows_numbers[i].into() as usize] = displacement_value;
+        // }
+
+        let mut j = T::default();
+        (0..ub_rb_rows_numbers.len()).for_each(|index|
+            {
+                let displacement_value = extract_element_value(
+                    j, T::default(), &ub_values);
+                let converted_index = conversion_uint_into_usize(ub_rb_rows_numbers[index]);
+                all_displacements_values[converted_index] = displacement_value;
+                j += T::one();
+            });
+
+
+        // for j in 0..ub_rb_rows_numbers.len()
+        // {
+        //     let displacement_value = extract_element_value(
+        //         T::from(j), T::from(0), &ub_values);
+        //     all_displacements_values[ub_rb_rows_numbers[j].into() as usize] = displacement_value;
+        // }
+
+        let mut rows_number = T::default();
+        (0..self.state.nodes_dof_parameters_global.len()).for_each(|_| rows_number += T::one());
+
+        // let rows_number =
+        //     T::from(self.state.nodes_dof_parameters_global.len());
+
         let displacement_matrix =
             ExtendedMatrix::create(
-                rows_number, T::from(1), all_displacements_values,
-                TOLERANCE);
+                rows_number, T::one(), all_displacements_values,
+                self.state.tolerance);
         displacement_matrix
     }
 
@@ -627,36 +675,53 @@ impl<T, V> FEModel<T, V>
         let ra_matrix = self.compose_matrix_by_rows_numbers(&ua_ra_rows_numbers);
         let ub_matrix = self.compose_matrix_by_rows_numbers(&ub_rb_rows_numbers);
         let separated_matrix =
-            separate(global_stiffness_matrix, separation_positions)?;
+            separate(global_stiffness_matrix, separation_positions, self.state.tolerance)?;
         let ua_matrix = separated_matrix.k_aa
             .naive_gauss_elimination(&ra_matrix.add_subtract_matrix(
-            &separated_matrix.k_ab.multiply_by_matrix(&ub_matrix, TOLERANCE)?,
-            Operation::Subtraction, TOLERANCE)?, TOLERANCE)?;
+            &separated_matrix.k_ab.multiply_by_matrix(&ub_matrix)?,
+            Operation::Subtraction)?)?;
         let reactions_values_matrix = separated_matrix.k_ba
-            .multiply_by_matrix(&ua_matrix, TOLERANCE)?
+            .multiply_by_matrix(&ua_matrix)?
             .add_subtract_matrix(
                 &separated_matrix.k_bb
-                    .multiply_by_matrix(&ub_matrix, TOLERANCE)?,
-                        Operation::Addition, TOLERANCE)?;
+                    .multiply_by_matrix(&ub_matrix)?,
+                        Operation::Addition)?;
         let all_reactions =
             reactions_values_matrix.extract_all_elements_values();
         let reactions_values_matrix_shape = reactions_values_matrix.get_shape();
         let mut reactions_values = Vec::new();
-        for row in 0..reactions_values_matrix_shape.0.into()
+
+        let mut row = T::default();
+        while row < reactions_values_matrix_shape.0
         {
-            for column in 0..reactions_values_matrix_shape.1.into()
+            let mut column = T::default();
+            while column < reactions_values_matrix_shape.1
             {
-                let reaction_value =
-                    extract_element_value(T::from(row),
-                        T::from(column), &all_reactions);
+                let reaction_value = extract_element_value(row, column,
+                    &all_reactions);
                 reactions_values.push(reaction_value);
+                column += T::one();
             }
+            row += T::one();
         }
+
+        // for row in 0..reactions_values_matrix_shape.0.into()
+        // {
+        //     for column in 0..reactions_values_matrix_shape.1.into()
+        //     {
+        //         let reaction_value =
+        //             extract_element_value(T::from(row),
+        //                 T::from(column), &all_reactions);
+        //         reactions_values.push(reaction_value);
+        //     }
+        // }
+
         let mut reactions_dof_parameters_data = Vec::new();
         for row_number in &ub_rb_rows_numbers
         {
+            let converted_row_number = conversion_uint_into_usize(*row_number);
             reactions_dof_parameters_data.push(
-                self.state.nodes_dof_parameters_global[(*row_number).into() as usize]);
+                self.state.nodes_dof_parameters_global[converted_row_number]);
         }
         let displacements_dof_parameters_data =
             self.state.nodes_dof_parameters_global.clone();
@@ -666,16 +731,32 @@ impl<T, V> FEModel<T, V>
             displacements_values_matrix.extract_all_elements_values();
         let displacements_values_matrix_shape = displacements_values_matrix.get_shape();
         let mut displacements_values = Vec::new();
-        for row in 0..displacements_values_matrix_shape.0.into()
+
+        let mut row = T::default();
+        while row < displacements_values_matrix_shape.0
         {
-            for column in 0..displacements_values_matrix_shape.1.into()
+            let mut column = T::default();
+            while column < displacements_values_matrix_shape.1
             {
-                let displacement_value =
-                    extract_element_value(T::from(row),
-                        T::from(column), &all_displacements);
+                let displacement_value = extract_element_value(row, column,
+                    &all_displacements);
                 displacements_values.push(displacement_value);
+                column += T::one();
             }
+            row += T::one();
         }
+
+        // for row in 0..displacements_values_matrix_shape.0.into()
+        // {
+        //     for column in 0..displacements_values_matrix_shape.1.into()
+        //     {
+        //         let displacement_value =
+        //             extract_element_value(T::from(row),
+        //                 T::from(column), &all_displacements);
+        //         displacements_values.push(displacement_value);
+        //     }
+        // }
+
         let global_analysis_result =
             GlobalAnalysisResult::create(
                 reactions_values, reactions_dof_parameters_data,
@@ -700,127 +781,127 @@ impl<T, V> FEModel<T, V>
     }
 
 
-    pub fn drawn_nodes_rc(&self, drawn_uid_number: &mut UIDNumbers) -> Rc<Vec<FEDrawnNodeData>>
-    {
-        let mut nodes = Vec::new();
-        for node in self.nodes.iter()
-        {
-            *drawn_uid_number += 1;
-            let uid = *drawn_uid_number;
-            let number = node.borrow().extract_number();
-            let (x, y, z) = node.borrow().extract_coordinates();
-            let drawn_node_data = FEDrawnNodeData { uid, number, x, y, z };
-            nodes.push(drawn_node_data);
-        }
-        Rc::new(nodes)
-    }
+    // pub fn drawn_nodes_rc(&self, drawn_uid_number: &mut UIDNumbers) -> Rc<Vec<FEDrawnNodeData>>
+    // {
+    //     let mut nodes = Vec::new();
+    //     for node in self.nodes.iter()
+    //     {
+    //         *drawn_uid_number += 1;
+    //         let uid = *drawn_uid_number;
+    //         let number = node.borrow().extract_number();
+    //         let (x, y, z) = node.borrow().extract_coordinates();
+    //         let drawn_node_data = FEDrawnNodeData { uid, number, x, y, z };
+    //         nodes.push(drawn_node_data);
+    //     }
+    //     Rc::new(nodes)
+    // }
 
 
-    pub fn drawn_elements_rc(&self, drawn_uid_number: &mut UIDNumbers) -> Rc<Vec<FEDrawnElementData>>
-    {
-        let mut drawn_elements = Vec::new();
-        for element in self.elements.iter()
-        {
-            *drawn_uid_number += 1;
-            let uid = *drawn_uid_number;
-            let fe_type = element.extract_fe_type();
-            let number = element.extract_fe_number();
-            let nodes_numbers = element.extract_nodes_numbers();
-            let properties = element.extract_fe_properties();
-            let drawn_element_data =
-                FEDrawnElementData { uid, fe_type, number, nodes_numbers, properties };
-            drawn_elements.push(drawn_element_data);
-        }
-        Rc::new(drawn_elements)
-    }
+    // pub fn drawn_elements_rc(&self, drawn_uid_number: &mut UIDNumbers) -> Rc<Vec<FEDrawnElementData>>
+    // {
+    //     let mut drawn_elements = Vec::new();
+    //     for element in self.elements.iter()
+    //     {
+    //         *drawn_uid_number += 1;
+    //         let uid = *drawn_uid_number;
+    //         let fe_type = element.extract_fe_type();
+    //         let number = element.extract_fe_number();
+    //         let nodes_numbers = element.extract_nodes_numbers();
+    //         let properties = element.extract_fe_properties();
+    //         let drawn_element_data =
+    //             FEDrawnElementData { uid, fe_type, number, nodes_numbers, properties };
+    //         drawn_elements.push(drawn_element_data);
+    //     }
+    //     Rc::new(drawn_elements)
+    // }
 
 
-    pub fn drawn_bcs_rc(&self, drawn_uid_number: &mut UIDNumbers) -> Rc<Vec<FEDrawnBCData>>
-    {
-        let mut drawn_bcs = Vec::new();
-        for bc in &self.boundary_conditions
-        {
-            *drawn_uid_number += 1;
-            let uid = *drawn_uid_number;
-            let bc_type = bc.extract_bc_type();
-            let number = bc.extract_number().into() / GLOBAL_DOF as usize;
-            let node_number = bc.extract_node_number().into();
-            let value = bc.extract_value().into();
-            let mut drawn_bc = FEDrawnBCData { uid, bc_type, number: number as ElementsNumbers,
-                    node_number: node_number as ElementsNumbers,
-                    is_rotation_stiffness_enabled: false, x_direction_value: None,
-                    y_direction_value: None, z_direction_value: None, xy_plane_value: None,
-                    yz_plane_value: None, zx_plane_value: None
-                };
-
-            for i in 0..GLOBAL_DOF
-            {
-                let dof_parameter =
-                    GlobalDOFParameter::iterator().nth(i as usize).unwrap();
-                if bc.dof_parameter_data_same(*dof_parameter,
-                                              T::from(node_number))
-                {
-                    match dof_parameter
-                    {
-                        GlobalDOFParameter::X => drawn_bc.x_direction_value = Some(value),
-                        GlobalDOFParameter::Y => drawn_bc.y_direction_value = Some(value),
-                        GlobalDOFParameter::Z => drawn_bc.z_direction_value = Some(value),
-                        GlobalDOFParameter::ThX => drawn_bc.yz_plane_value = Some(value),
-                        GlobalDOFParameter::ThY => drawn_bc.zx_plane_value = Some(value),
-                        GlobalDOFParameter::ThZ => drawn_bc.xy_plane_value = Some(value),
-                    }
-                    if i > 2 as ElementsNumbers
-                    {
-                        drawn_bc.is_rotation_stiffness_enabled = true;
-                    }
-                    break;
-                }
-            }
-            if let Some(position) = drawn_bcs
-                .iter().position(|data: &FEDrawnBCData|
-                    data.number == number as ElementsNumbers && data.bc_type == bc_type)
-            {
-                if !drawn_bcs[position].is_rotation_stiffness_enabled
-                {
-                    drawn_bcs[position].is_rotation_stiffness_enabled =
-                        drawn_bc.is_rotation_stiffness_enabled;
-                }
-                if drawn_bcs[position].x_direction_value.is_none()
-                {
-                    drawn_bcs[position].x_direction_value =
-                        drawn_bc.x_direction_value;
-                }
-                if drawn_bcs[position].y_direction_value.is_none()
-                {
-                    drawn_bcs[position].y_direction_value =
-                        drawn_bc.y_direction_value;
-                }
-                if drawn_bcs[position].z_direction_value.is_none()
-                {
-                    drawn_bcs[position].z_direction_value =
-                        drawn_bc.z_direction_value;
-                }
-                if drawn_bcs[position].xy_plane_value.is_none()
-                {
-                    drawn_bcs[position].xy_plane_value =
-                        drawn_bc.xy_plane_value;
-                }
-                if drawn_bcs[position].yz_plane_value.is_none()
-                {
-                    drawn_bcs[position].yz_plane_value =
-                        drawn_bc.yz_plane_value;
-                }
-                if drawn_bcs[position].zx_plane_value.is_none()
-                {
-                    drawn_bcs[position].zx_plane_value =
-                        drawn_bc.zx_plane_value;
-                }
-            }
-            else
-            {
-                drawn_bcs.push(drawn_bc);
-            }
-        }
-        Rc::new(drawn_bcs)
-    }
+    // pub fn drawn_bcs_rc(&self, drawn_uid_number: &mut UIDNumbers) -> Rc<Vec<FEDrawnBCData>>
+    // {
+    //     let mut drawn_bcs = Vec::new();
+    //     for bc in &self.boundary_conditions
+    //     {
+    //         *drawn_uid_number += 1;
+    //         let uid = *drawn_uid_number;
+    //         let bc_type = bc.extract_bc_type();
+    //         let number = bc.extract_number().into() / GLOBAL_DOF as usize;
+    //         let node_number = bc.extract_node_number().into();
+    //         let value = bc.extract_value().into();
+    //         let mut drawn_bc = FEDrawnBCData { uid, bc_type, number: number as ElementsNumbers,
+    //                 node_number: node_number as ElementsNumbers,
+    //                 is_rotation_stiffness_enabled: false, x_direction_value: None,
+    //                 y_direction_value: None, z_direction_value: None, xy_plane_value: None,
+    //                 yz_plane_value: None, zx_plane_value: None
+    //             };
+    //
+    //         for i in 0..GLOBAL_DOF
+    //         {
+    //             let dof_parameter =
+    //                 GlobalDOFParameter::iterator().nth(i as usize).unwrap();
+    //             if bc.dof_parameter_data_same(*dof_parameter,
+    //                                           T::from(node_number))
+    //             {
+    //                 match dof_parameter
+    //                 {
+    //                     GlobalDOFParameter::X => drawn_bc.x_direction_value = Some(value),
+    //                     GlobalDOFParameter::Y => drawn_bc.y_direction_value = Some(value),
+    //                     GlobalDOFParameter::Z => drawn_bc.z_direction_value = Some(value),
+    //                     GlobalDOFParameter::ThX => drawn_bc.yz_plane_value = Some(value),
+    //                     GlobalDOFParameter::ThY => drawn_bc.zx_plane_value = Some(value),
+    //                     GlobalDOFParameter::ThZ => drawn_bc.xy_plane_value = Some(value),
+    //                 }
+    //                 if i > 2 as ElementsNumbers
+    //                 {
+    //                     drawn_bc.is_rotation_stiffness_enabled = true;
+    //                 }
+    //                 break;
+    //             }
+    //         }
+    //         if let Some(position) = drawn_bcs
+    //             .iter().position(|data: &FEDrawnBCData|
+    //                 data.number == number as ElementsNumbers && data.bc_type == bc_type)
+    //         {
+    //             if !drawn_bcs[position].is_rotation_stiffness_enabled
+    //             {
+    //                 drawn_bcs[position].is_rotation_stiffness_enabled =
+    //                     drawn_bc.is_rotation_stiffness_enabled;
+    //             }
+    //             if drawn_bcs[position].x_direction_value.is_none()
+    //             {
+    //                 drawn_bcs[position].x_direction_value =
+    //                     drawn_bc.x_direction_value;
+    //             }
+    //             if drawn_bcs[position].y_direction_value.is_none()
+    //             {
+    //                 drawn_bcs[position].y_direction_value =
+    //                     drawn_bc.y_direction_value;
+    //             }
+    //             if drawn_bcs[position].z_direction_value.is_none()
+    //             {
+    //                 drawn_bcs[position].z_direction_value =
+    //                     drawn_bc.z_direction_value;
+    //             }
+    //             if drawn_bcs[position].xy_plane_value.is_none()
+    //             {
+    //                 drawn_bcs[position].xy_plane_value =
+    //                     drawn_bc.xy_plane_value;
+    //             }
+    //             if drawn_bcs[position].yz_plane_value.is_none()
+    //             {
+    //                 drawn_bcs[position].yz_plane_value =
+    //                     drawn_bc.yz_plane_value;
+    //             }
+    //             if drawn_bcs[position].zx_plane_value.is_none()
+    //             {
+    //                 drawn_bcs[position].zx_plane_value =
+    //                     drawn_bc.zx_plane_value;
+    //             }
+    //         }
+    //         else
+    //         {
+    //             drawn_bcs.push(drawn_bc);
+    //         }
+    //     }
+    //     Rc::new(drawn_bcs)
+    // }
 }
