@@ -202,7 +202,7 @@ impl<T, V> FEModel<T, V>
                 .filter(|element|
                     element.node_belong_element(number))
             {
-                element.refresh()?;
+                element.refresh(self.state.tolerance)?;
             }
             return Ok(());
         }
@@ -317,7 +317,7 @@ impl<T, V> FEModel<T, V>
             if let Some(position) = self.elements.iter().position(|element|
                 element.number_same(data.number))
             {
-                self.elements[position].update(data)?;
+                self.elements[position].update(data, self.state.tolerance)?;
             }
             else
             {
@@ -720,7 +720,7 @@ impl<T, V> FEModel<T, V>
         for element in &self.elements
         {
             let element_analysis_data =
-                element.extract_element_analysis_data(global_displacements)?;
+                element.extract_element_analysis_data(global_displacements, self.state.tolerance)?;
             elements_analysis_data.push(element_analysis_data);
         }
         let elements_analysis_results =

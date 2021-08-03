@@ -321,7 +321,6 @@ struct State<T, V>
     integration_points: Vec<IntegrationPoint<V>>,
     local_stiffness_matrix: ExtendedMatrix<T, V>,
     nodes_dof_parameters_global: Vec<DOFParameterData<T>>,
-    tolerance: V,
 }
 
 
@@ -332,7 +331,7 @@ impl<T, V> State<T, V>
         nodes_dof_parameters_global: Vec<DOFParameterData<T>>, tolerance: V) -> Self
     {
         State { rotation_matrix, integration_points, local_stiffness_matrix,
-        nodes_dof_parameters_global, tolerance, }
+        nodes_dof_parameters_global }
     }
 }
 
@@ -406,7 +405,7 @@ impl<T, V> Truss2n2ip<T, V>
     }
 
 
-    fn extract_local_displacements(&self, global_displacements: &Displacements<T, V>)
+    fn extract_local_displacements(&self, global_displacements: &Displacements<T, V>, tolerance: V)
         -> Result<ExtendedMatrix<T, V>, String>
     {
         let mut element_global_displacements_values = Vec::new();
@@ -436,7 +435,7 @@ impl<T, V> Truss2n2ip<T, V>
 
         let element_global_displacements = ExtendedMatrix::create(rows_number,
             T::from(1u8), element_global_displacements_values,
-            self.state.tolerance);
+            tolerance);
 
         let element_local_displacements =
             self.state.rotation_matrix.multiply_by_matrix(&element_global_displacements)?;
@@ -453,7 +452,7 @@ impl<T, V> FiniteElementTrait<T, V> for Truss2n2ip<T, V>
              Into<f64> + SubAssign + AddAssign + MulAssign + PartialEq + Debug +
              MyFloatTrait + PartialOrd + From<f32> + 'static,
 {
-    fn update(&mut self, data: FEData<T, V>) -> Result<(), String>
+    fn update(&mut self, data: FEData<T, V>, tolerance: V) -> Result<(), String>
     {
         let node_1 = Rc::clone(&data.nodes[0]);
 
@@ -467,19 +466,19 @@ impl<T, V> FiniteElementTrait<T, V> for Truss2n2ip<T, V>
             if data.properties.len() == 3 { Some(data.properties[2]) } else { None };
 
         let rotation_matrix = TrussAuxFunctions::rotation_matrix(
-            Rc::clone(&node_1), Rc::clone(&node_2), self.state.tolerance);
+            Rc::clone(&node_1), Rc::clone(&node_2), tolerance);
 
         let mut local_stiffness_matrix = ExtendedMatrix::create(
             TrussAuxFunctions::<T, V>::nodes_number() * TrussAuxFunctions::<T, V>::node_dof(),
             TrussAuxFunctions::<T, V>::nodes_number() * TrussAuxFunctions::<T, V>::node_dof(),
-            vec![V::from(0f32); (TRUSS2N2IP_NODES_NUMBER * TRUSS_NODE_DOF).pow(2)], self.state.tolerance);
+            vec![V::from(0f32); (TRUSS2N2IP_NODES_NUMBER * TRUSS_NODE_DOF).pow(2)], tolerance);
 
         for integration_point in &self.state.integration_points
         {
             let matrix = TrussAuxFunctions::local_stiffness_matrix(
                 Rc::clone(&node_1), Rc::clone(&node_2), young_modulus,
                 area, area_2, integration_point.weight, integration_point.r,
-                &local_stiffness_matrix, self.state.tolerance)?;
+                &local_stiffness_matrix, tolerance)?;
             local_stiffness_matrix = matrix;
         }
 
@@ -610,23 +609,23 @@ impl<T, V> FiniteElementTrait<T, V> for Truss2n2ip<T, V>
     }
 
 
-    fn refresh(&mut self) -> Result<(), String>
+    fn refresh(&mut self, tolerance: V) -> Result<(), String>
     {
         let rotation_matrix =
             TrussAuxFunctions::rotation_matrix(Rc::clone(&self.node_1),
-            Rc::clone(&self.node_2), self.state.tolerance);
+            Rc::clone(&self.node_2), tolerance);
 
         let mut local_stiffness_matrix = ExtendedMatrix::create(
             TrussAuxFunctions::<T, V>::nodes_number() * TrussAuxFunctions::<T, V>::node_dof(),
             TrussAuxFunctions::<T, V>::nodes_number() * TrussAuxFunctions::<T, V>::node_dof(),
-            vec![V::from(0f32); (TRUSS2N2IP_NODES_NUMBER * TRUSS_NODE_DOF).pow(2)], self.state.tolerance);
+            vec![V::from(0f32); (TRUSS2N2IP_NODES_NUMBER * TRUSS_NODE_DOF).pow(2)], tolerance);
 
         for integration_point in self.state.integration_points.iter()
         {
             let matrix = TrussAuxFunctions::local_stiffness_matrix(
                 Rc::clone(&self.node_1), Rc::clone(&self.node_2),
                 self.young_modulus, self.area, self.area_2, integration_point.weight,
-                integration_point.r, &local_stiffness_matrix, self.state.tolerance)?;
+                integration_point.r, &local_stiffness_matrix, tolerance)?;
             local_stiffness_matrix = matrix;
         }
 
@@ -651,11 +650,11 @@ impl<T, V> FiniteElementTrait<T, V> for Truss2n2ip<T, V>
     }
 
 
-    fn extract_element_analysis_data(&self, global_displacements: &Displacements<T, V>)
-        -> Result<ElementAnalysisData<T, V>, String>
+    fn extract_element_analysis_data(&self, global_displacements: &Displacements<T, V>,
+        tolerance: V) -> Result<ElementAnalysisData<T, V>, String>
     {
         let element_local_displacements =
-            self.extract_local_displacements(global_displacements)?;
+            self.extract_local_displacements(global_displacements, tolerance)?;
         if self.area_2.is_some()
         {
             let mut forces_components = Vec::new();
@@ -666,7 +665,7 @@ impl<T, V> FiniteElementTrait<T, V> for Truss2n2ip<T, V>
                 let strain_displacement_matrix =
                     TrussAuxFunctions::strain_displacement_matrix(
                         Rc::clone(&self.node_1),
-                        Rc::clone(&self.node_2), ip.r, self.state.tolerance);
+                        Rc::clone(&self.node_2), ip.r, tolerance);
 
                 let strains_matrix =
                     strain_displacement_matrix.multiply_by_matrix(
@@ -739,7 +738,7 @@ impl<T, V> FiniteElementTrait<T, V> for Truss2n2ip<T, V>
             let strain_displacement_matrix =
                 TrussAuxFunctions::strain_displacement_matrix(
                 Rc::clone(&self.node_1), Rc::clone(&self.node_2), r,
-                self.state.tolerance);
+                tolerance);
 
             let strains_matrix =
                 strain_displacement_matrix.multiply_by_matrix(&element_local_displacements)?;

@@ -77,15 +77,15 @@ impl<T, V> FEData<T, V>
 
 pub trait FiniteElementTrait<T, V>
 {
-    fn update(&mut self, data: FEData<T, V>) -> Result<(), String>;
+    fn update(&mut self, data: FEData<T, V>, tolerance: V) -> Result<(), String>;
     fn extract_stiffness_matrix(&self) -> Result<ExtendedMatrix<T, V>, &str>;
     fn extract_stiffness_groups(&self) -> Vec<StiffnessGroup<T>>;
     fn node_belong_element(&self, node_number: T) -> bool;
-    fn refresh(&mut self) -> Result<(), String>;
+    fn refresh(&mut self, tolerance: V) -> Result<(), String>;
     fn number_same(&self, number: T) -> bool;
     fn nodes_numbers_same(&self, nodes_numbers: Vec<T>) -> bool;
-    fn extract_element_analysis_data(&self, global_displacements: &Displacements<T, V>)
-        -> Result<ElementAnalysisData<T, V>, String>;
+    fn extract_element_analysis_data(&self, global_displacements: &Displacements<T, V>,
+        tolerance: V) -> Result<ElementAnalysisData<T, V>, String>;
     fn extract_fe_number(&self) -> T;
     fn extract_nodes_numbers(&self) -> Vec<T>;
     fn extract_fe_properties(&self) -> Vec<V>;
@@ -159,9 +159,9 @@ impl<T, V> FiniteElement<T, V>
     }
 
 
-    pub fn update(&mut self, data: FEData<T, V>) -> Result<(), String>
+    pub fn update(&mut self, data: FEData<T, V>, tolerance: V) -> Result<(), String>
     {
-        self.element.update(data)?;
+        self.element.update(data, tolerance)?;
         Ok(())
     }
 
@@ -185,9 +185,9 @@ impl<T, V> FiniteElement<T, V>
     }
 
 
-    pub fn refresh(&mut self) -> Result<(), String>
+    pub fn refresh(&mut self, tolerance: V) -> Result<(), String>
     {
-        self.element.refresh()?;
+        self.element.refresh(tolerance)?;
         Ok(())
     }
 
@@ -210,11 +210,11 @@ impl<T, V> FiniteElement<T, V>
     }
 
 
-    pub fn extract_element_analysis_data(&self, global_displacements: &Displacements<T, V>)
-        -> Result<ElementAnalysisData<T, V>, String>
+    pub fn extract_element_analysis_data(&self, global_displacements: &Displacements<T, V>,
+        tolerance: V) -> Result<ElementAnalysisData<T, V>, String>
     {
         let element_analysis_data =
-            self.element.extract_element_analysis_data(global_displacements)?;
+            self.element.extract_element_analysis_data(global_displacements, tolerance)?;
         Ok(element_analysis_data)
     }
 
