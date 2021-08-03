@@ -15,8 +15,6 @@ use crate::fem::global_analysis::fe_dof_parameter_data::global_dof;
 
 use crate::fem::fe_model::SeparatedMatrix;
 
-use crate::TOLERANCE;
-
 
 pub fn compose_stiffness_sub_groups<'a, T>(global_group_position: T,
     global_group_columns_number: T, global_number_1: T, global_number_2: T)

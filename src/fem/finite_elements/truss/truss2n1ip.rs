@@ -24,7 +24,7 @@ use crate::my_float::MyFloatTrait;
 
 use crate::fem::finite_elements::truss::consts::
 {
-    TRUSS_NODE_DOF, TRUSS2N2IP_NODES_NUMBER, TRUSS_STRESS_STRAIN_COMPONENTS_NUMBERS,
+    TRUSS_NODE_DOF, TRUSS2N1IP_NODES_NUMBER, TRUSS_STRESS_STRAIN_COMPONENTS_NUMBERS,
     POINTS_NUMBER_FOR_TAPERED_TRUSS,
 };
 use std::collections::HashMap;
@@ -54,7 +54,7 @@ impl<T, V> TrussAuxFunctions<T, V>
     fn nodes_number() -> T
     {
         let mut n = T::from(0u8);
-        (0..TRUSS2N2IP_NODES_NUMBER).for_each(|_| n += T::from(1u8));
+        (0..TRUSS2N1IP_NODES_NUMBER).for_each(|_| n += T::from(1u8));
         n
     }
 
@@ -331,7 +331,7 @@ impl<T, V> State<T, V>
 }
 
 
-pub struct Truss2n2ip<T, V>
+pub struct Truss2n1ip<T, V>
 {
     node_1_number: T,
     node_2_number: T,
@@ -342,7 +342,7 @@ pub struct Truss2n2ip<T, V>
 }
 
 
-impl<T, V> Truss2n2ip<T, V>
+impl<T, V> Truss2n1ip<T, V>
     where T: Copy + PartialOrd + Add<Output = T> + Sub<Output = T> + Div<Output = T> +
              Rem<Output = T> + Eq + Hash + SubAssign + Debug + Mul<Output = T> + AddAssign +
              From<u8> + 'static,
@@ -354,19 +354,17 @@ impl<T, V> Truss2n2ip<T, V>
         tolerance: V, nodes: &HashMap<T, FENode<V>>) -> Result<Self, String>
     {
         let integration_point_1 = IntegrationPoint {
-            r: V::from(- 1f32 / 3f32).my_sqrt(), weight: V::from(1.0) };
-        let integration_point_2 = IntegrationPoint {
-            r: V::from(1f32 / 3f32).my_sqrt(), weight: V::from(1.0) };
+            r: V::from(0f32), weight: V::from(2f32) };
 
         let rotation_matrix = TrussAuxFunctions::<T, V>::rotation_matrix(
             node_1_number, node_2_number, tolerance, nodes);
 
-        let integration_points = vec![integration_point_1, integration_point_2];
+        let integration_points = vec![integration_point_1];
 
         let mut local_stiffness_matrix = ExtendedMatrix::create(
             TrussAuxFunctions::<T, V>::nodes_number() * TrussAuxFunctions::<T, V>::node_dof(),
             TrussAuxFunctions::<T, V>::nodes_number() * TrussAuxFunctions::<T, V>::node_dof(),
-            vec![V::from(0f32); (TRUSS2N2IP_NODES_NUMBER * TRUSS_NODE_DOF).pow(2)], tolerance);
+            vec![V::from(0f32); (TRUSS2N1IP_NODES_NUMBER * TRUSS_NODE_DOF).pow(2)], tolerance);
 
         for integration_point in &integration_points
         {
@@ -388,7 +386,7 @@ impl<T, V> Truss2n2ip<T, V>
         let state = State::create(rotation_matrix, integration_points,
             local_stiffness_matrix, nodes_dof_parameters);
 
-        Ok(Truss2n2ip { node_1_number, node_2_number, young_modulus, area, area_2, state })
+        Ok(Truss2n1ip { node_1_number, node_2_number, young_modulus, area, area_2, state })
     }
 
 
@@ -431,7 +429,7 @@ impl<T, V> Truss2n2ip<T, V>
 }
 
 
-impl<T, V> FiniteElementTrait<T, V> for Truss2n2ip<T, V>
+impl<T, V> FiniteElementTrait<T, V> for Truss2n1ip<T, V>
     where T: Copy + Add<Output = T> + Sub<Output = T> + Div<Output = T> + Rem<Output = T> +
              Mul<Output = T> + Eq + Hash + Debug + SubAssign + PartialOrd + AddAssign +
              From<u8> + 'static,
@@ -459,7 +457,7 @@ impl<T, V> FiniteElementTrait<T, V> for Truss2n2ip<T, V>
         let mut local_stiffness_matrix = ExtendedMatrix::create(
             TrussAuxFunctions::<T, V>::nodes_number() * TrussAuxFunctions::<T, V>::node_dof(),
             TrussAuxFunctions::<T, V>::nodes_number() * TrussAuxFunctions::<T, V>::node_dof(),
-            vec![V::from(0f32); (TRUSS2N2IP_NODES_NUMBER * TRUSS_NODE_DOF).pow(2)], tolerance);
+            vec![V::from(0f32); (TRUSS2N1IP_NODES_NUMBER * TRUSS_NODE_DOF).pow(2)], tolerance);
 
         for integration_point in &self.state.integration_points
         {
@@ -573,7 +571,7 @@ impl<T, V> FiniteElementTrait<T, V> for Truss2n2ip<T, V>
         let mut local_stiffness_matrix = ExtendedMatrix::create(
             TrussAuxFunctions::<T, V>::nodes_number() * TrussAuxFunctions::<T, V>::node_dof(),
             TrussAuxFunctions::<T, V>::nodes_number() * TrussAuxFunctions::<T, V>::node_dof(),
-            vec![V::from(0f32); (TRUSS2N2IP_NODES_NUMBER * TRUSS_NODE_DOF).pow(2)], tolerance);
+            vec![V::from(0f32); (TRUSS2N1IP_NODES_NUMBER * TRUSS_NODE_DOF).pow(2)], tolerance);
 
         for integration_point in self.state.integration_points.iter()
         {

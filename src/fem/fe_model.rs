@@ -1,9 +1,7 @@
 use std::ops::{Sub, Div, Rem, SubAssign, Mul, Add, AddAssign, MulAssign};
 use std::hash::Hash;
 use std::fmt::Debug;
-use std::rc::Rc;
-use std::cell::RefCell;
-use std::collections::HashSet;
+use std::collections::{HashSet, HashMap};
 use std::iter::FromIterator;
 
 use extended_matrix::basic_matrix::basic_matrix::{MatrixElementPosition, ZerosRowColumn};
@@ -12,7 +10,7 @@ use extended_matrix::extended_matrix::Operation;
 use extended_matrix::functions::{extract_element_value, conversion_uint_into_usize};
 
 use crate::fem::finite_elements::fe_node::FENode;
-use crate::fem::finite_elements::finite_element::{FiniteElement, FEType, FEData};
+use crate::fem::finite_elements::finite_element::{FiniteElement, FEType};
 use crate::fem::global_analysis::fe_stiffness::StiffnessGroup;
 use crate::fem::global_analysis::fe_boundary_condition::{BoundaryCondition, BCType};
 use crate::fem::global_analysis::fe_global_analysis_result::{GlobalAnalysisResult, Displacements};
@@ -26,9 +24,6 @@ use crate::fem::element_analysis::fe_element_analysis_result::ElementsAnalysisRe
 use crate::fem::functions::{separate, compose_stiffness_sub_groups};
 
 use crate::my_float::MyFloatTrait;
-
-
-use crate::TOLERANCE;
 
 // use crate::auxiliary::{FEDrawnElementData, FEDrawnBCData, FEDrawnNodeData};
 
@@ -52,8 +47,8 @@ pub struct State<T, V>
 
 pub struct FEModel<T, V>
 {
-    pub nodes: Vec<Rc<RefCell<FENode<T, V>>>>,
-    pub elements: Vec<FiniteElement<T, V>>,
+    pub nodes: HashMap<T, FENode<V>>,                       // Hashmap { node_number: Node }
+    pub elements: HashMap<T, FiniteElement<T, V>>,          // Hashmap { element_number: FiniteElement }
     pub boundary_conditions: Vec<BoundaryCondition<T, V>>,
     pub state: State<T, V>,
 }
@@ -72,7 +67,8 @@ impl<T, V> FEModel<T, V>
         let state = State { stiffness_groups: Vec::new(), nodes_dof_parameters_global: Vec::new(),
             tolerance };
 
-        FEModel { nodes: Vec::new(), elements: Vec::new(), boundary_conditions: Vec::new(), state }
+        FEModel { nodes: HashMap::new(), elements: HashMap::new(),
+            boundary_conditions: Vec::new(), state }
     }
 
 
@@ -86,9 +82,9 @@ impl<T, V> FEModel<T, V>
         else
         {
             let mut nodes_numbers = Vec::new();
-            for node in self.nodes.iter()
+            for node_number in self.nodes.keys()
             {
-                nodes_numbers.push(node.borrow().number());
+                nodes_numbers.push(*node_number);
             }
             let mut position = T::from(0u8);
 
@@ -146,7 +142,7 @@ impl<T, V> FEModel<T, V>
     fn update_nodes_dof_parameters_global(&mut self) -> Result<(), &str>
     {
         let mut nodes_dof_parameters = Vec::new();
-        for node in &self.nodes
+        for node_number in self.nodes.keys()
         {
             for dof in 0..GLOBAL_DOF
             {
@@ -154,7 +150,7 @@ impl<T, V> FEModel<T, V>
                     GlobalDOFParameter::iterator().nth(dof)
                         .ok_or("FEModel: Could not find dof parameter!")?;
                 let dof_parameter_data = DOFParameterData {
-                    node_number: node.as_ref().borrow().number(),
+                    node_number: *node_number,
                     dof_parameter: *dof_parameter
                 };
                 nodes_dof_parameters.push(dof_parameter_data);
@@ -167,184 +163,191 @@ impl<T, V> FEModel<T, V>
 
     pub fn add_node(&mut self, number: T, x: V, y: V, z: V) -> Result<(), String>
     {
-        if self.nodes.iter().position(|node|
-            node.as_ref().borrow().number_same(number) ||
-            node.as_ref().borrow().coordinates_same(x, y, z)).is_none()
+        if self.nodes.contains_key(&number)
         {
-            let node = FENode::create(number, x, y, z);
-            self.nodes.push(Rc::new(RefCell::new(node)));
-            self.update_stiffness_groups()?;
-            Ok(())
+            return Err(format!("FEModel: Node {:?} could not be added because node with same number \
+                does already exist!", number));
         }
-        else
+
+        if self.nodes.values().position(|node| node.coordinates_same(x, y, z)).is_some()
         {
-            Err(format!("FEModel: Node {:?} could not be added because node with same number or \
-                with the same coordinates does already exist!", number))
+            return Err(format!("FEModel: Node {:?} could not be added because node with the same \
+                coordinates does already exist!", number));
         }
+
+        let node = FENode::create(x, y, z);
+        self.nodes.insert(number, node);
+        self.update_stiffness_groups()?;
+        Ok(())
+
     }
 
 
     pub fn update_node(&mut self, number: T, x: V, y: V, z: V) -> Result<(), String>
     {
-        if self.nodes.iter().position(|node|
-            !node.as_ref().borrow().number_same(number) &&
-            node.as_ref().borrow().coordinates_same(x, y, z)).is_some()
+        if self.nodes.iter().position(|(node_number, node)|
+            *node_number != number && node.coordinates_same(x, y, z)).is_some()
         {
             return Err(format!("FEModel: Node {:?} could not be updated because the node with the \
                 same coordinates does already exist!", number))
         }
-        if let Some(position) = self.nodes.iter().position(|node|
-            node.as_ref().borrow().number_same(number))
+
+        if let Some(node) = self.nodes.get_mut(&number)
         {
-            self.nodes[position].borrow_mut().update(x, y, z);
-            for element in self.elements
-                .iter_mut()
-                .filter(|element|
-                    element.node_belong_element(number))
+            node.update(x, y, z);
+            for element in self.elements.values_mut()
+                .filter(|element| element.node_belong_element(number))
             {
-                element.refresh(self.state.tolerance)?;
+                element.refresh(self.state.tolerance, &self.nodes)?;
             }
-            return Ok(());
+            Ok(())
         }
-        Err(format!("FEModel: Node {:?} could not be updated because it does not \
-            exist!", number))
+        else
+        {
+            return Err(format!("FEModel: Node {:?} could not be updated because it does not \
+                exist!", number));
+        }
     }
 
 
     pub fn delete_node(&mut self, number: T) -> Result<(), String>
     {
-        if let Some(position) = self.nodes.iter().position(|node|
-            node.as_ref().borrow().number_same(number))
+        if !self.nodes.contains_key(&number)
         {
-            while let Some(position) = self.elements
-                .iter()
-                .position(|element|
-                    element.node_belong_element(number))
-            {
-                self.elements.remove(position);
-            }
-            while let Some(position) = self.boundary_conditions
-                .iter()
-                .position(|bc|
-                    bc.node_number_same(number))
-            {
-                self.boundary_conditions.remove(position);
-            }
-            self.nodes.remove(position);
-            self.update_stiffness_groups()?;
-            return Ok(());
+            return Err(format!("FEModel: Node {:?} could not be deleted because it does not exist!",
+                number));
         }
-        Err(format!("FEModel: Node {:?} could not be deleted because it does not exist!",
-            number))
+
+        let mut elements_numbers_for_delete = Vec::new();
+        for (element_number, element) in self.elements.iter()
+        {
+            if element.node_belong_element(number)
+            {
+                elements_numbers_for_delete.push(*element_number);
+            }
+        }
+
+        for element_number in elements_numbers_for_delete
+        {
+            let _ = self.elements.remove(&element_number);
+        }
+
+        let _ = self.nodes.remove(&number);
+
+        self.update_stiffness_groups()?;
+        Ok(())
     }
 
 
-    pub fn add_element(&mut self, element_type: FEType, nodes_numbers: Vec<T>,
-        mut data: FEData<T, V>) -> Result<(), String>
+    pub fn add_element(&mut self, element_number: T, element_type: FEType, nodes_numbers: Vec<T>,
+        properties: Vec<V>) -> Result<(), String>
     {
-        data.check_properties()?;
-        if self.elements.iter().position(|element|
-            element.number_same(data.number)).is_some()
+        for value in properties.iter()
+        {
+            if *value <= V::from(0f32)
+            {
+                return Err(format!("FEData: All properties values for element {:?} should be \
+                    greater than zero!", element_number));
+            }
+        }
+
+        if self.elements.contains_key(&element_number)
         {
             return Err(format!("FEModel: Element {:?} could not be added! The element with the same \
-             number does already exist!", data.number));
+             number does already exist!", element_number));
         }
+
         let nodes_numbers_set = HashSet::<T>::from_iter(
             nodes_numbers.iter().cloned());
         if nodes_numbers.len() != nodes_numbers_set.len()
         {
             return Err(format!("FEModel: Element {:?} could not be added! All nodes numbers \
-                should be unique!", data.number));
+                should be unique!", element_number));
         }
-        if self.elements.iter().position(|element|
+
+        if self.elements.values().position(|element|
             element.type_same(&element_type) &&
             element.nodes_numbers_same(nodes_numbers.clone())).is_some()
         {
             return Err(format!("FEModel: Element {:?} could not be added! The element with the same \
-                type and with same nodes numbers does already exist!", data.number));
+                type and with same nodes numbers does already exist!", element_number));
         }
+
         for node_number in nodes_numbers.iter()
         {
-            if let Some(position) = self.nodes.iter().position(|node|
-                node.as_ref().borrow().number_same(*node_number))
+            if !self.nodes.contains_key(node_number)
             {
-                data.nodes.push(Rc::clone(&self.nodes[position]));
+                return Err(format!("FEModel: Element {:?} could not be added! Node {:?} does not \
+                    exist!", element_number, node_number));
             }
         }
-        if nodes_numbers.len() == data.nodes.len()
-        {
-            let element = FiniteElement::create(element_type, data,
-                self.state.tolerance)?;
-            self.elements.push(element);
-        }
-        else
-        {
-            return Err(format!("FEModel: Element {:?} could not be added! Some node does not exist!",
-                data.number));
-        }
+
+        let element = FiniteElement::create(element_type, nodes_numbers,
+            properties, self.state.tolerance, &self.nodes)?;
+        self.elements.insert(element_number, element);
+
         Ok(())
     }
 
 
-    pub fn update_element(&mut self, nodes_numbers: Vec<T>,
-        mut data: FEData<T, V>) -> Result<(), String>
+    pub fn update_element(&mut self, element_number: T, nodes_numbers: Vec<T>,
+        properties: Vec<V>) -> Result<(), String>
     {
-        data.check_properties()?;
+        for value in properties.iter()
+        {
+            if *value <= V::from(0f32)
+            {
+                return Err(format!("FEData: All properties values for element {:?} should be \
+                    greater than zero!", element_number));
+            }
+        }
+
         let nodes_numbers_set = HashSet::<T>::from_iter(
             nodes_numbers.iter().cloned());
         if nodes_numbers.len() != nodes_numbers_set.len()
         {
             return Err(format!("FEModel: Element {:?} could not be updated! All nodes numbers \
-                should be unique!", data.number));
+                should be unique!", element_number));
         }
+
         for node_number in nodes_numbers.iter()
         {
-            if let Some(position) = self.nodes.iter().position(|node|
-                node.as_ref().borrow().number_same(*node_number))
+            if !self.nodes.contains_key(node_number)
             {
-                data.nodes.push(Rc::clone(&self.nodes[position]));
+                return Err(format!("FEModel: Element {:?} could not be updated! Node {:?} does not \
+                    exist!", element_number, node_number));
             }
         }
-        if self.elements.iter().position(|element|
-            !element.number_same(data.number) &&
-            element.nodes_numbers_same(nodes_numbers.clone())).is_some()
+
+        if let Some(element) = self.elements.get_mut(&element_number)
         {
-            return Err(format!("FEModel: Element {:?} could not be added! The element with the same \
-                nodes numbers does already exist!", data.number));
-        }
-        if nodes_numbers.len() == data.nodes.len()
-        {
-            if let Some(position) = self.elements.iter().position(|element|
-                element.number_same(data.number))
+            if element.nodes_numbers_same(nodes_numbers.clone())
             {
-                self.elements[position].update(data, self.state.tolerance)?;
+                return Err(format!("FEModel: Element {:?} could not be added! The element with \
+                    the same nodes numbers does already exist!", element_number));
             }
             else
             {
-                return Err(format!("FEModel: Element {:?} could not be updated because it does not \
-                    exist!", data.number));
+                element.update(nodes_numbers, properties, self.state.tolerance, &self.nodes)?;
+                Ok(())
             }
-
         }
         else
         {
-            return Err(format!("FEModel: Element {:?} could not be updated! Some node does not \
-                exist!", data.number));
+            return Err(format!("FEModel: Element {:?} could not be updated because it does not \
+                exist!", element_number));
         }
-        Ok(())
     }
 
 
     pub fn delete_element(&mut self, number: T) -> Result<(), String>
     {
-        if let Some(position) = self.elements.iter().position(|element|
-            element.number_same(number))
+        if self.elements.remove(&number).is_none()
         {
-            self.elements.remove(position);
-            return Ok(());
+            return Err(format!("FEModel: Element {:?} could not be deleted because it does not \
+                exist!", number))
         }
-        Err(format!("FEModel: Element {:?} could not be deleted because it does not exist!",
-            number))
+        Ok(())
     }
 
 
@@ -355,9 +358,10 @@ impl<T, V> FEModel<T, V>
             return Err("FEModel: Global stiffness matrix could not be composed because there are \
                 no elements in the model!");
         }
-        if self.nodes.iter().any(|node|
-            self.elements.iter().position(|element|
-                element.node_belong_element(node.as_ref().borrow().number())).is_none())
+
+        if self.nodes.keys().any(|node_number|
+            self.elements.values().position(|element|
+                element.node_belong_element(*node_number)).is_none())
         {
             return Err("FEModel: Global stiffness matrix could not be composed because there are \
                 free nodes exist!");
@@ -372,7 +376,7 @@ impl<T, V> FEModel<T, V>
             vec![V::from(0f32); (self.nodes.len() * GLOBAL_DOF).pow(2)],
             self.state.tolerance);
 
-        for element in &self.elements
+        for element in self.elements.values()
         {
             let element_stiffness_matrix = element.extract_stiffness_matrix()?;
             let element_stiffness_groups = element.extract_stiffness_groups();
@@ -405,21 +409,24 @@ impl<T, V> FEModel<T, V>
             return Err(format!("FEModel: {} could not be added because the same {} number does \
                 already exist!", bc_type.as_str(), bc_type.as_str().to_lowercase()));
         }
+
         if self.boundary_conditions.iter().position(|bc|
             bc.dof_parameter_data_same(dof_parameter, node_number)).is_some()
         {
             return Err(format!("FEModel: {} could not be added because the the force or \
                 displacement with the same dof parameter data does already exist!",
-                               bc_type.as_str()));
+                bc_type.as_str()));
         }
-        if self.nodes.iter().position(|node|
-            node.as_ref().borrow().number_same(node_number)).is_none()
+
+        if !self.nodes.contains_key(&node_number)
         {
             return Err(format!("FEModel: {} could not be added because the current node number \
                 does not exist!", bc_type.as_str()));
         }
+
         let bc = BoundaryCondition::create(bc_type, number, node_number,
             dof_parameter, value);
+
         self.boundary_conditions.push(bc);
         Ok(())
     }
@@ -428,12 +435,12 @@ impl<T, V> FEModel<T, V>
     pub fn update_bc(&mut self, bc_type: BCType, number: T, node_number: T,
         dof_parameter: GlobalDOFParameter, value: V) -> Result<(), String>
     {
-        if self.nodes.iter().position(|node|
-            node.as_ref().borrow().number_same(node_number)).is_none()
+        if !self.nodes.contains_key(&node_number)
         {
             return Err(format!("FEModel: {} could not be updated because the current node number \
                 does not exist!", bc_type.as_str()));
         }
+
         if self.boundary_conditions.iter().position(|bc|
             (bc.dof_parameter_data_same(dof_parameter, node_number) &&
             !bc.number_same(number)) ||
@@ -444,6 +451,7 @@ impl<T, V> FEModel<T, V>
                 displacement with the same dof parameter data does already exist!",
                 bc_type.as_str()));
         }
+
         if let Some(position) =  self.boundary_conditions.iter().position(|bc|
             bc.number_same(number) && bc.type_same(bc_type))
         {
@@ -717,10 +725,11 @@ impl<T, V> FEModel<T, V>
         -> Result<ElementsAnalysisResult<T, V>, String>
     {
         let mut elements_analysis_data = Vec::new();
-        for element in &self.elements
+        for (element_number, element) in self.elements.iter()
         {
             let element_analysis_data =
-                element.extract_element_analysis_data(global_displacements, self.state.tolerance)?;
+                element.extract_element_analysis_data(global_displacements, self.state.tolerance,
+                &self.nodes, *element_number)?;
             elements_analysis_data.push(element_analysis_data);
         }
         let elements_analysis_results =

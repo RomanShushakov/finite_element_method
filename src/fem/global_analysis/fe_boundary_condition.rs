@@ -34,8 +34,8 @@ impl<T, V> Displacement<T, V>
 {
     fn create(number: T, node_number: T, dof_parameter: GlobalDOFParameter, value: V) -> Self
     {
-        Displacement { number,
-            dof_parameter_data: DOFParameterData { node_number, dof_parameter }, value }
+        Displacement { number, dof_parameter_data: DOFParameterData { node_number, dof_parameter },
+            value }
     }
 }
 

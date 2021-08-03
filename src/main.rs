@@ -6,7 +6,7 @@ use extended_matrix::extended_matrix::ExtendedMatrix;
 
 use crate::my_float::MyFloatTrait;
 use crate::fem::fe_model::FEModel;
-use crate::fem::finite_elements::finite_element::{FEType, FEData};
+use crate::fem::finite_elements::finite_element::FEType;
 use crate::fem::global_analysis::fe_boundary_condition::BCType;
 use crate::fem::global_analysis::fe_dof_parameter_data::GlobalDOFParameter;
 
@@ -17,7 +17,7 @@ mod auxiliary;
 mod my_float;
 
 
-pub const TOLERANCE: f64 = 1e-6;
+pub const TOLERANCE: f32 = 1e-6;
 
 
 fn main() -> Result<(), String>
@@ -205,7 +205,7 @@ fn main() -> Result<(), String>
 
 
     let mut fe_model = FEModel::create(TOLERANCE);
-    fe_model.add_node(1u16, 0f64, 0.0, 0.0)?;
+    fe_model.add_node(1u32, 0f32, 0.0, 0.0)?;
     fe_model.add_node(2, 0.0, 30.0, 0.0)?;
     fe_model.add_node(3, 36.0, 0.0, 0.0)?;
     fe_model.add_node(4, 36.0, 30.0, 0.0)?;
@@ -216,82 +216,56 @@ fn main() -> Result<(), String>
     fe_model.add_node(9, 148.0, 0.0, 0.0)?;
     fe_model.add_node(10, 148.0, 30.0, 0.0)?;
 
-    fe_model.add_element(
-        FEType::Truss2n2ip,
-        vec![1, 2],
-        FEData { number: 1, nodes: Vec::new(), properties: vec![1e6, 2.0] } )?;
-    fe_model.add_element(
-        FEType::Truss2n2ip,
-        vec![1, 3],
-        FEData { number: 2, nodes: Vec::new(), properties: vec![1e6, 2.0] } )?;
-    fe_model.add_element(
-        FEType::Truss2n2ip,
-        vec![1, 4],
-        FEData { number: 3, nodes: Vec::new(), properties: vec![1e6, 2.0] } )?;
+    fe_model.add_element(1, FEType::Truss2n1ip, vec![1, 2],
+        vec![1e6, 2.0])?;
 
-    fe_model.add_element(
-        FEType::Truss2n2ip,
-        vec![2, 4],
-        FEData { number: 4, nodes: Vec::new(), properties: vec![1e6, 2.0] } )?;
+    fe_model.add_element(2, FEType::Truss2n1ip, vec![1, 3],
+        vec![1e6, 2.0])?;
 
-    fe_model.add_element(
-        FEType::Truss2n2ip,
-        vec![3, 4],
-        FEData { number: 5, nodes: Vec::new(), properties: vec![1e6, 2.0] } )?;
-    fe_model.add_element(
-        FEType::Truss2n2ip,
-        vec![3, 5],
-        FEData { number: 6, nodes: Vec::new(), properties: vec![1e6, 2.0] } )?;
-    fe_model.add_element(
-        FEType::Truss2n2ip,
-        vec![3, 6],
-        FEData { number: 7, nodes: Vec::new(), properties: vec![1e6, 2.0] } )?;
+    fe_model.add_element(3, FEType::Truss2n1ip, vec![1, 4],
+        vec![1e6, 2.0])?;
 
-    fe_model.add_element(
-        FEType::Truss2n2ip,
-        vec![4, 6],
-        FEData { number: 8, nodes: Vec::new(), properties: vec![1e6, 2.0] } )?;
+    fe_model.add_element(4, FEType::Truss2n1ip, vec![2, 4],
+        vec![1e6, 2.0])?;
 
-    fe_model.add_element(
-        FEType::Truss2n2ip,
-        vec![5, 6],
-        FEData { number: 9, nodes: Vec::new(), properties: vec![1e6, 2.0] } )?;
-    fe_model.add_element(
-        FEType::Truss2n2ip,
-        vec![5, 7],
-        FEData { number: 10, nodes: Vec::new(), properties: vec![1e6, 2.0] } )?;
-    fe_model.add_element(
-        FEType::Truss2n2ip,
-        vec![5, 8],
-        FEData { number: 11, nodes: Vec::new(), properties: vec![1e6, 2.0] } )?;
+    fe_model.add_element(5, FEType::Truss2n1ip, vec![3, 4],
+        vec![1e6, 2.0])?;
 
-    fe_model.add_element(
-        FEType::Truss2n2ip,
-        vec![6, 8],
-        FEData { number: 12, nodes: Vec::new(), properties: vec![1e6, 2.0] } )?;
+    fe_model.add_element(6, FEType::Truss2n2ip, vec![3, 5],
+        vec![1e6, 2.0])?;
 
-    fe_model.add_element(
-        FEType::Truss2n2ip,
-        vec![7, 8],
-        FEData { number: 13, nodes: Vec::new(), properties: vec![1e6, 2.0] } )?;
-    fe_model.add_element(
-        FEType::Truss2n2ip,
-        vec![7, 9],
-        FEData { number: 14, nodes: Vec::new(), properties: vec![1e6, 2.0] } )?;
-    fe_model.add_element(
-        FEType::Truss2n2ip,
-        vec![7, 10],
-        FEData { number: 15, nodes: Vec::new(), properties: vec![1e6, 2.0] } )?;
+    fe_model.add_element(7, FEType::Truss2n2ip, vec![3, 6],
+        vec![1e6, 2.0])?;
 
-    fe_model.add_element(
-        FEType::Truss2n2ip,
-        vec![8, 10],
-        FEData { number: 16, nodes: Vec::new(), properties: vec![1e6, 2.0] } )?;
+    fe_model.add_element(8, FEType::Truss2n2ip, vec![4, 6],
+        vec![1e6, 2.0])?;
 
-    fe_model.add_element(
-        FEType::Truss2n2ip,
-        vec![9, 10],
-        FEData { number: 17, nodes: Vec::new(), properties: vec![1e6, 2.0] } )?;
+    fe_model.add_element(9, FEType::Truss2n2ip, vec![5, 6],
+        vec![1e6, 2.0])?;
+
+    fe_model.add_element(10, FEType::Truss2n2ip, vec![5, 7],
+        vec![1e6, 2.0])?;
+
+    fe_model.add_element(11, FEType::Truss2n2ip, vec![5, 8],
+        vec![1e6, 2.0])?;
+
+    fe_model.add_element(12, FEType::Truss2n2ip, vec![6, 8],
+        vec![1e6, 2.0])?;
+
+    fe_model.add_element(13, FEType::Truss2n2ip, vec![7, 8],
+        vec![1e6, 2.0])?;
+
+    fe_model.add_element(14, FEType::Truss2n2ip, vec![7, 9],
+        vec![1e6, 2.0])?;
+
+    fe_model.add_element(15, FEType::Truss2n2ip, vec![7, 10],
+        vec![1e6, 2.0])?;
+
+    fe_model.add_element(16, FEType::Truss2n2ip, vec![8, 10],
+        vec![1e6, 2.0])?;
+
+    fe_model.add_element(17, FEType::Truss2n2ip, vec![9, 10],
+        vec![1e6, 2.0])?;
 
 
     fe_model.add_bc(
