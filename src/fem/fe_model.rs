@@ -6,8 +6,6 @@ use std::cell::RefCell;
 use std::collections::HashSet;
 use std::iter::FromIterator;
 
-use extended_matrix::one::One;
-
 use extended_matrix::basic_matrix::basic_matrix::{MatrixElementPosition, ZerosRowColumn};
 use extended_matrix::extended_matrix::ExtendedMatrix;
 use extended_matrix::extended_matrix::Operation;
@@ -27,8 +25,7 @@ use crate::fem::element_analysis::fe_element_analysis_result::ElementsAnalysisRe
 
 use crate::fem::functions::{separate, compose_stiffness_sub_groups};
 
-use crate::minus_one::MinusOne;
-use crate::float::MyFloatTrait;
+use crate::my_float::MyFloatTrait;
 
 
 use crate::TOLERANCE;
@@ -64,11 +61,11 @@ pub struct FEModel<T, V>
 
 impl<T, V> FEModel<T, V>
     where T: Copy + PartialEq + Sub<Output = T> + Div<Output = T> + Rem<Output = T> + Eq + Hash +
-             SubAssign + Debug + Mul<Output = T> + PartialOrd + Default + Add<Output = T> +
-             AddAssign + One + 'static,
-          V: Copy + Sub<Output = V> + Default + Mul<Output = V> +
-             Add<Output = V> + Div<Output = V> + PartialEq + Debug + AddAssign + MulAssign +
-             SubAssign + Into<f64> + PartialOrd + One + MinusOne + MyFloatTrait + 'static,
+             SubAssign + Debug + Mul<Output = T> + PartialOrd + Add<Output = T> + From<u8> +
+             AddAssign + 'static,
+          V: Copy + Sub<Output = V> + Mul<Output = V> + Add<Output = V> + Div<Output = V> +
+             PartialEq + Debug + AddAssign + MulAssign + SubAssign + Into<f64> + PartialOrd +
+             MyFloatTrait + From<f32> + 'static,
 {
     pub fn create(tolerance: V) -> Self
     {
@@ -93,10 +90,10 @@ impl<T, V> FEModel<T, V>
             {
                 nodes_numbers.push(node.borrow().number);
             }
-            let mut position = T::default();
+            let mut position = T::from(0u8);
 
-            let mut columns_number = T::default();
-            (0..nodes_numbers.len()).for_each(|_| columns_number += T::one());
+            let mut columns_number = T::from(0u8);
+            (0..nodes_numbers.len()).for_each(|_| columns_number += T::from(1u8));
 
             for i in 1..nodes_numbers.len()
             {
@@ -113,14 +110,14 @@ impl<T, V> FEModel<T, V>
                             columns_number, nodes_numbers[j],
                             nodes_numbers[j])?;
                         stiffness_groups.extend(stiffness_sub_groups);
-                        position += T::one();
+                        position += T::from(1u8);
                     }
                     let stiffness_sub_groups =
                          compose_stiffness_sub_groups(position,
                         columns_number, excluded,
                         v_lhs[j])?;
                     stiffness_groups.extend(stiffness_sub_groups);
-                    position += T::one();
+                    position += T::from(1u8);
                 }
             }
 
@@ -132,7 +129,7 @@ impl<T, V> FEModel<T, V>
                     nodes_numbers[nodes_numbers.len() - 1],
                     nodes_numbers[i])?;
                 stiffness_groups.extend(stiffness_sub_groups);
-                position += T::one();
+                position += T::from(1u8);
             }
             let stiffness_sub_groups =
                  compose_stiffness_sub_groups(position,
@@ -367,13 +364,13 @@ impl<T, V> FEModel<T, V>
                 free nodes exist!");
         }
 
-        let mut nodes_len_value = T::default();
-        (0..self.nodes.len()).for_each(|_| nodes_len_value += T::one());
+        let mut nodes_len_value = T::from(0u8);
+        (0..self.nodes.len()).for_each(|_| nodes_len_value += T::from(1u8));
 
         let mut global_stiffness_matrix = ExtendedMatrix::<T, V>::create(
             nodes_len_value * global_dof::<T>(),
             nodes_len_value * global_dof::<T>(),
-            vec![V::default(); (self.nodes.len() * GLOBAL_DOF).pow(2)],
+            vec![V::from(0f32); (self.nodes.len() * GLOBAL_DOF).pow(2)],
             self.state.tolerance);
 
         for element in &self.elements
@@ -484,11 +481,11 @@ impl<T, V> FEModel<T, V>
         for row_column in zeros_rows_columns
         {
             let mut row_column_as_index = 0usize;
-            let mut n = T::default();
+            let mut n = T::from(0u8);
             while n < row_column.column()
             {
                 row_column_as_index += 1usize;
-                n += T::one();
+                n += T::from(1u8);
             }
 
             let dof_parameter_data =
@@ -519,7 +516,7 @@ impl<T, V> FEModel<T, V>
         {
             if bc.type_same(BCType::Displacement)
             {
-                let mut row = T::default();
+                let mut row = T::from(0u8);
                 for dof_parameter_data in
                     &self.state.nodes_dof_parameters_global
                 {
@@ -530,7 +527,7 @@ impl<T, V> FEModel<T, V>
                             MatrixElementPosition::create(row, row));
                         ub_rb_rows_numbers.push(row);
                     }
-                    row += T::one();
+                    row += T::from(1u8);
                 }
             }
         }
@@ -540,14 +537,14 @@ impl<T, V> FEModel<T, V>
     fn compose_ua_ra_rows_numbers(&self, ub_rb_rows_numbers: &Vec<T>,
         ua_ra_rows_numbers: &mut Vec<T>)
     {
-        let mut i = T::default();
+        let mut i = T::from(0u8);
         (0..self.state.nodes_dof_parameters_global.len()).for_each(|_|
             {
                 if ub_rb_rows_numbers.iter().position(|n| *n == i).is_none()
                 {
                     ua_ra_rows_numbers.push(i);
                 }
-                i += T::one();
+                i += T::from(1u8);
             });
 
         // for i in 0..self.state.nodes_dof_parameters_global.len()
@@ -581,16 +578,16 @@ impl<T, V> FEModel<T, V>
             }
             else
             {
-                all_elements.push(V::default());
+                all_elements.push(V::from(0f32));
             }
         }
 
-        let mut converted_rows_numbers = T::default();
-        (0..rows_numbers.len()).for_each(|_| converted_rows_numbers += T::one());
+        let mut converted_rows_numbers = T::from(0u8);
+        (0..rows_numbers.len()).for_each(|_| converted_rows_numbers += T::from(1u8));
 
         let matrix = ExtendedMatrix::create(
             converted_rows_numbers,
-            T::one(),
+            T::from(1u8),
             all_elements, self.state.tolerance);
         matrix
     }
@@ -603,16 +600,16 @@ impl<T, V> FEModel<T, V>
         let ua_values = ua_matrix.extract_all_elements_values();
         let ub_values = ub_matrix.extract_all_elements_values();
         let mut all_displacements_values =
-            vec![V::default(); self.state.nodes_dof_parameters_global.len()];
+            vec![V::from(0f32); self.state.nodes_dof_parameters_global.len()];
 
-        let mut i = T::default();
+        let mut i = T::from(0u8);
         (0..ua_ra_rows_numbers.len()).for_each(|index|
             {
                 let displacement_value = extract_element_value(
-                    i, T::default(), &ua_values);
+                    i, T::from(0u8), &ua_values);
                 let converted_index = conversion_uint_into_usize(ua_ra_rows_numbers[index]);
                 all_displacements_values[converted_index] = displacement_value;
-                i += T::one();
+                i += T::from(1u8);
             });
 
 
@@ -623,14 +620,14 @@ impl<T, V> FEModel<T, V>
         //     all_displacements_values[ua_ra_rows_numbers[i].into() as usize] = displacement_value;
         // }
 
-        let mut j = T::default();
+        let mut j = T::from(0u8);
         (0..ub_rb_rows_numbers.len()).for_each(|index|
             {
                 let displacement_value = extract_element_value(
-                    j, T::default(), &ub_values);
+                    j, T::from(0u8), &ub_values);
                 let converted_index = conversion_uint_into_usize(ub_rb_rows_numbers[index]);
                 all_displacements_values[converted_index] = displacement_value;
-                j += T::one();
+                j += T::from(1u8);
             });
 
 
@@ -641,15 +638,15 @@ impl<T, V> FEModel<T, V>
         //     all_displacements_values[ub_rb_rows_numbers[j].into() as usize] = displacement_value;
         // }
 
-        let mut rows_number = T::default();
-        (0..self.state.nodes_dof_parameters_global.len()).for_each(|_| rows_number += T::one());
+        let mut rows_number = T::from(0u8);
+        (0..self.state.nodes_dof_parameters_global.len()).for_each(|_| rows_number += T::from(1u8));
 
         // let rows_number =
         //     T::from(self.state.nodes_dof_parameters_global.len());
 
         let displacement_matrix =
             ExtendedMatrix::create(
-                rows_number, T::one(), all_displacements_values,
+                rows_number, T::from(1u8), all_displacements_values,
                 self.state.tolerance);
         displacement_matrix
     }
@@ -693,18 +690,18 @@ impl<T, V> FEModel<T, V>
         let reactions_values_matrix_shape = reactions_values_matrix.get_shape();
         let mut reactions_values = Vec::new();
 
-        let mut row = T::default();
+        let mut row = T::from(0u8);
         while row < reactions_values_matrix_shape.0
         {
-            let mut column = T::default();
+            let mut column = T::from(0u8);
             while column < reactions_values_matrix_shape.1
             {
                 let reaction_value = extract_element_value(row, column,
                     &all_reactions);
                 reactions_values.push(reaction_value);
-                column += T::one();
+                column += T::from(1u8);
             }
-            row += T::one();
+            row += T::from(1u8);
         }
 
         // for row in 0..reactions_values_matrix_shape.0.into()
@@ -734,18 +731,18 @@ impl<T, V> FEModel<T, V>
         let displacements_values_matrix_shape = displacements_values_matrix.get_shape();
         let mut displacements_values = Vec::new();
 
-        let mut row = T::default();
+        let mut row = T::from(0u8);
         while row < displacements_values_matrix_shape.0
         {
-            let mut column = T::default();
+            let mut column = T::from(0u8);
             while column < displacements_values_matrix_shape.1
             {
                 let displacement_value = extract_element_value(row, column,
                     &all_displacements);
                 displacements_values.push(displacement_value);
-                column += T::one();
+                column += T::from(1u8);
             }
-            row += T::one();
+            row += T::from(1u8);
         }
 
         // for row in 0..displacements_values_matrix_shape.0.into()

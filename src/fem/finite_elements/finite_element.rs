@@ -5,11 +5,9 @@ use std::hash::Hash;
 use std::fmt::Debug;
 use std::slice::Iter;
 
-use extended_matrix::one::One;
 use extended_matrix::extended_matrix::ExtendedMatrix;
 
-use crate::minus_one::MinusOne;
-use crate::float::MyFloatTrait;
+use crate::my_float::MyFloatTrait;
 
 use crate::fem::finite_elements::fe_node::FENode;
 use crate::fem::finite_elements::truss::truss2n2ip::Truss2n2ip;
@@ -60,13 +58,13 @@ pub struct FEData<T, V>
 
 impl<T, V> FEData<T, V>
     where T: Debug,
-          V: Default + PartialOrd
+          V: PartialOrd + From<f32>,
 {
     pub fn check_properties(&self) -> Result<(), String>
     {
         for value in self.properties.iter()
         {
-            if *value <= V::default()
+            if *value <= V::from(0f32)
             {
                 return Err(format!("FEData: All properties values for element {:?} should be \
                     greater than zero!", self.number));
@@ -99,12 +97,11 @@ struct FECreator<T, V>(T, V);
 
 impl<T, V> FECreator<T, V>
     where T: Copy + Sub<Output = T> + Div<Output = T> + Rem<Output = T> + Eq + Hash + SubAssign +
-             Debug + Mul<Output = T> + PartialOrd + Default + Add<Output = T> + One + AddAssign +
+             Debug + Mul<Output = T> + PartialOrd + Add<Output = T> + AddAssign + From<u8> +
              'static,
-          V: Copy + Sub<Output = V> + Default +
-             Mul<Output = V> + Add<Output = V> + Div<Output = V> + PartialEq + Debug + AddAssign +
-             MulAssign + SubAssign + One + MinusOne + MyFloatTrait + PartialOrd +
-             Into<f64> + 'static,
+          V: Copy + Sub<Output = V> + Mul<Output = V> + Add<Output = V> + Div<Output = V> +
+             PartialEq + Debug + AddAssign + MulAssign + SubAssign + MyFloatTrait + PartialOrd +
+             Into<f64> + From<f32> + 'static,
 {
     fn create(fe_type: FEType, data: FEData<T, V>, tolerance: V)
         -> Result<Box<dyn FiniteElementTrait<T, V>>, String>
@@ -148,11 +145,11 @@ pub struct FiniteElement<T, V>
 
 impl<T, V> FiniteElement<T, V>
     where T: Copy + Sub<Output = T> + Div<Output = T> + Rem<Output = T> + Eq + Hash + SubAssign +
-             Debug + Mul<Output = T> + PartialOrd + Default + Add<Output = T> + One + AddAssign +
+             Debug + Mul<Output = T> + PartialOrd + Add<Output = T> + AddAssign + From<u8> +
              'static,
-          V: Copy + Sub<Output = V> + Default + Mul<Output = V> + Add<Output = V> +
-             Div<Output = V> + PartialEq + Debug + AddAssign + MulAssign + SubAssign +
-             One + MinusOne + MyFloatTrait + PartialOrd + Into<f64> + 'static,
+          V: Copy + Sub<Output = V> + Mul<Output = V> + Add<Output = V> + Div<Output = V> +
+             PartialEq + Debug + AddAssign + MulAssign + SubAssign + MyFloatTrait + PartialOrd +
+             Into<f64> + From<f32> + 'static,
 {
     pub fn create(fe_type: FEType, data: FEData<T, V>, tolerance: V) -> Result<Self, String>
     {

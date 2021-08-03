@@ -1,7 +1,6 @@
 use std::slice::Iter;
 use std::ops::AddAssign;
 
-use extended_matrix::one::One;
 use extended_matrix::basic_matrix::basic_matrix::MatrixElementPosition;
 
 use self::StiffnessType::*;
@@ -11,10 +10,10 @@ const STIFFNESS_TYPES_NUMBER: usize = 4;
 
 
 pub fn stiffness_types_number<T>() -> T
-    where T: Default + One + AddAssign
+    where T: AddAssign + From<u8>
 {
-    let mut n = T::default();
-    (0..STIFFNESS_TYPES_NUMBER).for_each(|_| n += T::one());
+    let mut n = T::from(0u8);
+    (0..STIFFNESS_TYPES_NUMBER).for_each(|_| n += T::from(1u8));
     n
 }
 

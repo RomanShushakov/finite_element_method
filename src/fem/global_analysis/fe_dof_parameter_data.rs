@@ -1,20 +1,17 @@
 use std::slice::Iter;
 use std::ops::AddAssign;
 
-use extended_matrix::one::One;
-
 use self::GlobalDOFParameter::*;
-
 
 
 pub const GLOBAL_DOF: usize = 6;
 
 
 pub fn global_dof<T>() -> T
-    where T: One + Default + AddAssign
+    where T: AddAssign + From<u8>
 {
-    let mut global_dof = T::default();
-    (0..GLOBAL_DOF).for_each(|_| global_dof += T::one());
+    let mut global_dof = T::from(0u8);
+    (0..GLOBAL_DOF).for_each(|_| global_dof += T::from(1u8));
     global_dof
 }
 

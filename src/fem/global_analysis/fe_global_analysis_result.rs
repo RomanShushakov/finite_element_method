@@ -28,9 +28,9 @@ pub struct GlobalAnalysisResult<T, V>
 
 impl<T, V> GlobalAnalysisResult<T, V>
     where T: Copy +PartialEq + Mul<Output = T> + Add<Output = T> + Sub<Output = T> +
-             Div<Output = T> + Rem<Output = T> + Default + Eq + Hash + SubAssign + Debug +
+             Div<Output = T> + Rem<Output = T> + Eq + Hash + SubAssign + Debug +
              PartialOrd + 'static,
-          V: Copy + Default + Mul<Output = V> + Div<Output = V> + Sub<Output = V> +
+          V: Copy + Mul<Output = V> + Div<Output = V> + Sub<Output = V> +
              Add<Output = V> + Debug + PartialEq + AddAssign + MulAssign +
              SubAssign + Into<f64> + 'static,
 {
