@@ -45,12 +45,9 @@ impl<T, V> TrussAuxFunctions<T, V>
 {
     fn length(node_1: Rc<RefCell<FENode<T, V>>>, node_2: Rc<RefCell<FENode<T, V>>>) -> V
     {
-        ((node_1.as_ref().borrow().coordinates.x -
-            node_2.as_ref().borrow().coordinates.x).my_powi(2) +
-        (node_1.as_ref().borrow().coordinates.y -
-            node_2.as_ref().borrow().coordinates.y).my_powi(2) +
-        (node_1.as_ref().borrow().coordinates.z -
-            node_2.as_ref().borrow().coordinates.z).my_powi(2)).my_sqrt()
+        ((node_1.as_ref().borrow().x() - node_2.as_ref().borrow().x()).my_powi(2) +
+        (node_1.as_ref().borrow().y() - node_2.as_ref().borrow().y()).my_powi(2) +
+        (node_1.as_ref().borrow().z() - node_2.as_ref().borrow().z()).my_powi(2)).my_sqrt()
     }
 
 
@@ -73,12 +70,9 @@ impl<T, V> TrussAuxFunctions<T, V>
     fn rotation_matrix(node_1: Rc<RefCell<FENode<T, V>>>, node_2: Rc<RefCell<FENode<T, V>>>,
         tolerance: V) -> ExtendedMatrix<T, V>
     {
-        let x = (node_2.as_ref().borrow().coordinates.x -
-            node_1.as_ref().borrow().coordinates.x);
-        let y = (node_2.as_ref().borrow().coordinates.y -
-            node_1.as_ref().borrow().coordinates.y);
-        let z = (node_2.as_ref().borrow().coordinates.z -
-            node_1.as_ref().borrow().coordinates.z);
+        let x = (node_2.as_ref().borrow().x() - node_1.as_ref().borrow().x());
+        let y = (node_2.as_ref().borrow().y() - node_1.as_ref().borrow().y());
+        let z = (node_2.as_ref().borrow().z() - node_1.as_ref().borrow().z());
         let length = TrussAuxFunctions::<T, V>::length(node_1, node_2);
 
         let (u, v, w) = (length, V::from(0f32), V::from(0f32));
@@ -397,11 +391,11 @@ impl<T, V> Truss2n2ip<T, V>
 
         let mut nodes_dof_parameters =
             TrussAuxFunctions::<T, V>::compose_node_dof_parameters(
-                node_1.as_ref().borrow().number)?;
+                node_1.as_ref().borrow().number())?;
 
         let node_2_dof_parameters =
             TrussAuxFunctions::<T, V>::compose_node_dof_parameters(
-                node_2.as_ref().borrow().number)?;
+                node_2.as_ref().borrow().number())?;
 
         nodes_dof_parameters.extend(node_2_dof_parameters);
 
@@ -491,11 +485,11 @@ impl<T, V> FiniteElementTrait<T, V> for Truss2n2ip<T, V>
 
         let mut nodes_dof_parameters =
             TrussAuxFunctions::<T, V>::compose_node_dof_parameters(
-                node_1.as_ref().borrow().number)?;
+                node_1.as_ref().borrow().number())?;
 
         let node_2_dof_parameters =
             TrussAuxFunctions::<T, V>::compose_node_dof_parameters(
-                node_2.as_ref().borrow().number)?;
+                node_2.as_ref().borrow().number())?;
 
         nodes_dof_parameters.extend(node_2_dof_parameters);
 
@@ -593,26 +587,26 @@ impl<T, V> FiniteElementTrait<T, V> for Truss2n2ip<T, V>
         // }
 
         vec![StiffnessGroup { stiffness_type: StiffnessType::Kuu,
-                number_1: self.node_1.as_ref().borrow().number,
-                number_2: self.node_1.as_ref().borrow().number, positions: positions_1_1, },
+                number_1: self.node_1.as_ref().borrow().number(),
+                number_2: self.node_1.as_ref().borrow().number(), positions: positions_1_1, },
              StiffnessGroup { stiffness_type: StiffnessType::Kuu,
-                number_1: self.node_1.as_ref().borrow().number,
-                number_2: self.node_2.as_ref().borrow().number, positions: positions_1_2, },
+                number_1: self.node_1.as_ref().borrow().number(),
+                number_2: self.node_2.as_ref().borrow().number(), positions: positions_1_2, },
              StiffnessGroup { stiffness_type: StiffnessType::Kuu,
-                number_1: self.node_2.as_ref().borrow().number,
-                number_2: self.node_1.as_ref().borrow().number, positions: positions_2_1
+                number_1: self.node_2.as_ref().borrow().number(),
+                number_2: self.node_1.as_ref().borrow().number(), positions: positions_2_1
              },
              StiffnessGroup { stiffness_type: StiffnessType::Kuu,
-                number_1: self.node_2.as_ref().borrow().number,
-                number_2: self.node_2.as_ref().borrow().number, positions: positions_2_2
+                number_1: self.node_2.as_ref().borrow().number(),
+                number_2: self.node_2.as_ref().borrow().number(), positions: positions_2_2
              }, ]
     }
 
 
     fn node_belong_element(&self, node_number: T) -> bool
     {
-        self.node_1.as_ref().borrow().number == node_number ||
-        self.node_2.as_ref().borrow().number == node_number
+        self.node_1.as_ref().borrow().number() == node_number ||
+        self.node_2.as_ref().borrow().number() == node_number
     }
 
 
@@ -650,10 +644,10 @@ impl<T, V> FiniteElementTrait<T, V> for Truss2n2ip<T, V>
 
     fn nodes_numbers_same(&self, nodes_numbers: Vec<T>) -> bool
     {
-        (nodes_numbers[0] == self.node_1.as_ref().borrow().number &&
-        nodes_numbers[1] == self.node_2.as_ref().borrow().number) ||
-        (nodes_numbers[0] == self.node_2.as_ref().borrow().number &&
-        nodes_numbers[1] == self.node_1.as_ref().borrow().number)
+        (nodes_numbers[0] == self.node_1.as_ref().borrow().number() &&
+        nodes_numbers[1] == self.node_2.as_ref().borrow().number()) ||
+        (nodes_numbers[0] == self.node_2.as_ref().borrow().number() &&
+        nodes_numbers[1] == self.node_1.as_ref().borrow().number())
     }
 
 

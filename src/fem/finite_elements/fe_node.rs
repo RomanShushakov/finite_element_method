@@ -1,27 +1,10 @@
-#[derive(Debug, PartialEq)]
-pub struct GlobalCoordinates<V>
-{
-    pub x: V,
-    pub y: V,
-    pub z: V,
-}
-
-
-impl<V> GlobalCoordinates<V>
-    where V: Copy
-{
-    fn extract(&self) -> (V, V, V)
-    {
-        (self.x, self.y, self.z)
-    }
-}
-
-
 #[derive(Debug)]
 pub struct FENode<T, V>
 {
-    pub number: T,
-    pub coordinates: GlobalCoordinates<V>
+    number: T,
+    x: V,
+    y: V,
+    z: V,
 }
 
 
@@ -31,13 +14,15 @@ impl<T, V> FENode<T, V>
 {
     pub fn create(number: T, x: V, y: V, z: V) -> Self
     {
-        FENode { number, coordinates: GlobalCoordinates { x, y, z } }
+        FENode { number, x, y, z }
     }
 
 
     pub fn update(&mut self, x: V, y: V, z: V)
     {
-        self.coordinates = GlobalCoordinates { x, y, z };
+        self.x = x;
+        self.y = y;
+        self.z = z;
     }
 
 
@@ -49,7 +34,7 @@ impl<T, V> FENode<T, V>
 
     pub fn coordinates_same(&self, x: V, y: V, z: V) -> bool
     {
-        GlobalCoordinates { x, y, z } == self.coordinates
+        (x, y, z) == (self.x, self.y, self.z)
     }
 
 
@@ -61,7 +46,30 @@ impl<T, V> FENode<T, V>
 
     pub fn extract_coordinates(&self) -> (V, V, V)
     {
-        self.coordinates.extract()
+        (self.x, self.y, self.z)
     }
 
+
+    pub fn number(&self) -> T
+    {
+        self.number
+    }
+
+
+    pub fn x(&self) -> V
+    {
+        self.x
+    }
+
+
+    pub fn y(&self) -> V
+    {
+        self.y
+    }
+
+
+    pub fn z(&self) -> V
+    {
+        self.z
+    }
 }

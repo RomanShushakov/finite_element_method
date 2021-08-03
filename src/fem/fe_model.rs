@@ -88,7 +88,7 @@ impl<T, V> FEModel<T, V>
             let mut nodes_numbers = Vec::new();
             for node in self.nodes.iter()
             {
-                nodes_numbers.push(node.borrow().number);
+                nodes_numbers.push(node.borrow().number());
             }
             let mut position = T::from(0u8);
 
@@ -154,7 +154,7 @@ impl<T, V> FEModel<T, V>
                     GlobalDOFParameter::iterator().nth(dof)
                         .ok_or("FEModel: Could not find dof parameter!")?;
                 let dof_parameter_data = DOFParameterData {
-                    node_number: node.as_ref().borrow().number,
+                    node_number: node.as_ref().borrow().number(),
                     dof_parameter: *dof_parameter
                 };
                 nodes_dof_parameters.push(dof_parameter_data);
@@ -350,7 +350,6 @@ impl<T, V> FEModel<T, V>
 
     fn compose_global_stiffness_matrix(&self) -> Result<ExtendedMatrix<T, V>, &str>
     {
-
         if self.elements.is_empty()
         {
             return Err("FEModel: Global stiffness matrix could not be composed because there are \
@@ -358,7 +357,7 @@ impl<T, V> FEModel<T, V>
         }
         if self.nodes.iter().any(|node|
             self.elements.iter().position(|element|
-                element.node_belong_element(node.as_ref().borrow().number)).is_none())
+                element.node_belong_element(node.as_ref().borrow().number())).is_none())
         {
             return Err("FEModel: Global stiffness matrix could not be composed because there are \
                 free nodes exist!");
@@ -419,8 +418,8 @@ impl<T, V> FEModel<T, V>
             return Err(format!("FEModel: {} could not be added because the current node number \
                 does not exist!", bc_type.as_str()));
         }
-        let bc = BoundaryCondition::create(
-            bc_type, number, node_number, dof_parameter, value);
+        let bc = BoundaryCondition::create(bc_type, number, node_number,
+            dof_parameter, value);
         self.boundary_conditions.push(bc);
         Ok(())
     }
@@ -443,7 +442,7 @@ impl<T, V> FEModel<T, V>
         {
             return Err(format!("FEModel: {} could not be updated because the the force or \
                 displacement with the same dof parameter data does already exist!",
-                               bc_type.as_str()));
+                bc_type.as_str()));
         }
         if let Some(position) =  self.boundary_conditions.iter().position(|bc|
             bc.number_same(number) && bc.type_same(bc_type))
@@ -501,8 +500,8 @@ impl<T, V> FEModel<T, V>
                 let dof_parameter = dof_parameter_data.dof_parameter;
                 let node_number = dof_parameter_data.node_number;
                 return Err(format!("FEModel: Model could not be analyzed because where are \
-                    no stiffness to withstand {}::{:?} applied at node {:?}!",
-                                   bc_type.as_str(), dof_parameter, node_number))
+                    no stiffness to withstand {}::{:?} applied at node {:?}!", bc_type.as_str(),
+                    dof_parameter, node_number))
             }
         }
         Ok(())
@@ -546,15 +545,6 @@ impl<T, V> FEModel<T, V>
                 }
                 i += T::from(1u8);
             });
-
-        // for i in 0..self.state.nodes_dof_parameters_global.len()
-        // {
-        //     if ub_rb_rows_numbers.iter().position(|n|
-        //         *n == T::from(i)).is_none()
-        //     {
-        //         ua_ra_rows_numbers.push(T::from(i));
-        //     }
-        // }
     }
 
 
@@ -612,14 +602,6 @@ impl<T, V> FEModel<T, V>
                 i += T::from(1u8);
             });
 
-
-        // for i in 0..ua_ra_rows_numbers.len()
-        // {
-        //     let displacement_value = extract_element_value(
-        //         T::from(i), T::from(0), &ua_values);
-        //     all_displacements_values[ua_ra_rows_numbers[i].into() as usize] = displacement_value;
-        // }
-
         let mut j = T::from(0u8);
         (0..ub_rb_rows_numbers.len()).for_each(|index|
             {
@@ -630,19 +612,8 @@ impl<T, V> FEModel<T, V>
                 j += T::from(1u8);
             });
 
-
-        // for j in 0..ub_rb_rows_numbers.len()
-        // {
-        //     let displacement_value = extract_element_value(
-        //         T::from(j), T::from(0), &ub_values);
-        //     all_displacements_values[ub_rb_rows_numbers[j].into() as usize] = displacement_value;
-        // }
-
         let mut rows_number = T::from(0u8);
         (0..self.state.nodes_dof_parameters_global.len()).for_each(|_| rows_number += T::from(1u8));
-
-        // let rows_number =
-        //     T::from(self.state.nodes_dof_parameters_global.len());
 
         let displacement_matrix =
             ExtendedMatrix::create(
@@ -704,17 +675,6 @@ impl<T, V> FEModel<T, V>
             row += T::from(1u8);
         }
 
-        // for row in 0..reactions_values_matrix_shape.0.into()
-        // {
-        //     for column in 0..reactions_values_matrix_shape.1.into()
-        //     {
-        //         let reaction_value =
-        //             extract_element_value(T::from(row),
-        //                 T::from(column), &all_reactions);
-        //         reactions_values.push(reaction_value);
-        //     }
-        // }
-
         let mut reactions_dof_parameters_data = Vec::new();
         for row_number in &ub_rb_rows_numbers
         {
@@ -744,17 +704,6 @@ impl<T, V> FEModel<T, V>
             }
             row += T::from(1u8);
         }
-
-        // for row in 0..displacements_values_matrix_shape.0.into()
-        // {
-        //     for column in 0..displacements_values_matrix_shape.1.into()
-        //     {
-        //         let displacement_value =
-        //             extract_element_value(T::from(row),
-        //                 T::from(column), &all_displacements);
-        //         displacements_values.push(displacement_value);
-        //     }
-        // }
 
         let global_analysis_result =
             GlobalAnalysisResult::create(
