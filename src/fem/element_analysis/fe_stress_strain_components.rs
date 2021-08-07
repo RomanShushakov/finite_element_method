@@ -59,7 +59,7 @@ impl EARComponentTrait for StressStrainComponent
     }
 
 
-    fn same(&self, other: &Box<dyn EARComponentTrait>) -> bool
+    fn is_same(&self, other: &Box<dyn EARComponentTrait>) -> bool
     {
         other
             .as_any()

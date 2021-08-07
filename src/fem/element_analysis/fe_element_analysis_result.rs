@@ -133,5 +133,5 @@ impl EARType
 pub trait EARComponentTrait: Any
 {
     fn as_any(&self) -> &dyn Any;
-    fn same(&self, other: &Box<dyn EARComponentTrait>) -> bool;
+    fn is_same(&self, other: &Box<dyn EARComponentTrait>) -> bool;
 }

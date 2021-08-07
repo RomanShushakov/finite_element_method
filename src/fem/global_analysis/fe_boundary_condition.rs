@@ -44,7 +44,7 @@ trait BCTrait<T, V>
 {
     fn update(&mut self, node_number: T, dof_parameter: GlobalDOFParameter, value: V);
     fn number_same(&self, number: T) -> bool;
-    fn node_number_same(&self, node_number: T) -> bool;
+    fn is_node_number_same(&self, node_number: T) -> bool;
     fn dof_parameter_data_same(&self, dof_parameter: GlobalDOFParameter, node_number: T) -> bool;
     fn extract_node_number(&self) -> T;
     fn extract_value(&self) -> V;
@@ -71,15 +71,15 @@ impl<T, V> BCTrait<T, V> for Force<T, V>
     }
 
 
-    fn node_number_same(&self, node_number: T) -> bool
+    fn is_node_number_same(&self, node_number: T) -> bool
     {
-        self.dof_parameter_data.node_number_same(node_number)
+        self.dof_parameter_data.is_node_number_same(node_number)
     }
 
 
     fn dof_parameter_data_same(&self, dof_parameter: GlobalDOFParameter, node_number: T) -> bool
     {
-        self.dof_parameter_data.same(dof_parameter, node_number)
+        self.dof_parameter_data.is_same(dof_parameter, node_number)
     }
 
 
@@ -126,15 +126,15 @@ impl<T, V> BCTrait<T, V> for Displacement<T, V>
     }
 
 
-    fn node_number_same(&self, node_number: T) -> bool
+    fn is_node_number_same(&self, node_number: T) -> bool
     {
-        self.dof_parameter_data.node_number_same(node_number)
+        self.dof_parameter_data.is_node_number_same(node_number)
     }
 
 
     fn dof_parameter_data_same(&self, dof_parameter: GlobalDOFParameter, node_number: T) -> bool
     {
-        self.dof_parameter_data.same(dof_parameter, node_number)
+        self.dof_parameter_data.is_same(dof_parameter, node_number)
     }
 
 
@@ -241,9 +241,9 @@ impl<T, V> BoundaryCondition<T, V>
     }
 
 
-    pub fn node_number_same(&self, node_number: T) -> bool
+    pub fn is_node_number_same(&self, node_number: T) -> bool
     {
-        self.boundary_condition.node_number_same(node_number)
+        self.boundary_condition.is_node_number_same(node_number)
     }
 
 

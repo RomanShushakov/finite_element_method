@@ -52,14 +52,14 @@ pub struct DOFParameterData<T>
 impl<T> DOFParameterData<T>
     where T: PartialEq
 {
-    pub fn node_number_same(&self, node_number: T) -> bool
+    pub fn is_node_number_same(&self, node_number: T) -> bool
     {
         self.node_number == node_number
     }
 
 
-    pub fn same(&self, dof_parameter: GlobalDOFParameter, node_number: T) -> bool
+    pub fn is_same(&self, dof_parameter: GlobalDOFParameter, node_number: T) -> bool
     {
-        self.dof_parameter == dof_parameter && self.node_number_same(node_number)
+        self.dof_parameter == dof_parameter && self.is_node_number_same(node_number)
     }
 }

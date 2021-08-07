@@ -24,6 +24,7 @@ pub enum FEType
 {
     Truss2n1ip,
     Truss2n2ip,
+    // Beam2n1ipT,
 }
 
 
@@ -35,6 +36,7 @@ impl FEType
         {
             FEType::Truss2n1ip => "Truss2n1ip",
             FEType::Truss2n2ip => "Truss2n2ip",
+            // FEType::Beam2n1ipT => "Beam2n1ipT",
         }
     }
 
@@ -43,7 +45,7 @@ impl FEType
     {
         const TYPES: [FEType; 2] =
             [
-                Truss2n1ip, Truss2n2ip,
+                Truss2n1ip, Truss2n2ip, // Beam2n1ipT
             ];
         TYPES.iter()
     }
@@ -129,6 +131,10 @@ impl<T, V> FECreator<T, V>
                         Ok(Box::new(truss_element))
                     }
                 },
+            // FEType::Beam2n1ipT =>
+            //     {
+            //         ()
+            //     },
         }
     }
 }
