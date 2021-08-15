@@ -229,6 +229,7 @@ impl<T, V> BoundaryCondition<T, V>
         self.boundary_condition.update(node_number, dof_parameter, value)
     }
 
+
     pub fn type_same(&self, bc_type: BCType) -> bool
     {
         self.bc_type == bc_type

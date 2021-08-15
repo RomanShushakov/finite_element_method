@@ -11,6 +11,7 @@ use crate::my_float::MyFloatTrait;
 use crate::fem::finite_elements::fe_node::FENode;
 use crate::fem::finite_elements::truss::truss2n1ip::Truss2n1ip;
 use crate::fem::finite_elements::truss::truss2n2ip::Truss2n2ip;
+use crate::fem::finite_elements::beam::beam2n1ipt::Beam2n1ipT;
 use crate::fem::global_analysis::fe_stiffness::StiffnessGroup;
 use crate::fem::element_analysis::fe_element_analysis_result::ElementAnalysisData;
 use crate::fem::global_analysis::fe_global_analysis_result::Displacements;
@@ -24,7 +25,7 @@ pub enum FEType
 {
     Truss2n1ip,
     Truss2n2ip,
-    // Beam2n1ipT,
+    Beam2n1ipT,
 }
 
 
@@ -36,16 +37,16 @@ impl FEType
         {
             FEType::Truss2n1ip => "Truss2n1ip",
             FEType::Truss2n2ip => "Truss2n2ip",
-            // FEType::Beam2n1ipT => "Beam2n1ipT",
+            FEType::Beam2n1ipT => "Beam2n1ipT",
         }
     }
 
 
     pub fn iterator() -> Iter<'static, FEType>
     {
-        const TYPES: [FEType; 2] =
+        const TYPES: [FEType; 3] =
             [
-                Truss2n1ip, Truss2n2ip, // Beam2n1ipT
+                Truss2n1ip, Truss2n2ip, Beam2n1ipT,
             ];
         TYPES.iter()
     }
@@ -131,10 +132,16 @@ impl<T, V> FECreator<T, V>
                         Ok(Box::new(truss_element))
                     }
                 },
-            // FEType::Beam2n1ipT =>
-            //     {
-            //         ()
-            //     },
+            FEType::Beam2n1ipT =>
+                {
+                    let beam_element = Beam2n1ipT::create(
+                        nodes_numbers[0],
+                        nodes_numbers[1],
+                        properties[0], properties[1],
+                        tolerance, nodes)?;
+
+                    Ok(Box::new(beam_element))
+                },
         }
     }
 }
