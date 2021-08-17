@@ -243,7 +243,7 @@ fn main() -> Result<(), String>
         1,
         FEType::Beam2n1ipT,
         vec![1, 2],
-        vec![1e6, 0.3, 1.0, 3.0, 2.0, 1.0, 1.0, 0.0, 1.0, -1.0])?;
+        vec![1e6, 0.3, 2.61, 3.8293, 6.6563, -2.99828, 1.0, 0.0, 1.0, -1.0])?;
 
     // fe_model.add_element(
     //     1,
@@ -262,18 +262,20 @@ fn main() -> Result<(), String>
     let global_analysis_result = fe_model.global_analysis()?;
     let reactions = global_analysis_result.extract_reactions();
     for (reaction, dof_parameter_data) in
-        reactions.reactions_values.iter().zip(reactions.dof_parameters_data)
+        reactions.extract_reactions_values().iter()
+            .zip(reactions.extract_dof_parameters_data())
     {
-        println!("{}, node: {}, parameter: {:?}", reaction, dof_parameter_data.node_number,
-                 dof_parameter_data.dof_parameter);
+        println!("{}, node: {}, parameter: {:?}", reaction, dof_parameter_data.extract_node_number(),
+                 dof_parameter_data.extract_dof_parameter());
     }
     println!();
     let displacements = global_analysis_result.extract_displacements();
     for (displacement, dof_parameter_data) in
-        displacements.displacements_values.iter().zip(displacements.dof_parameters_data.iter())
+        displacements.extract_displacements_values().iter()
+            .zip(displacements.extract_dof_parameters_data().iter())
     {
-        println!("{}, node: {}, parameter: {:?}", displacement, dof_parameter_data.node_number,
-                 dof_parameter_data.dof_parameter);
+        println!("{}, node: {}, parameter: {:?}", displacement, dof_parameter_data.extract_node_number(),
+                 dof_parameter_data.extract_dof_parameter());
     }
 
     println!();

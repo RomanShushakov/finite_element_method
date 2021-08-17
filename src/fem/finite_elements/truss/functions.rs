@@ -255,9 +255,8 @@ impl<T, V> TrussAuxFunctions<T, V>
             let dof_parameter =
                 GlobalDOFParameter::iterator().nth(dof)
                     .ok_or("Truss2n2ip: Could not find dof parameter!")?;
-            let dof_parameter = DOFParameterData { node_number,
-                dof_parameter: *dof_parameter
-            };
+            let dof_parameter = DOFParameterData::create(
+                node_number, *dof_parameter);
             node_dof_parameters.push(dof_parameter);
         }
         Ok(node_dof_parameters)

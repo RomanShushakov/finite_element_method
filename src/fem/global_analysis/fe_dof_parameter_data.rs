@@ -44,14 +44,32 @@ impl GlobalDOFParameter
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct DOFParameterData<T>
 {
-    pub node_number: T,
-    pub dof_parameter: GlobalDOFParameter,
+    node_number: T,
+    dof_parameter: GlobalDOFParameter,
 }
 
 
 impl<T> DOFParameterData<T>
-    where T: PartialEq
+    where T: Copy + PartialEq
 {
+    pub fn create(node_number: T, dof_parameter: GlobalDOFParameter) -> Self
+    {
+        DOFParameterData { node_number, dof_parameter }
+    }
+
+
+    pub fn extract_node_number(&self) -> T
+    {
+        self.node_number
+    }
+
+
+    pub fn extract_dof_parameter(&self) -> GlobalDOFParameter
+    {
+        self.dof_parameter
+    }
+
+
     pub fn is_node_number_same(&self, node_number: T) -> bool
     {
         self.node_number == node_number
@@ -61,5 +79,12 @@ impl<T> DOFParameterData<T>
     pub fn is_same(&self, dof_parameter: GlobalDOFParameter, node_number: T) -> bool
     {
         self.dof_parameter == dof_parameter && self.is_node_number_same(node_number)
+    }
+
+
+    pub fn update(&mut self, node_number: T, dof_parameter: GlobalDOFParameter)
+    {
+        self.node_number = node_number;
+        self.dof_parameter = dof_parameter;
     }
 }

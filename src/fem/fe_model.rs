@@ -149,10 +149,8 @@ impl<T, V> FEModel<T, V>
                 let dof_parameter =
                     GlobalDOFParameter::iterator().nth(dof)
                         .ok_or("FEModel: Could not find dof parameter!")?;
-                let dof_parameter_data = DOFParameterData {
-                    node_number: *node_number,
-                    dof_parameter: *dof_parameter
-                };
+                let dof_parameter_data = DOFParameterData::create(*node_number,
+                    *dof_parameter);
                 nodes_dof_parameters.push(dof_parameter_data);
             }
         }
@@ -244,10 +242,21 @@ impl<T, V> FEModel<T, V>
     {
         for (i, value) in properties.iter().enumerate()
         {
-            if i < 7 && *value <= V::from(0f32) && i != 5
+            if element_type != FEType::Beam2n1ipT
             {
-                return Err(format!("FEData: All properties values for element {:?} should be \
-                    greater than zero!", element_number));
+                if *value <= V::from(0f32)
+                {
+                    return Err(format!("FEData: All properties values for element {:?} should be \
+                        greater than zero!", element_number));
+                }
+            }
+            else
+            {
+                if *value <= V::from(0f32) && [i != 5, i < 7].iter().all(|condition| *condition == true)
+                {
+                    return Err(format!("FEData: All properties values for element {:?} should be \
+                        greater than zero!", element_number));
+                }
             }
         }
 
@@ -502,11 +511,12 @@ impl<T, V> FEModel<T, V>
                 .iter()
                 .position(|bc|
                     bc.dof_parameter_data_same(
-                        dof_parameter_data.dof_parameter, dof_parameter_data.node_number))
+                        dof_parameter_data.extract_dof_parameter(),
+                        dof_parameter_data.extract_node_number()))
             {
                 let bc_type = self.boundary_conditions[position].extract_bc_type();
-                let dof_parameter = dof_parameter_data.dof_parameter;
-                let node_number = dof_parameter_data.node_number;
+                let dof_parameter = dof_parameter_data.extract_dof_parameter();
+                let node_number = dof_parameter_data.extract_node_number();
                 return Err(format!("FEModel: Model could not be analyzed because where are \
                     no stiffness to withstand {}::{:?} applied at node {:?}!", bc_type.as_str(),
                     dof_parameter, node_number))
@@ -528,7 +538,8 @@ impl<T, V> FEModel<T, V>
                     &self.state.nodes_dof_parameters_global
                 {
                     if bc.dof_parameter_data_same(
-                        dof_parameter_data.dof_parameter, dof_parameter_data.node_number)
+                        dof_parameter_data.extract_dof_parameter(),
+                        dof_parameter_data.extract_node_number())
                     {
                         separation_positions.push(
                             MatrixElementPosition::create(row, row));
@@ -569,7 +580,8 @@ impl<T, V> FEModel<T, V>
                 .iter()
                 .position(|bc|
                     bc.dof_parameter_data_same(
-                        node_dof_parameter.dof_parameter, node_dof_parameter.node_number))
+                        node_dof_parameter.extract_dof_parameter(),
+                        node_dof_parameter.extract_node_number()))
             {
                 let value = self.boundary_conditions[position].extract_value();
                 all_elements.push(value);

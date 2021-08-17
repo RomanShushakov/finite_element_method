@@ -122,12 +122,12 @@ impl<T, V> Truss2n1ip<T, V>
         let mut element_global_displacements_values = Vec::new();
         for lhs_dof_parameter_data in &self.state.nodes_dof_parameters_global
         {
-            if let Some(position) = global_displacements.dof_parameters_data
+            if let Some(position) = global_displacements.extract_dof_parameters_data()
                 .iter()
                 .position(|rhs_dof_parameter_data|
                     rhs_dof_parameter_data == lhs_dof_parameter_data)
             {
-                let displacement_value = global_displacements.displacements_values[position];
+                let displacement_value = global_displacements.extract_displacements_values()[position];
                 element_global_displacements_values.push(displacement_value);
             }
             else

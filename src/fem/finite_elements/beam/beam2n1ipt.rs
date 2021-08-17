@@ -192,7 +192,7 @@ impl<T, V> BeamAuxFunctions<T, V>
         let transformed_projection_of_beam_section_orientation_z = extract_element_value(2,
             0, &all_values_of_transformed_projection_of_beam_section_orientation);
 
-        let angle_between_beam_section_local_orientation_and_horizont =
+        let angle_between_beam_section_local_orientation_and_horizon =
             (V::from(-1f32) * transformed_projection_of_beam_section_orientation_z /
             (transformed_projection_of_beam_section_orientation_x.my_powi(2) +
             transformed_projection_of_beam_section_orientation_y.my_powi(2) +
@@ -200,24 +200,26 @@ impl<T, V> BeamAuxFunctions<T, V>
                 .my_sqrt()
             ).my_acos();
 
-        println!("{:?}, {:?}, {:?}", bank.my_to_degrees(), angle.my_to_degrees(), angle_between_beam_section_local_orientation_and_horizont.my_to_degrees());
+        println!("{:?}, {:?}, {:?}", bank.my_to_degrees(), angle.my_to_degrees(), angle_between_beam_section_local_orientation_and_horizon.my_to_degrees());
         println!();
 
-        bank += angle + angle_between_beam_section_local_orientation_and_horizont;
+        bank += angle + angle_between_beam_section_local_orientation_and_horizon;
 
-        let eu_11 = heading.my_cos() * attitude.my_cos();
-        let eu_12 = V::from(-1f32) * heading.my_cos() * attitude.my_sin() * bank.my_cos() +
-            heading.my_sin() * bank.my_sin();
-        let eu_13 = heading.my_cos() * attitude.my_sin() * bank.my_sin() +
-            heading.my_sin() * bank.my_cos();
-        let eu_21 = attitude.my_sin();
-        let eu_22 = attitude.my_cos() * bank.my_cos();
-        let eu_23 = V::from(-1f32) * attitude.my_cos() * bank.my_sin();
-        let eu_31 = V::from(-1f32) * heading.my_sin() * attitude.my_cos();
-        let eu_32 = heading.my_sin() * attitude.my_sin() * bank.my_cos() +
-            heading.my_cos() * bank.my_sin();
-        let eu_33 = V::from(-1f32) * heading.my_sin() * attitude.my_sin() * bank.my_sin() +
-            heading.my_cos() * bank.my_cos();
+        let eu_11 = compare_with_tolerance(heading.my_cos() * attitude.my_cos(), tolerance);
+        let eu_12 = compare_with_tolerance(V::from(-1f32) * heading.my_cos() *
+            attitude.my_sin() * bank.my_cos() + heading.my_sin() * bank.my_sin(), tolerance);
+        let eu_13 = compare_with_tolerance(heading.my_cos() * attitude.my_sin() *
+            bank.my_sin() + heading.my_sin() * bank.my_cos(), tolerance);
+        let eu_21 = compare_with_tolerance(attitude.my_sin(), tolerance);
+        let eu_22 = compare_with_tolerance(attitude.my_cos() * bank.my_cos(), tolerance);
+        let eu_23 = compare_with_tolerance(V::from(-1f32) * attitude.my_cos() *
+            bank.my_sin(), tolerance);
+        let eu_31 = compare_with_tolerance(V::from(-1f32) * heading.my_sin() *
+            attitude.my_cos(), tolerance);
+        let eu_32 = compare_with_tolerance(heading.my_sin() * attitude.my_sin() *
+            bank.my_cos() + heading.my_cos() * bank.my_sin(), tolerance);
+        let eu_33 = compare_with_tolerance(V::from(-1f32) * heading.my_sin() *
+            attitude.my_sin() * bank.my_sin() + heading.my_cos() * bank.my_cos(), tolerance);
 
         println!("{:?}, {:?}, {:?}", eu_11, eu_12, eu_13);
         println!("{:?}, {:?}, {:?}", eu_21, eu_22, eu_23);
@@ -396,9 +398,8 @@ impl<T, V> BeamAuxFunctions<T, V>
             let dof_parameter =
                 GlobalDOFParameter::iterator().nth(dof)
                     .ok_or("Beam2n2ipT: Could not find dof parameter!")?;
-            let dof_parameter = DOFParameterData { node_number,
-                dof_parameter: *dof_parameter
-            };
+            let dof_parameter = DOFParameterData::create(node_number,
+                *dof_parameter);
             node_dof_parameters.push(dof_parameter);
         }
         Ok(node_dof_parameters)
@@ -484,15 +485,36 @@ impl<T, V> Beam2n1ipT<T, V>
         i11_init: V, i22_init: V, i12_init: V, it: V, local_axis_1_direction: [V; 3],
         tolerance: V, nodes: &HashMap<T, FENode<V>>) -> Result<Self, String>
     {
-        let angle = (V::from(2f32) * i12_init / (i22_init - i11_init)).my_atan() / V::from(2f32);
+        let mut angle = if i11_init == i22_init
+            {
+                V::from(0f32)
+            }
+            else
+            {
+                (V::from(2f32) * i12_init / (i22_init - i11_init)).my_atan() /
+                V::from(2f32)
+            };
 
-        let i11 = i11_init * (angle.my_cos()).my_powi(2) +
+        let mut i11 = i11_init * (angle.my_cos()).my_powi(2) +
             i22_init * (angle.my_sin()).my_powi(2) -
             i12_init * (V::from(2f32) * angle).my_sin();
 
-        let i22 = i11_init * (angle.my_sin()).my_powi(2) +
+        let mut i22 = i11_init * (angle.my_sin()).my_powi(2) +
             i22_init * (angle.my_cos()).my_powi(2) +
             i12_init * (V::from(2f32) * angle).my_sin();
+
+        let mut i = 1;
+        while i11 < i22
+        {
+            angle = ((V::from(2f32) * i12_init / (i22_init - i11_init)).my_atan() +
+                V::from(PI) * V::from(i as f32)) / V::from(2f32);
+            i11 = i11_init * (angle.my_cos()).my_powi(2) +
+                i22_init * (angle.my_sin()).my_powi(2) -
+                i12_init * (V::from(2f32) * angle).my_sin();
+            i22 = i11_init * (angle.my_sin()).my_powi(2) +
+                i22_init * (angle.my_cos()).my_powi(2) +
+                i12_init * (V::from(2f32) * angle).my_sin();
+        }
 
         println!("i11: {:?}, i22: {:?}", i11, i22);
 
@@ -541,12 +563,12 @@ impl<T, V> Beam2n1ipT<T, V>
         let mut element_global_displacements_values = Vec::new();
         for lhs_dof_parameter_data in &self.state.nodes_dof_parameters_global
         {
-            if let Some(position) = global_displacements.dof_parameters_data
+            if let Some(position) = global_displacements.extract_dof_parameters_data()
                 .iter()
                 .position(|rhs_dof_parameter_data|
                     rhs_dof_parameter_data == lhs_dof_parameter_data)
             {
-                let displacement_value = global_displacements.displacements_values[position];
+                let displacement_value = global_displacements.extract_displacements_values()[position];
                 element_global_displacements_values.push(displacement_value);
             }
             else
@@ -601,15 +623,36 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
 
         let i12_init = properties[5];
 
-        let angle = (V::from(2f32) * i12_init / (i22_init - i11_init)).my_atan() / V::from(2f32);
+        let mut angle = if i11_init == i22_init
+            {
+                V::from(0f32)
+            }
+            else
+            {
+                (V::from(2f32) * i12_init / (i22_init - i11_init)).my_atan() /
+                V::from(2f32)
+            };
 
-        let i11 = i11_init * (angle.my_cos()).my_powi(2) +
+        let mut i11 = i11_init * (angle.my_cos()).my_powi(2) +
             i22_init * (angle.my_sin()).my_powi(2) -
             i12_init * (V::from(2f32) * angle).my_sin();
 
-        let i22 = i11_init * (angle.my_sin()).my_powi(2) +
+        let mut i22 = i11_init * (angle.my_sin()).my_powi(2) +
             i22_init * (angle.my_cos()).my_powi(2) +
             i12_init * (V::from(2f32) * angle).my_sin();
+
+        let mut i = 1;
+        while i11 < i22
+        {
+            angle = ((V::from(2f32) * i12_init / (i22_init - i11_init)).my_atan() +
+                V::from(PI) * V::from(i as f32)) / V::from(2f32);
+            i11 = i11_init * (angle.my_cos()).my_powi(2) +
+                i22_init * (angle.my_sin()).my_powi(2) -
+                i12_init * (V::from(2f32) * angle).my_sin();
+            i22 = i11_init * (angle.my_sin()).my_powi(2) +
+                i22_init * (angle.my_cos()).my_powi(2) +
+                i12_init * (V::from(2f32) * angle).my_sin();
+        }
 
         println!("i11: {:?}, i22: {:?}", i11, i22);
 
