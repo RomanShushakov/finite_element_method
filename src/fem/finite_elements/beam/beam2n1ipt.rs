@@ -25,9 +25,9 @@ use crate::my_float::MyFloatTrait;
 use crate::fem::finite_elements::beam::consts::
 {
     BEAM_NODE_DOF, BEAM2N1IPT_NODES_NUMBER, BEAM_STRESS_STRAIN_COMPONENTS_NUMBERS,
-    POINTS_NUMBER_FOR_TAPERED_BEAM
 };
 use std::collections::HashMap;
+use std::f32::consts::PI;
 
 
 struct BeamAuxFunctions<T, V>(T, V);
@@ -39,7 +39,7 @@ impl<T, V> BeamAuxFunctions<T, V>
              From<u8> + 'static,
           V: Copy + Into<f64> + Sub<Output = V> + Mul<Output = V> + Add<Output = V> + From<f32> +
              Div<Output = V> + PartialEq + Debug + AddAssign + MulAssign + SubAssign +
-             MyFloatTrait + PartialOrd + 'static,
+             MyFloatTrait + PartialOrd + MyFloatTrait<Other = V> + 'static,
 {
     fn length(node_1_number: T, node_2_number: T, nodes: &HashMap<T, FENode<V>>) -> V
     {
@@ -67,8 +67,53 @@ impl<T, V> BeamAuxFunctions<T, V>
     }
 
 
-    fn rotation_matrix(node_1_number: T, node_2_number: T, tolerance: V,
-        nodes: &HashMap<T, FENode<V>>) -> ExtendedMatrix<T, V>
+    fn find_components_of_line_a_perpendicular_to_line_b(line_a: &[V; 3],
+        line_b: &[V; 3], tolerance: V) -> Result<[V; 3], String>
+    {
+        let a_x = V::from(-1f32) * line_a[0];
+        let a_y = V::from(-1f32) * line_a[1];
+        let a_z = V::from(-1f32) * line_a[2];
+
+        let a = ExtendedMatrix::create(T::from(3u8),
+            T::from(1u8), vec![a_x, a_y, a_z], tolerance);
+
+        let b_x = line_b[0];
+        let b_y = line_b[1];
+        let b_z = line_b[2];
+
+        let norm = V::from(1f32) / (b_x.my_powi(2) + b_y.my_powi(2) + b_z.my_powi(2));
+
+        let mut coeff_matrix = ExtendedMatrix::create(T::from(3u8),
+            T::from(3u8), vec![
+                V::from(-1f32) * b_z * b_z - b_y * b_y, b_x * b_y, b_x * b_z,
+                b_y * b_x, V::from(-1f32) * b_x * b_x - b_z * b_z,	b_y * b_z,
+                b_z * b_x,	b_z * b_y, V::from(-1f32) * b_y * b_y - b_x * b_x,
+            ], tolerance);
+
+        coeff_matrix.multiply_by_number(norm);
+
+        let components_of_line_a_perpendicular_to_line_b_matrix = coeff_matrix
+            .multiply_by_matrix(&a)?;
+
+        let components_of_line_a_perpendicular_to_line_b_all_values =
+            components_of_line_a_perpendicular_to_line_b_matrix.extract_all_elements_values();
+
+        let a_perpendicular_to_b_x = extract_element_value(T::from(0u8), T::from(0u8),
+            &components_of_line_a_perpendicular_to_line_b_all_values);
+
+        let a_perpendicular_to_b_y = extract_element_value(T::from(1u8), T::from(0u8),
+            &components_of_line_a_perpendicular_to_line_b_all_values);
+
+        let a_perpendicular_to_b_z = extract_element_value(T::from(2u8), T::from(0u8),
+            &components_of_line_a_perpendicular_to_line_b_all_values);
+
+        Ok([a_perpendicular_to_b_x, a_perpendicular_to_b_y, a_perpendicular_to_b_z])
+    }
+
+
+    fn rotation_matrix(node_1_number: T, node_2_number: T, local_axis_1_direction: &[V; 3],
+        angle: V, tolerance: V, nodes: &HashMap<T, FENode<V>>)
+        -> Result<ExtendedMatrix<T, V>, String>
     {
         let node_1 = nodes.get(&node_1_number).unwrap();
         let node_2 = nodes.get(&node_2_number).unwrap();
@@ -90,7 +135,7 @@ impl<T, V> BeamAuxFunctions<T, V>
         else
         {
             rotation_axis_coord_y = z * length;
-            rotation_axis_coord_z = y * V::from(-1f32) * length;
+            rotation_axis_coord_z = V::from(-1f32) * y * length;
         }
         let norm = V::from(1f32) / (rotation_axis_coord_x.my_powi(2) +
             rotation_axis_coord_y.my_powi(2) + rotation_axis_coord_z.my_powi(2)).my_sqrt();
@@ -108,40 +153,113 @@ impl<T, V> BeamAuxFunctions<T, V>
         let q_32 = compare_with_tolerance(t * y_n * z_n + x_n * s, tolerance);
         let q_33 = compare_with_tolerance(t * z_n * z_n + c, tolerance);
 
-        ExtendedMatrix::create(
+        println!("{:?}, {:?}, {:?}", q_11, q_12, q_13);
+        println!("{:?}, {:?}, {:?}", q_21, q_22, q_23);
+        println!("{:?}, {:?}, {:?}", q_31, q_32, q_33);
+        println!();
+
+        let heading = (V::from(-1f32) * q_31).my_atan2(q_11);
+        let attitude = q_21.my_asin();
+        let mut bank = (V::from(-1f32) * q_23).my_atan2(q_22);
+
+        let components_projection_of_beam_section_orientation_vector =
+            BeamAuxFunctions::<T, V>::find_components_of_line_a_perpendicular_to_line_b(
+                local_axis_1_direction, &[x, y, z],
+                tolerance
+            )?;
+
+        let interim_rotation_matrix = ExtendedMatrix::create(
+            3, 3, vec![q_11, q_12, q_13, q_21, q_22, q_23, q_31,
+            q_32, q_33], tolerance);
+
+        let projection_of_beam_section_orientation = ExtendedMatrix::create(
+            3, 1,
+            components_projection_of_beam_section_orientation_vector.to_vec(),
+            tolerance);
+
+        let transformed_projection_of_beam_section_orientation =
+            interim_rotation_matrix.multiply_by_matrix(&projection_of_beam_section_orientation)?;
+
+        let all_values_of_transformed_projection_of_beam_section_orientation =
+            transformed_projection_of_beam_section_orientation.extract_all_elements_values();
+
+        let transformed_projection_of_beam_section_orientation_x = extract_element_value(0,
+            0, &all_values_of_transformed_projection_of_beam_section_orientation);
+
+        let transformed_projection_of_beam_section_orientation_y = extract_element_value(1,
+            0, &all_values_of_transformed_projection_of_beam_section_orientation);
+
+        let transformed_projection_of_beam_section_orientation_z = extract_element_value(2,
+            0, &all_values_of_transformed_projection_of_beam_section_orientation);
+
+        let angle_between_beam_section_local_orientation_and_horizont =
+            (V::from(-1f32) * transformed_projection_of_beam_section_orientation_z /
+            (transformed_projection_of_beam_section_orientation_x.my_powi(2) +
+            transformed_projection_of_beam_section_orientation_y.my_powi(2) +
+            transformed_projection_of_beam_section_orientation_z.my_powi(2))
+                .my_sqrt()
+            ).my_acos();
+
+        println!("{:?}, {:?}, {:?}", bank.my_to_degrees(), angle.my_to_degrees(), angle_between_beam_section_local_orientation_and_horizont.my_to_degrees());
+        println!();
+
+        bank += angle + angle_between_beam_section_local_orientation_and_horizont;
+
+        let eu_11 = heading.my_cos() * attitude.my_cos();
+        let eu_12 = V::from(-1f32) * heading.my_cos() * attitude.my_sin() * bank.my_cos() +
+            heading.my_sin() * bank.my_sin();
+        let eu_13 = heading.my_cos() * attitude.my_sin() * bank.my_sin() +
+            heading.my_sin() * bank.my_cos();
+        let eu_21 = attitude.my_sin();
+        let eu_22 = attitude.my_cos() * bank.my_cos();
+        let eu_23 = V::from(-1f32) * attitude.my_cos() * bank.my_sin();
+        let eu_31 = V::from(-1f32) * heading.my_sin() * attitude.my_cos();
+        let eu_32 = heading.my_sin() * attitude.my_sin() * bank.my_cos() +
+            heading.my_cos() * bank.my_sin();
+        let eu_33 = V::from(-1f32) * heading.my_sin() * attitude.my_sin() * bank.my_sin() +
+            heading.my_cos() * bank.my_cos();
+
+        println!("{:?}, {:?}, {:?}", eu_11, eu_12, eu_13);
+        println!("{:?}, {:?}, {:?}", eu_21, eu_22, eu_23);
+        println!("{:?}, {:?}, {:?}", eu_31, eu_32, eu_33);
+        println!();
+
+        let rotation_matrix = ExtendedMatrix::create(
             BeamAuxFunctions::<T, V>::nodes_number() * BeamAuxFunctions::<T, V>::node_dof(),
             BeamAuxFunctions::<T, V>::nodes_number() * BeamAuxFunctions::<T, V>::node_dof(),
             vec![
-                [q_11, q_12, q_13], [V::from(0f32); BEAM_NODE_DOF / 2],
+                [eu_11, eu_12, eu_13], [V::from(0f32); BEAM_NODE_DOF / 2],
                 [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
-                [q_21, q_22, q_23], [V::from(0f32); BEAM_NODE_DOF / 2],
+                [eu_21, eu_22, eu_23], [V::from(0f32); BEAM_NODE_DOF / 2],
                 [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
-                [q_31, q_32, q_33], [V::from(0f32); BEAM_NODE_DOF / 2],
-                [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
-
-                [V::from(0f32); BEAM_NODE_DOF / 2], [q_11, q_12, q_13],
-                [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
-                [V::from(0f32); BEAM_NODE_DOF / 2], [q_21, q_22, q_23],
-                [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
-                [V::from(0f32); BEAM_NODE_DOF / 2], [q_31, q_32, q_33],
+                [eu_31, eu_32, eu_33], [V::from(0f32); BEAM_NODE_DOF / 2],
                 [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
 
+                [V::from(0f32); BEAM_NODE_DOF / 2], [eu_11, eu_12, eu_13],
                 [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
-                [q_11, q_12, q_13], [V::from(0f32); BEAM_NODE_DOF / 2],
+                [V::from(0f32); BEAM_NODE_DOF / 2], [eu_21, eu_22, eu_23],
                 [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
-                [q_21, q_22, q_23], [V::from(0f32); BEAM_NODE_DOF / 2],
+                [V::from(0f32); BEAM_NODE_DOF / 2], [eu_31, eu_32, eu_33],
                 [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
-                [q_31, q_32, q_33], [V::from(0f32); BEAM_NODE_DOF / 2],
 
                 [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
-                [V::from(0f32); BEAM_NODE_DOF / 2], [q_11, q_12, q_13],
+                [eu_11, eu_12, eu_13], [V::from(0f32); BEAM_NODE_DOF / 2],
                 [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
-                [V::from(0f32); BEAM_NODE_DOF / 2], [q_21, q_22, q_23],
+                [eu_21, eu_22, eu_23], [V::from(0f32); BEAM_NODE_DOF / 2],
                 [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
-                [V::from(0f32); BEAM_NODE_DOF / 2], [q_31, q_32, q_33],
+                [eu_31, eu_32, eu_33], [V::from(0f32); BEAM_NODE_DOF / 2],
+
+                [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
+                [V::from(0f32); BEAM_NODE_DOF / 2], [eu_11, eu_12, eu_13],
+                [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
+                [V::from(0f32); BEAM_NODE_DOF / 2], [eu_21, eu_22, eu_23],
+                [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
+                [V::from(0f32); BEAM_NODE_DOF / 2], [eu_31, eu_32, eu_33],
             ].concat(),
             tolerance,
-        )
+        );
+
+        Ok(rotation_matrix)
     }
 
 
@@ -259,11 +377,11 @@ impl<T, V> BeamAuxFunctions<T, V>
                     {
                         Ok(matrix) => Ok(matrix),
                         Err(e) =>
-                            Err(format!("Beam2n2ipt: Local stiffness matrix cannot be \
+                            Err(format!("Beam2n2ipT: Local stiffness matrix cannot be \
                                 calculated! Reason: {}", e)),
                     }
                 },
-            Err(e) => Err(format!("Beam2n2ipt: Local stiffness matrix cannot be \
+            Err(e) => Err(format!("Beam2n2ipT: Local stiffness matrix cannot be \
                 calculated! Reason: {}", e)),
         }
     }
@@ -277,7 +395,7 @@ impl<T, V> BeamAuxFunctions<T, V>
         {
             let dof_parameter =
                 GlobalDOFParameter::iterator().nth(dof)
-                    .ok_or("Beam2n2ipt: Could not find dof parameter!")?;
+                    .ok_or("Beam2n2ipT: Could not find dof parameter!")?;
             let dof_parameter = DOFParameterData { node_number,
                 dof_parameter: *dof_parameter
             };
@@ -343,7 +461,13 @@ pub struct Beam2n1ipT<T, V>
     node_1_number: T,
     node_2_number: T,
     young_modulus: V,
+    poisson_ratio: V,
     area: V,
+    i11: V,
+    i22: V,
+    angle: V,
+    it: V,
+    local_axis_1_direction: [V; 3],
     state: State<T, V>,
 }
 
@@ -354,16 +478,30 @@ impl<T, V> Beam2n1ipT<T, V>
              From<u8> + 'static,
           V: Copy + Into<f64> + Sub<Output = V> + Mul<Output = V> + From<f32> + Add<Output = V> +
              Div<Output = V> + PartialEq + Debug + AddAssign + MulAssign + SubAssign +
-             MyFloatTrait + PartialOrd + 'static
+             MyFloatTrait + PartialOrd + MyFloatTrait<Other = V> + 'static
 {
-    pub fn create(node_1_number: T, node_2_number: T, young_modulus: V, area: V,
+    pub fn create(node_1_number: T, node_2_number: T, young_modulus: V, poisson_ratio: V, area: V,
+        i11_init: V, i22_init: V, i12_init: V, it: V, local_axis_1_direction: [V; 3],
         tolerance: V, nodes: &HashMap<T, FENode<V>>) -> Result<Self, String>
     {
+        let angle = (V::from(2f32) * i12_init / (i22_init - i11_init)).my_atan() / V::from(2f32);
+
+        let i11 = i11_init * (angle.my_cos()).my_powi(2) +
+            i22_init * (angle.my_sin()).my_powi(2) -
+            i12_init * (V::from(2f32) * angle).my_sin();
+
+        let i22 = i11_init * (angle.my_sin()).my_powi(2) +
+            i22_init * (angle.my_cos()).my_powi(2) +
+            i12_init * (V::from(2f32) * angle).my_sin();
+
+        println!("i11: {:?}, i22: {:?}", i11, i22);
+
         let integration_point_1 = IntegrationPoint {
             r: V::from(0f32), weight: V::from(2f32) };
 
-        let rotation_matrix = BeamAuxFunctions::<T, V>::rotation_matrix(
-            node_1_number, node_2_number, tolerance, nodes);
+        let rotation_matrix =
+            BeamAuxFunctions::<T, V>::rotation_matrix(node_1_number, node_2_number,
+                &local_axis_1_direction, angle, tolerance, nodes)?;
 
         let integration_points = vec![integration_point_1];
 
@@ -392,7 +530,8 @@ impl<T, V> Beam2n1ipT<T, V>
         let state = State::create(rotation_matrix, integration_points,
             local_stiffness_matrix, nodes_dof_parameters);
 
-        Ok(Beam2n1ipT { node_1_number, node_2_number, young_modulus, area, state })
+        Ok(Beam2n1ipT { node_1_number, node_2_number, young_modulus, poisson_ratio,
+            area, i11, i22, angle, it, local_axis_1_direction, state })
     }
 
 
@@ -441,7 +580,7 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
              From<u8> + 'static,
           V: Copy + Sub<Output = V> + Mul<Output = V> + Add<Output = V> + Div<Output = V> +
              Into<f64> + SubAssign + AddAssign + MulAssign + PartialEq + Debug +
-             MyFloatTrait + PartialOrd + From<f32> + 'static,
+             MyFloatTrait + PartialOrd + From<f32> + MyFloatTrait<Other = V> + 'static,
 {
     fn update(&mut self, nodes_numbers: Vec<T>, properties: Vec<V>, tolerance: V,
         nodes: &HashMap<T, FENode<V>>) -> Result<(), String>
@@ -452,10 +591,35 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
 
         let young_modulus = properties[0];
 
-        let area = properties[1];
+        let poisson_ratio = properties[1];
 
-        let rotation_matrix = BeamAuxFunctions::rotation_matrix(
-            node_1_number, node_2_number, tolerance, nodes);
+        let area = properties[2];
+
+        let i11_init = properties[3];
+
+        let i22_init = properties[4];
+
+        let i12_init = properties[5];
+
+        let angle = (V::from(2f32) * i12_init / (i22_init - i11_init)).my_atan() / V::from(2f32);
+
+        let i11 = i11_init * (angle.my_cos()).my_powi(2) +
+            i22_init * (angle.my_sin()).my_powi(2) -
+            i12_init * (V::from(2f32) * angle).my_sin();
+
+        let i22 = i11_init * (angle.my_sin()).my_powi(2) +
+            i22_init * (angle.my_cos()).my_powi(2) +
+            i12_init * (V::from(2f32) * angle).my_sin();
+
+        println!("i11: {:?}, i22: {:?}", i11, i22);
+
+        let it = properties[6];
+
+        let local_axis_1_direction = [properties[7], properties[8], properties[9]];
+
+        let rotation_matrix =
+            BeamAuxFunctions::rotation_matrix(node_1_number, node_2_number,
+                &local_axis_1_direction, angle, tolerance, nodes)?;
 
         let mut local_stiffness_matrix = ExtendedMatrix::create(
             BeamAuxFunctions::<T, V>::nodes_number() * BeamAuxFunctions::<T, V>::node_dof(),
@@ -482,7 +646,13 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
         self.node_1_number = node_1_number;
         self.node_2_number = node_2_number;
         self.young_modulus = young_modulus;
+        self.poisson_ratio = poisson_ratio;
         self.area = area;
+        self.i11 = i11;
+        self.i22 = i22;
+        self.angle = angle;
+        self.it = it;
+        self.local_axis_1_direction = local_axis_1_direction;
         self.state.rotation_matrix = rotation_matrix;
         self.state.local_stiffness_matrix = local_stiffness_matrix;
         self.state.nodes_dof_parameters_global = nodes_dof_parameters;
@@ -504,7 +674,7 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
                 return Ok(matrix);
             }
         }
-        Err("Beam2n2ipt: Stiffness matrix cannot be extracted!")
+        Err("Beam2n2ipT: Stiffness matrix cannot be extracted!")
     }
 
 
@@ -696,8 +866,9 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
 
     fn refresh(&mut self, tolerance: V, nodes: &HashMap<T, FENode<V>>) -> Result<(), String>
     {
-        let rotation_matrix = BeamAuxFunctions::rotation_matrix(
-            self.node_1_number, self.node_2_number, tolerance, nodes);
+        let rotation_matrix =
+            BeamAuxFunctions::rotation_matrix(self.node_1_number, self.node_2_number,
+                &self.local_axis_1_direction, self.angle, tolerance, nodes)?;
 
         let mut local_stiffness_matrix = ExtendedMatrix::create(
             BeamAuxFunctions::<T, V>::nodes_number() * BeamAuxFunctions::<T, V>::node_dof(),
@@ -755,7 +926,7 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
         {
             let stress_strain_component =
                 StressStrainComponent::iterator().nth(*component_number)
-                    .ok_or(format!("Beam2n2ipt: Stress strain component number {} could \
+                    .ok_or(format!("Beam2n2ipT: Stress strain component number {} could \
                         not be extracted", component_number))?;
             strains_components.push(*stress_strain_component);
             stresses_components.push(*stress_strain_component);

@@ -67,19 +67,19 @@ impl<T, V> ElementAnalysisData<T, V>
 
     pub fn extract_strains(&self) -> ElementStrains<V>
     {
-        self.strains.to_owned()
+        self.strains.clone()
     }
 
 
     pub fn extract_stresses(&self) -> ElementStresses<V>
     {
-        self.stresses.to_owned()
+        self.stresses.clone()
     }
 
 
     pub fn extract_forces(&self) -> ElementForces<V>
     {
-        self.forces.to_owned()
+        self.forces.clone()
     }
 }
 
@@ -103,7 +103,7 @@ impl<T, V> ElementsAnalysisResult<T, V>
 
     pub fn extract_elements_analysis_data(&self) -> Vec<ElementAnalysisData<T, V>>
     {
-        self.elements_analysis_data.to_owned()
+        self.elements_analysis_data.clone()
     }
 }
 

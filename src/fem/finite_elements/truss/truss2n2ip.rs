@@ -80,7 +80,7 @@ impl<T, V> Truss2n2ip<T, V>
         tolerance: V, nodes: &HashMap<T, FENode<V>>) -> Result<Self, String>
     {
         let integration_point_1 = IntegrationPoint {
-            r: V::from(- 1f32 / 3f32).my_sqrt(), weight: V::from(1.0) };
+            r: V::from(1f32 / 3f32).my_sqrt() * V::from(-1f32), weight: V::from(1.0) };
         let integration_point_2 = IntegrationPoint {
             r: V::from(1f32 / 3f32).my_sqrt(), weight: V::from(1.0) };
 

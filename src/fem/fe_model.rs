@@ -60,7 +60,7 @@ impl<T, V> FEModel<T, V>
              AddAssign + 'static,
           V: Copy + Sub<Output = V> + Mul<Output = V> + Add<Output = V> + Div<Output = V> +
              PartialEq + Debug + AddAssign + MulAssign + SubAssign + Into<f64> + PartialOrd +
-             MyFloatTrait + From<f32> + 'static,
+             MyFloatTrait + From<f32> + MyFloatTrait<Other = V> +'static,
 {
     pub fn create(tolerance: V) -> Self
     {
@@ -242,9 +242,9 @@ impl<T, V> FEModel<T, V>
     pub fn add_element(&mut self, element_number: T, element_type: FEType, nodes_numbers: Vec<T>,
         properties: Vec<V>) -> Result<(), String>
     {
-        for value in properties.iter()
+        for (i, value) in properties.iter().enumerate()
         {
-            if *value <= V::from(0f32)
+            if i < 7 && *value <= V::from(0f32) && i != 5
             {
                 return Err(format!("FEData: All properties values for element {:?} should be \
                     greater than zero!", element_number));
