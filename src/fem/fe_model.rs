@@ -252,7 +252,7 @@ impl<T, V> FEModel<T, V>
             }
             else
             {
-                if *value <= V::from(0f32) && [i != 5, i < 7].iter().all(|condition| *condition == true)
+                if *value <= V::from(0f32) && [i != 5, i < 8].iter().all(|condition| *condition == true)
                 {
                     return Err(format!("FEData: All properties values for element {:?} should be \
                         greater than zero!", element_number));
@@ -385,9 +385,15 @@ impl<T, V> FEModel<T, V>
             vec![V::from(0f32); (self.nodes.len() * GLOBAL_DOF).pow(2)],
             self.state.tolerance);
 
-        for element in self.elements.values()
+        for (element_number, element) in self.elements.iter()
         {
             let element_stiffness_matrix = element.extract_stiffness_matrix()?;
+
+            println!("Element number: {:?}", element_number);
+            let f = |data: &str| println!("{}", data);
+            element_stiffness_matrix.show_matrix(f);
+            println!();
+
             let element_stiffness_groups = element.extract_stiffness_groups();
             for element_stiffness_group in element_stiffness_groups
             {
@@ -646,6 +652,7 @@ impl<T, V> FEModel<T, V>
     pub fn global_analysis(&mut self) -> Result<GlobalAnalysisResult<T, V>, String>
     {
         self.update_nodes_dof_parameters_global()?;
+
         if self.boundary_conditions.iter().position(|bc|
             bc.type_same(BCType::Displacement)).is_none()
         {
@@ -654,6 +661,12 @@ impl<T, V> FEModel<T, V>
         }
         let mut global_stiffness_matrix =
             self.compose_global_stiffness_matrix()?;
+
+        let f = |data: &str| println!("{}", data);
+        println!("global stiffness matrix");
+        global_stiffness_matrix.show_matrix(f);
+        println!();
+
         let removed_zeros_rows_columns =
             global_stiffness_matrix.remove_zeros_rows_columns();
         self.shrink_of_nodes_dof_parameters(&removed_zeros_rows_columns)?;

@@ -94,7 +94,7 @@ impl<T, V> TrussAuxFunctions<T, V>
         let q_32 = compare_with_tolerance(t * y_n * z_n + x_n * s, tolerance);
         let q_33 = compare_with_tolerance(t * z_n * z_n + c, tolerance);
 
-        ExtendedMatrix::create(
+        let rotation_matrix = ExtendedMatrix::create(
             TrussAuxFunctions::<T, V>::nodes_number() * TrussAuxFunctions::<T, V>::node_dof(),
             TrussAuxFunctions::<T, V>::nodes_number() * TrussAuxFunctions::<T, V>::node_dof(),
             vec![
@@ -106,7 +106,8 @@ impl<T, V> TrussAuxFunctions<T, V>
                 [V::from(0f32); TRUSS_NODE_DOF], [q_31, q_32, q_33],
             ].concat(),
             tolerance,
-        )
+        );
+        rotation_matrix
     }
 
 

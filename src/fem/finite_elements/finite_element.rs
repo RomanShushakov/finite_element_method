@@ -157,7 +157,7 @@ impl<T, V> FECreator<T, V>
                         return Err("FECreator: Incorrect number of nodes!".to_string());
                     }
 
-                    if properties.len() == 10
+                    if properties.len() == 11
                     {
                         let beam_element = Beam2n1ipT::create(
                         nodes_numbers[0],
@@ -166,7 +166,8 @@ impl<T, V> FECreator<T, V>
                         properties[2], properties[3],
                         properties[4], properties[5],
                         properties[6],
-                        [properties[7], properties[8], properties[9]],
+                        properties[7],
+                        [properties[8], properties[9], properties[10]],
                         tolerance, nodes)?;
 
                         Ok(Box::new(beam_element))

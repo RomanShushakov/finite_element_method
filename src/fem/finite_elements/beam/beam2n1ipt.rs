@@ -153,15 +153,6 @@ impl<T, V> BeamAuxFunctions<T, V>
         let q_32 = compare_with_tolerance(t * y_n * z_n + x_n * s, tolerance);
         let q_33 = compare_with_tolerance(t * z_n * z_n + c, tolerance);
 
-        println!("{:?}, {:?}, {:?}", q_11, q_12, q_13);
-        println!("{:?}, {:?}, {:?}", q_21, q_22, q_23);
-        println!("{:?}, {:?}, {:?}", q_31, q_32, q_33);
-        println!();
-
-        let heading = (V::from(-1f32) * q_31).my_atan2(q_11);
-        let attitude = q_21.my_asin();
-        let mut bank = (V::from(-1f32) * q_23).my_atan2(q_22);
-
         let components_projection_of_beam_section_orientation_vector =
             BeamAuxFunctions::<T, V>::find_components_of_line_a_perpendicular_to_line_b(
                 local_axis_1_direction, &[x, y, z],
@@ -192,7 +183,7 @@ impl<T, V> BeamAuxFunctions<T, V>
         let transformed_projection_of_beam_section_orientation_z = extract_element_value(2,
             0, &all_values_of_transformed_projection_of_beam_section_orientation);
 
-        let angle_between_beam_section_local_orientation_and_horizon =
+        let angle_between_beam_section_local_axis_1_direction_and_horizon =
             (V::from(-1f32) * transformed_projection_of_beam_section_orientation_z /
             (transformed_projection_of_beam_section_orientation_x.my_powi(2) +
             transformed_projection_of_beam_section_orientation_y.my_powi(2) +
@@ -200,63 +191,63 @@ impl<T, V> BeamAuxFunctions<T, V>
                 .my_sqrt()
             ).my_acos();
 
-        println!("{:?}, {:?}, {:?}", bank.my_to_degrees(), angle.my_to_degrees(), angle_between_beam_section_local_orientation_and_horizon.my_to_degrees());
-        println!();
+        let total_angle = angle + angle_between_beam_section_local_axis_1_direction_and_horizon;
 
-        bank += angle + angle_between_beam_section_local_orientation_and_horizon;
+        let c_x = compare_with_tolerance(x /length, tolerance);
+        let c_y = compare_with_tolerance(y / length, tolerance);
+        let c_z = compare_with_tolerance(z / length, tolerance);
+        let c_xz = compare_with_tolerance(
+            (c_x.my_powi(2) + c_z.my_powi(2)).my_sqrt(), tolerance);
 
-        let eu_11 = compare_with_tolerance(heading.my_cos() * attitude.my_cos(), tolerance);
-        let eu_12 = compare_with_tolerance(V::from(-1f32) * heading.my_cos() *
-            attitude.my_sin() * bank.my_cos() + heading.my_sin() * bank.my_sin(), tolerance);
-        let eu_13 = compare_with_tolerance(heading.my_cos() * attitude.my_sin() *
-            bank.my_sin() + heading.my_sin() * bank.my_cos(), tolerance);
-        let eu_21 = compare_with_tolerance(attitude.my_sin(), tolerance);
-        let eu_22 = compare_with_tolerance(attitude.my_cos() * bank.my_cos(), tolerance);
-        let eu_23 = compare_with_tolerance(V::from(-1f32) * attitude.my_cos() *
-            bank.my_sin(), tolerance);
-        let eu_31 = compare_with_tolerance(V::from(-1f32) * heading.my_sin() *
-            attitude.my_cos(), tolerance);
-        let eu_32 = compare_with_tolerance(heading.my_sin() * attitude.my_sin() *
-            bank.my_cos() + heading.my_cos() * bank.my_sin(), tolerance);
-        let eu_33 = compare_with_tolerance(V::from(-1f32) * heading.my_sin() *
-            attitude.my_sin() * bank.my_sin() + heading.my_cos() * bank.my_cos(), tolerance);
+        let c = total_angle.my_cos();
+        let s = total_angle.my_sin();
 
-        println!("{:?}, {:?}, {:?}", eu_11, eu_12, eu_13);
-        println!("{:?}, {:?}, {:?}", eu_21, eu_22, eu_23);
-        println!("{:?}, {:?}, {:?}", eu_31, eu_32, eu_33);
-        println!();
+        let r_11 = if c_xz != V::from(0f32) { c_x } else { V::from(0f32) };
+        let r_12 = c_y;
+        let r_13 = if c_xz != V::from(0f32) { c_z } else { V::from(0f32) };
+        let r_21 = if c_xz != V::from(0f32)
+            { (V::from(-1f32) * c_x * c_y * c - c_z * s) / c_xz } else { V::from(-1f32) * c_y * c };
+        let r_22 = if c_xz != V::from(0f32) { c_xz * c } else { V::from(0f32) };
+        let r_23 = if c_xz != V::from(0f32)
+            { (V::from(-1f32) * c_y * c_z * c + c_x * s) / c_xz } else { s };
+        let r_31 = if c_xz != V::from(0f32)
+            { (c_x * c_y * s - c_z * c) / c_xz } else { c_y * s };
+        let r_32 = if c_xz != V::from(0f32)
+            { V::from(-1f32) * c_xz * s } else { V::from(0f32) };
+        let r_33 = if c_xz != V::from(0f32)
+            { (c_y * c_z * s + c_x * c) / c_xz } else { c };
 
         let rotation_matrix = ExtendedMatrix::create(
             BeamAuxFunctions::<T, V>::nodes_number() * BeamAuxFunctions::<T, V>::node_dof(),
             BeamAuxFunctions::<T, V>::nodes_number() * BeamAuxFunctions::<T, V>::node_dof(),
             vec![
-                [eu_11, eu_12, eu_13], [V::from(0f32); BEAM_NODE_DOF / 2],
+                [r_11, r_12, r_13], [V::from(0f32); BEAM_NODE_DOF / 2],
                 [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
-                [eu_21, eu_22, eu_23], [V::from(0f32); BEAM_NODE_DOF / 2],
+                [r_21, r_22, r_23], [V::from(0f32); BEAM_NODE_DOF / 2],
                 [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
-                [eu_31, eu_32, eu_33], [V::from(0f32); BEAM_NODE_DOF / 2],
-                [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
-
-                [V::from(0f32); BEAM_NODE_DOF / 2], [eu_11, eu_12, eu_13],
-                [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
-                [V::from(0f32); BEAM_NODE_DOF / 2], [eu_21, eu_22, eu_23],
-                [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
-                [V::from(0f32); BEAM_NODE_DOF / 2], [eu_31, eu_32, eu_33],
+                [r_31, r_32, r_33], [V::from(0f32); BEAM_NODE_DOF / 2],
                 [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
 
+                [V::from(0f32); BEAM_NODE_DOF / 2], [r_11, r_12, r_13],
                 [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
-                [eu_11, eu_12, eu_13], [V::from(0f32); BEAM_NODE_DOF / 2],
+                [V::from(0f32); BEAM_NODE_DOF / 2], [r_21, r_22, r_23],
                 [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
-                [eu_21, eu_22, eu_23], [V::from(0f32); BEAM_NODE_DOF / 2],
+                [V::from(0f32); BEAM_NODE_DOF / 2], [r_31, r_32, r_33],
                 [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
-                [eu_31, eu_32, eu_33], [V::from(0f32); BEAM_NODE_DOF / 2],
 
                 [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
-                [V::from(0f32); BEAM_NODE_DOF / 2], [eu_11, eu_12, eu_13],
+                [r_11, r_12, r_13], [V::from(0f32); BEAM_NODE_DOF / 2],
                 [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
-                [V::from(0f32); BEAM_NODE_DOF / 2], [eu_21, eu_22, eu_23],
+                [r_21, r_22, r_23], [V::from(0f32); BEAM_NODE_DOF / 2],
                 [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
-                [V::from(0f32); BEAM_NODE_DOF / 2], [eu_31, eu_32, eu_33],
+                [r_31, r_32, r_33], [V::from(0f32); BEAM_NODE_DOF / 2],
+
+                [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
+                [V::from(0f32); BEAM_NODE_DOF / 2], [r_11, r_12, r_13],
+                [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
+                [V::from(0f32); BEAM_NODE_DOF / 2], [r_21, r_22, r_23],
+                [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
+                [V::from(0f32); BEAM_NODE_DOF / 2], [r_31, r_32, r_33],
             ].concat(),
             tolerance,
         );
@@ -317,6 +308,18 @@ impl<T, V> BeamAuxFunctions<T, V>
     }
 
 
+    fn h1_r(r: V) -> V
+    {
+        V::from(0.5f32) * (V::from(1f32) - r)
+    }
+
+
+    fn h2_r(r: V) -> V
+    {
+        V::from(0.5f32) * (V::from(1f32) + r)
+    }
+
+
     fn dh1_dr(r: V) -> V
     {
         BeamAuxFunctions::<T, V>::derivative_x(
@@ -335,14 +338,14 @@ impl<T, V> BeamAuxFunctions<T, V>
     }
 
 
-    fn strain_displacement_matrix(node_1_number: T, node_2_number: T, r: V, tolerance: V,
+    fn strain_displacement_matrix_u(node_1_number: T, node_2_number: T, r: V, tolerance: V,
         nodes: &HashMap<T, FENode<V>>) -> ExtendedMatrix<T, V>
     {
         let elements = vec![
                 BeamAuxFunctions::<T, V>::dh1_dr(r), V::from(0f32), V::from(0f32),
                 V::from(0f32), V::from(0f32), V::from(0f32),
                 BeamAuxFunctions::<T, V>::dh2_dr(r), V::from(0f32), V::from(0f32),
-                V::from(0f32), V::from(0f32), V::from(0f32)
+                V::from(0f32), V::from(0f32), V::from(0f32),
             ];
         let mut matrix = ExtendedMatrix::create(T::from(1u8),
             BeamAuxFunctions::<T, V>::nodes_number() * BeamAuxFunctions::<T, V>::node_dof(),
@@ -354,38 +357,261 @@ impl<T, V> BeamAuxFunctions<T, V>
     }
 
 
-    fn local_stiffness_matrix(node_1_number: T, node_2_number: T, young_modulus: V, area: V,
-        alpha: V, r: V, local_stiffness_matrix: &ExtendedMatrix<T, V>,
-        tolerance: V, nodes: &HashMap<T, FENode<V>>) -> Result<ExtendedMatrix<T, V>, String>
+    fn strain_displacement_matrix_v(node_1_number: T, node_2_number: T, r: V, tolerance: V,
+        nodes: &HashMap<T, FENode<V>>) -> Result<ExtendedMatrix<T, V>, String>
     {
-        let mut lhs_matrix = BeamAuxFunctions::strain_displacement_matrix(
+        let lhs_elements = vec![
+                V::from(0f32), BeamAuxFunctions::<T, V>::dh1_dr(r), V::from(0f32),
+                V::from(0f32), V::from(0f32), V::from(0f32),
+                V::from(0f32), BeamAuxFunctions::<T, V>::dh2_dr(r), V::from(0f32),
+                V::from(0f32), V::from(0f32), V::from(0f32),
+            ];
+        let mut lhs_matrix = ExtendedMatrix::create(T::from(1u8),
+            BeamAuxFunctions::<T, V>::nodes_number() * BeamAuxFunctions::<T, V>::node_dof(),
+            lhs_elements, tolerance);
+        let inverse_jacobian = BeamAuxFunctions::inverse_jacobian(node_1_number, node_2_number,
+            r, nodes);
+        lhs_matrix.multiply_by_number(inverse_jacobian);
+
+        let rhs_elements = vec![
+            V::from(0f32), V::from(0f32), V::from(0f32),
+            V::from(0f32), V::from(0f32), BeamAuxFunctions::<T, V>::h1_r(r),
+            V::from(0f32), V::from(0f32), V::from(0f32),
+            V::from(0f32), V::from(0f32), BeamAuxFunctions::<T, V>::h2_r(r),
+        ];
+
+        let rhs_matrix = ExtendedMatrix::create(T::from(1u8),
+            BeamAuxFunctions::<T, V>::nodes_number() * BeamAuxFunctions::<T, V>::node_dof(),
+            rhs_elements, tolerance);
+
+        let matrix = lhs_matrix.subtract_matrix(&rhs_matrix)?;
+
+        Ok(matrix)
+    }
+
+
+    fn strain_displacement_matrix_w(node_1_number: T, node_2_number: T, r: V, tolerance: V,
+        nodes: &HashMap<T, FENode<V>>) -> Result<ExtendedMatrix<T, V>, String>
+    {
+        let lhs_elements = vec![
+                V::from(0f32), V::from(0f32), BeamAuxFunctions::<T, V>::dh1_dr(r),
+                V::from(0f32), V::from(0f32), V::from(0f32),
+                V::from(0f32), V::from(0f32), BeamAuxFunctions::<T, V>::dh2_dr(r),
+                V::from(0f32), V::from(0f32), V::from(0f32),
+            ];
+        let mut lhs_matrix = ExtendedMatrix::create(T::from(1u8),
+            BeamAuxFunctions::<T, V>::nodes_number() * BeamAuxFunctions::<T, V>::node_dof(),
+            lhs_elements, tolerance);
+        let inverse_jacobian = BeamAuxFunctions::inverse_jacobian(node_1_number, node_2_number,
+            r, nodes);
+        lhs_matrix.multiply_by_number(inverse_jacobian);
+
+        let rhs_elements = vec![
+                V::from(0f32), V::from(0f32), V::from(0f32),
+                V::from(0f32), BeamAuxFunctions::<T, V>::h1_r(r), V::from(0f32),
+                V::from(0f32), V::from(0f32), V::from(0f32),
+                V::from(0f32), BeamAuxFunctions::<T, V>::h2_r(r), V::from(0f32),
+            ];
+        let rhs_matrix = ExtendedMatrix::create(T::from(1u8),
+            BeamAuxFunctions::<T, V>::nodes_number() * BeamAuxFunctions::<T, V>::node_dof(),
+            rhs_elements, tolerance);
+
+        let matrix = lhs_matrix.subtract_matrix(&rhs_matrix)?;
+
+        Ok(matrix)
+    }
+
+
+    fn strain_displacement_matrix_thu(node_1_number: T, node_2_number: T, r: V, tolerance: V,
+        nodes: &HashMap<T, FENode<V>>) -> ExtendedMatrix<T, V>
+    {
+        let elements = vec![
+                V::from(0f32), V::from(0f32), V::from(0f32),
+                BeamAuxFunctions::<T, V>::dh1_dr(r), V::from(0f32), V::from(0f32),
+                V::from(0f32), V::from(0f32), V::from(0f32),
+                BeamAuxFunctions::<T, V>::dh2_dr(r), V::from(0f32), V::from(0f32),
+            ];
+        let mut matrix = ExtendedMatrix::create(T::from(1u8),
+            BeamAuxFunctions::<T, V>::nodes_number() * BeamAuxFunctions::<T, V>::node_dof(),
+            elements, tolerance);
+        let inverse_jacobian = BeamAuxFunctions::inverse_jacobian(node_1_number, node_2_number,
+            r, nodes);
+        matrix.multiply_by_number(inverse_jacobian);
+        matrix
+    }
+
+
+    fn strain_displacement_matrix_thv(node_1_number: T, node_2_number: T, r: V, tolerance: V,
+        nodes: &HashMap<T, FENode<V>>) -> ExtendedMatrix<T, V>
+    {
+        let elements = vec![
+                V::from(0f32), V::from(0f32), V::from(0f32),
+                V::from(0f32), BeamAuxFunctions::<T, V>::dh1_dr(r), V::from(0f32),
+                V::from(0f32), V::from(0f32), V::from(0f32),
+                V::from(0f32), BeamAuxFunctions::<T, V>::dh2_dr(r), V::from(0f32),
+            ];
+        let mut matrix = ExtendedMatrix::create(T::from(1u8),
+            BeamAuxFunctions::<T, V>::nodes_number() * BeamAuxFunctions::<T, V>::node_dof(),
+            elements, tolerance);
+        let inverse_jacobian = BeamAuxFunctions::inverse_jacobian(node_1_number, node_2_number,
+            r, nodes);
+        matrix.multiply_by_number(inverse_jacobian);
+        matrix
+    }
+
+
+    fn strain_displacement_matrix_thw(node_1_number: T, node_2_number: T, r: V, tolerance: V,
+        nodes: &HashMap<T, FENode<V>>) -> ExtendedMatrix<T, V>
+    {
+        let elements = vec![
+                V::from(0f32), V::from(0f32), V::from(0f32),
+                V::from(0f32), V::from(0f32), BeamAuxFunctions::<T, V>::dh1_dr(r),
+                V::from(0f32), V::from(0f32), V::from(0f32),
+                V::from(0f32), V::from(0f32), BeamAuxFunctions::<T, V>::dh2_dr(r),
+            ];
+        let mut matrix = ExtendedMatrix::create(T::from(1u8),
+            BeamAuxFunctions::<T, V>::nodes_number() * BeamAuxFunctions::<T, V>::node_dof(),
+            elements, tolerance);
+        let inverse_jacobian = BeamAuxFunctions::inverse_jacobian(node_1_number, node_2_number,
+            r, nodes);
+        matrix.multiply_by_number(inverse_jacobian);
+        matrix
+    }
+
+
+    fn local_stiffness_matrix(node_1_number: T, node_2_number: T, young_modulus: V,
+        poisson_ratio: V, area: V, shape_factor: V, it: V, i11: V, i22: V,
+        alpha: V, r: V, tolerance: V, nodes: &HashMap<T, FENode<V>>)
+        -> Result<ExtendedMatrix<T, V>, String>
+    {
+        let f = |data: &str| println!("{}", data);
+
+        let mut lhs_matrix_u = BeamAuxFunctions::strain_displacement_matrix_u(
             node_1_number, node_2_number, r, tolerance, nodes);
+        lhs_matrix_u.transpose();
+        let rhs_matrix_u = BeamAuxFunctions::strain_displacement_matrix_u(
+            node_1_number, node_2_number, r, tolerance, nodes);
+        let mut matrix_u = lhs_matrix_u.multiply_by_matrix(&rhs_matrix_u)
+            .map_err(|e|
+                format!("Beam2n2ipT: Local stiffness matrix could not be calculated! \
+                Reason: {}", e))?;
+        let coeff_u = young_modulus * area;
+        matrix_u.multiply_by_number(coeff_u);
+        matrix_u.multiply_by_number(BeamAuxFunctions::determinant_of_jacobian(
+            node_1_number, node_2_number, r, nodes) * alpha);
 
-        lhs_matrix.transpose();
+        println!("Matrix u");
+        matrix_u.show_matrix(f);
+        println!();
 
-        lhs_matrix.multiply_by_number(young_modulus * area);
+        let mut lhs_matrix_v = BeamAuxFunctions::strain_displacement_matrix_v(
+            node_1_number, node_2_number, r, tolerance, nodes)
+            .map_err(|e| format!("Beam2n2ipT: Local stiffness matrix could not be calculated! \
+                Reason: {}", e))?;
+        lhs_matrix_v.transpose();
+        let rhs_matrix_v = BeamAuxFunctions::strain_displacement_matrix_v(
+            node_1_number, node_2_number, r, tolerance, nodes)
+            .map_err(|e| format!("Beam2n2ipT: Local stiffness matrix could not be calculated! \
+                Reason: {}", e))?;
+        let mut matrix_v = lhs_matrix_v.multiply_by_matrix(&rhs_matrix_v)
+            .map_err(|e| format!("Beam2n2ipT: Local stiffness matrix could not be calculated! \
+                Reason: {}", e))?;
+        let shear_modulus = young_modulus / (V::from(2f32) * (V::from(1f32) + poisson_ratio));
+        let coeff_v_and_w = shear_modulus * area * shape_factor;
+        matrix_v.multiply_by_number(coeff_v_and_w);
+        matrix_v.multiply_by_number(BeamAuxFunctions::determinant_of_jacobian(
+            node_1_number, node_2_number, r, nodes) * alpha);
 
-        let rhs_matrix = BeamAuxFunctions::strain_displacement_matrix(
-                node_1_number, node_2_number, r, tolerance, nodes);
+        println!("Matrix v");
+        matrix_v.show_matrix(f);
+        println!();
 
-        return match lhs_matrix.multiply_by_matrix(&rhs_matrix)
-        {
-            Ok(mut matrix) =>
-                {
-                    matrix.multiply_by_number(BeamAuxFunctions::determinant_of_jacobian(
-                        node_1_number, node_2_number, r, nodes) * alpha);
+        let mut lhs_matrix_w = BeamAuxFunctions::strain_displacement_matrix_w(
+            node_1_number, node_2_number, r, tolerance, nodes)
+            .map_err(|e| format!("Beam2n2ipT: Local stiffness matrix could not be calculated! \
+                Reason: {}", e))?;
+        lhs_matrix_w.transpose();
+        let rhs_matrix_w = BeamAuxFunctions::strain_displacement_matrix_w(
+            node_1_number, node_2_number, r, tolerance, nodes)
+            .map_err(|e| format!("Beam2n2ipT: Local stiffness matrix could not be calculated! \
+                Reason: {}", e))?;
+        let mut matrix_w = lhs_matrix_w.multiply_by_matrix(&rhs_matrix_w)
+            .map_err(|e| format!("Beam2n2ipT: Local stiffness matrix could not be calculated! \
+                Reason: {}", e))?;
+        matrix_w.multiply_by_number(coeff_v_and_w);
+        matrix_w.multiply_by_number(BeamAuxFunctions::determinant_of_jacobian(
+            node_1_number, node_2_number, r, nodes) * alpha);
 
-                    match local_stiffness_matrix.add_matrix(&matrix)
-                    {
-                        Ok(matrix) => Ok(matrix),
-                        Err(e) =>
-                            Err(format!("Beam2n2ipT: Local stiffness matrix cannot be \
-                                calculated! Reason: {}", e)),
-                    }
-                },
-            Err(e) => Err(format!("Beam2n2ipT: Local stiffness matrix cannot be \
-                calculated! Reason: {}", e)),
-        }
+        println!("Matrix w");
+        matrix_w.show_matrix(f);
+        println!();
+
+        let mut lhs_matrix_thu = BeamAuxFunctions::strain_displacement_matrix_thu(
+            node_1_number, node_2_number, r, tolerance, nodes);
+        lhs_matrix_thu.transpose();
+        let rhs_matrix_thu = BeamAuxFunctions::strain_displacement_matrix_thu(
+            node_1_number, node_2_number, r, tolerance, nodes);
+        let mut matrix_thu = lhs_matrix_thu.multiply_by_matrix(
+            &rhs_matrix_thu)
+            .map_err(|e| format!("Beam2n2ipT: Local stiffness matrix could not be calculated! \
+                Reason: {}", e))?;
+        matrix_thu.multiply_by_number(it);
+        matrix_thu.multiply_by_number(BeamAuxFunctions::determinant_of_jacobian(
+            node_1_number, node_2_number, r, nodes) * alpha);
+
+        println!("Matrix thu");
+        matrix_thu.show_matrix(f);
+        println!();
+
+        let mut lhs_matrix_thv = BeamAuxFunctions::strain_displacement_matrix_thv(
+            node_1_number, node_2_number, r, tolerance, nodes);
+        lhs_matrix_thv.transpose();
+        let rhs_matrix_thv = BeamAuxFunctions::strain_displacement_matrix_thv(
+            node_1_number, node_2_number, r, tolerance, nodes);
+        let mut matrix_thv = lhs_matrix_thv.multiply_by_matrix(
+            &rhs_matrix_thv)
+            .map_err(|e| format!("Beam2n2ipT: Local stiffness matrix could not be calculated! \
+                Reason: {}", e))?;
+        let coeff_thv = young_modulus * i22;
+        matrix_thv.multiply_by_number(coeff_thv);
+        matrix_thv.multiply_by_number(BeamAuxFunctions::determinant_of_jacobian(
+            node_1_number, node_2_number, r, nodes) * alpha);
+
+        println!("Matrix thv");
+        matrix_thv.show_matrix(f);
+        println!();
+
+        let mut lhs_matrix_thw = BeamAuxFunctions::strain_displacement_matrix_thw(
+            node_1_number, node_2_number, r, tolerance, nodes);
+        lhs_matrix_thw.transpose();
+        let rhs_matrix_thw = BeamAuxFunctions::strain_displacement_matrix_thw(
+            node_1_number, node_2_number, r, tolerance, nodes);
+        let mut matrix_thw = lhs_matrix_thw.multiply_by_matrix(
+            &rhs_matrix_thw)
+            .map_err(|e| format!("Beam2n2ipT: Local stiffness matrix could not be calculated! \
+                Reason: {}", e))?;
+        let coeff_thw = young_modulus * i11;
+        matrix_thw.multiply_by_number(coeff_thw);
+        matrix_thw.multiply_by_number(BeamAuxFunctions::determinant_of_jacobian(
+            node_1_number, node_2_number, r, nodes) * alpha);
+
+        println!("Matrix thw");
+        matrix_thw.show_matrix(f);
+        println!();
+
+        let matrix = ((((matrix_u.add_matrix(&matrix_v)
+            .map_err(|e| format!("Beam2n2ipT: Local stiffness matrix could not be calculated! \
+                Reason: {}", e))?).add_matrix(&matrix_w)
+            .map_err(|e| format!("Beam2n2ipT: Local stiffness matrix could not be calculated! \
+                Reason: {}", e))?).add_matrix(&matrix_thu)
+            .map_err(|e| format!("Beam2n2ipT: Local stiffness matrix could not be calculated! \
+                Reason: {}", e))?).add_matrix(&matrix_thv)
+            .map_err(|e| format!("Beam2n2ipT: Local stiffness matrix could not be calculated! \
+                Reason: {}", e))?).add_matrix(&matrix_thw)
+            .map_err(|e| format!("Beam2n2ipT: Local stiffness matrix could not be calculated! \
+                Reason: {}", e))?;
+
+        Ok(matrix)
     }
 
 
@@ -467,6 +693,7 @@ pub struct Beam2n1ipT<T, V>
     i11: V,
     i22: V,
     angle: V,
+    shape_factor: V,
     it: V,
     local_axis_1_direction: [V; 3],
     state: State<T, V>,
@@ -482,8 +709,9 @@ impl<T, V> Beam2n1ipT<T, V>
              MyFloatTrait + PartialOrd + MyFloatTrait<Other = V> + 'static
 {
     pub fn create(node_1_number: T, node_2_number: T, young_modulus: V, poisson_ratio: V, area: V,
-        i11_init: V, i22_init: V, i12_init: V, it: V, local_axis_1_direction: [V; 3],
-        tolerance: V, nodes: &HashMap<T, FENode<V>>) -> Result<Self, String>
+        i11_init: V, i22_init: V, i12_init: V, it: V, shape_factor: V,
+        local_axis_1_direction: [V; 3], tolerance: V, nodes: &HashMap<T, FENode<V>>)
+        -> Result<Self, String>
     {
         let mut angle = if i11_init == i22_init
             {
@@ -516,8 +744,6 @@ impl<T, V> Beam2n1ipT<T, V>
                 i12_init * (V::from(2f32) * angle).my_sin();
         }
 
-        println!("i11: {:?}, i22: {:?}", i11, i22);
-
         let integration_point_1 = IntegrationPoint {
             r: V::from(0f32), weight: V::from(2f32) };
 
@@ -535,10 +761,13 @@ impl<T, V> Beam2n1ipT<T, V>
         for integration_point in &integration_points
         {
             let matrix = BeamAuxFunctions::local_stiffness_matrix(
-                node_1_number, node_2_number, young_modulus, area,
-                integration_point.weight, integration_point.r, &local_stiffness_matrix,
-                tolerance, nodes)?;
-            local_stiffness_matrix = matrix;
+                node_1_number, node_2_number, young_modulus, poisson_ratio, area, shape_factor,
+                it, i11, i22, integration_point.weight, integration_point.r, tolerance,
+                nodes)?;
+
+            local_stiffness_matrix = local_stiffness_matrix.add_matrix(&matrix)
+                .map_err(|e| format!("Beam2n2ipT: Local stiffness matrix could not be \
+                    calculated! Reason: {}", e))?;
         }
 
         let mut nodes_dof_parameters =
@@ -553,7 +782,7 @@ impl<T, V> Beam2n1ipT<T, V>
             local_stiffness_matrix, nodes_dof_parameters);
 
         Ok(Beam2n1ipT { node_1_number, node_2_number, young_modulus, poisson_ratio,
-            area, i11, i22, angle, it, local_axis_1_direction, state })
+            area, i11, i22, angle, shape_factor, it, local_axis_1_direction, state })
     }
 
 
@@ -654,11 +883,11 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
                 i12_init * (V::from(2f32) * angle).my_sin();
         }
 
-        println!("i11: {:?}, i22: {:?}", i11, i22);
-
         let it = properties[6];
 
-        let local_axis_1_direction = [properties[7], properties[8], properties[9]];
+        let shape_factor = properties[7];
+
+        let local_axis_1_direction = [properties[8], properties[9], properties[10]];
 
         let rotation_matrix =
             BeamAuxFunctions::rotation_matrix(node_1_number, node_2_number,
@@ -672,10 +901,12 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
         for integration_point in &self.state.integration_points
         {
             let matrix = BeamAuxFunctions::local_stiffness_matrix(
-                node_1_number, node_2_number, young_modulus, area,
-                integration_point.weight, integration_point.r, &local_stiffness_matrix,
-                tolerance, nodes)?;
-            local_stiffness_matrix = matrix;
+                node_1_number, node_2_number, young_modulus, poisson_ratio, area, shape_factor,
+                it, i11, i22, integration_point.weight, integration_point.r, tolerance,
+                nodes)?;
+            local_stiffness_matrix = local_stiffness_matrix.add_matrix(&matrix)
+                .map_err(|e| format!("Beam2n2ipT: Local stiffness matrix could not be \
+                    calculated! Reason: {}", e))?;
         }
 
         let mut nodes_dof_parameters =
@@ -694,6 +925,7 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
         self.i11 = i11;
         self.i22 = i22;
         self.angle = angle;
+        self.shape_factor = shape_factor;
         self.it = it;
         self.local_axis_1_direction = local_axis_1_direction;
         self.state.rotation_matrix = rotation_matrix;
@@ -895,7 +1127,7 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
                 number_2: self.node_1_number, positions: positions_kthth_2_1 },
              StiffnessGroup { stiffness_type: StiffnessType::Kthu, number_1: self.node_2_number,
                 number_2: self.node_2_number, positions: positions_kthu_2_2 },
-             StiffnessGroup { stiffness_type: StiffnessType::Kthu, number_1: self.node_2_number,
+             StiffnessGroup { stiffness_type: StiffnessType::Kthth, number_1: self.node_2_number,
                 number_2: self.node_2_number, positions: positions_kthth_2_2 },
         ]
     }
@@ -921,10 +1153,12 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
         for integration_point in self.state.integration_points.iter()
         {
             let matrix = BeamAuxFunctions::local_stiffness_matrix(
-                self.node_1_number, self.node_2_number, self.young_modulus, self.area,
-                integration_point.weight, integration_point.r,
-                &local_stiffness_matrix, tolerance, nodes)?;
-            local_stiffness_matrix = matrix;
+                self.node_1_number, self.node_2_number, self.young_modulus, self.poisson_ratio,
+                self.area, self.shape_factor, self.it, self.i11, self.i22,
+                integration_point.weight, integration_point.r, tolerance, nodes)?;
+            local_stiffness_matrix = local_stiffness_matrix.add_matrix(&matrix)
+                .map_err(|e| format!("Beam2n2ipT: Local stiffness matrix could not be \
+                    calculated! Reason: {}", e))?;
         }
 
         self.state.rotation_matrix = rotation_matrix;
@@ -952,7 +1186,7 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
         let mut forces_components = Vec::new();
         let mut forces_values = Vec::new();
         let strain_displacement_matrix =
-            BeamAuxFunctions::strain_displacement_matrix(
+            BeamAuxFunctions::strain_displacement_matrix_u(
                 self.node_1_number, self.node_2_number, r, tolerance, nodes);
 
         let strains_matrix =
