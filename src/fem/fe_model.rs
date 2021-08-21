@@ -389,10 +389,10 @@ impl<T, V> FEModel<T, V>
         {
             let element_stiffness_matrix = element.extract_stiffness_matrix()?;
 
-            println!("Element number: {:?}", element_number);
-            let f = |data: &str| println!("{}", data);
-            element_stiffness_matrix.show_matrix(f);
-            println!();
+            // println!("Element number: {:?}", element_number);
+            // let f = |data: &str| println!("{}", data);
+            // element_stiffness_matrix.show_matrix(f);
+            // println!();
 
             let element_stiffness_groups = element.extract_stiffness_groups();
             for element_stiffness_group in element_stiffness_groups
@@ -662,10 +662,10 @@ impl<T, V> FEModel<T, V>
         let mut global_stiffness_matrix =
             self.compose_global_stiffness_matrix()?;
 
-        let f = |data: &str| println!("{}", data);
-        println!("global stiffness matrix");
-        global_stiffness_matrix.show_matrix(f);
-        println!();
+        // let f = |data: &str| println!("{}", data);
+        // println!("global stiffness matrix");
+        // global_stiffness_matrix.show_matrix(f);
+        // println!();
 
         let removed_zeros_rows_columns =
             global_stiffness_matrix.remove_zeros_rows_columns();

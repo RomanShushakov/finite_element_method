@@ -236,10 +236,10 @@ fn main() -> Result<(), String>
 
     let mut fe_model = FEModel::create(TOLERANCE);
     fe_model.add_node(1u16, 0.0, 0.0, 0.0)?;
-    fe_model.add_node(2, 100.0, 0.0, 0.0)?;
-    // fe_model.add_node(3, 50.0, 0.0, 0.0)?;
-    // fe_model.add_node(4, 75.0, 0.0, 0.0)?;
-    // fe_model.add_node(5, 100.0, 0.0, 0.0)?;
+    fe_model.add_node(2, 25.0, 0.0, 0.0)?;
+    fe_model.add_node(3, 50.0, 0.0, 0.0)?;
+    fe_model.add_node(4, 75.0, 0.0, 0.0)?;
+    fe_model.add_node(5, 100.0, 0.0, 0.0)?;
 
     // fe_model.add_element(
     //     1,
@@ -253,23 +253,23 @@ fn main() -> Result<(), String>
         vec![1, 2],
         vec![1e6, 0.3, 1.0, 2.0, 1.0, 0.0, 1.0, 0.8333, 0.0, 0.0, -1.0])?;
 
-    // fe_model.add_element(
-    //     2,
-    //     FEType::Beam2n1ipT,
-    //     vec![2, 3],
-    //     vec![1e6, 0.3, 1.0, 2.0, 1.0, 0.0, 1.0, 0.8333, 0.0, 0.0, -1.0])?;
-    //
-    // fe_model.add_element(
-    //     3,
-    //     FEType::Beam2n1ipT,
-    //     vec![3, 4],
-    //     vec![1e6, 0.3, 1.0, 2.0, 1.0, 0.0, 1.0, 0.8333, 0.0, 0.0, -1.0])?;
-    //
-    // fe_model.add_element(
-    //     4,
-    //     FEType::Beam2n1ipT,
-    //     vec![4, 5],
-    //     vec![1e6, 0.3, 1.0, 2.0, 1.0, 0.0, 1.0, 0.8333, 0.0, 0.0, -1.0])?;
+    fe_model.add_element(
+        2,
+        FEType::Beam2n1ipT,
+        vec![2, 3],
+        vec![1e6, 0.3, 1.0, 2.0, 1.0, 0.0, 1.0, 0.8333, 0.0, 0.0, -1.0])?;
+
+    fe_model.add_element(
+        3,
+        FEType::Beam2n1ipT,
+        vec![3, 4],
+        vec![1e6, 0.3, 1.0, 2.0, 1.0, 0.0, 1.0, 0.8333, 0.0, 0.0, -1.0])?;
+
+    fe_model.add_element(
+        4,
+        FEType::Beam2n1ipT,
+        vec![4, 5],
+        vec![1e6, 0.3, 1.0, 2.0, 1.0, 0.0, 1.0, 0.8333, 0.0, 0.0, -1.0])?;
 
     fe_model.add_bc(
         BCType::Displacement, 1, 1,
@@ -291,32 +291,32 @@ fn main() -> Result<(), String>
         GlobalDOFParameter::ThZ, 0.0)?;
 
     // fe_model.add_bc(
-    //     BCType::Displacement, 7, 1,
+    //     BCType::Displacement, 7, 2,
     //     GlobalDOFParameter::ThX, 0.0)?;
     //
     // fe_model.add_bc(
-    //     BCType::Displacement, 5, 2,
-    //     GlobalDOFParameter::Y, 0.0)?;
+    //     BCType::Displacement, 8, 3,
+    //     GlobalDOFParameter::ThX, 0.0)?;
     //
     // fe_model.add_bc(
-    //     BCType::Displacement, 6, 2,
-    //     GlobalDOFParameter::Z, 0.0)?;
+    //     BCType::Displacement, 9, 4,
+    //     GlobalDOFParameter::ThX, 0.0)?;
+    //
+    // fe_model.add_bc(
+    //     BCType::Displacement, 10, 5,
+    //     GlobalDOFParameter::ThX, 0.0)?;
 
     // fe_model.add_bc(
-    //     BCType::Displacement, 4, 1,
-    //     GlobalDOFParameter::ThX, 0.0)?;
-    //
+    //     BCType::Force, 1, 5,
+    //     GlobalDOFParameter::Y, 100.0)?;
+
     // fe_model.add_bc(
-    //     BCType::Displacement, 5, 1,
-    //     GlobalDOFParameter::ThY, 0.0)?;
-    //
-    // fe_model.add_bc(
-    //     BCType::Displacement, 6, 1,
-    //     GlobalDOFParameter::ThZ, 0.0)?;
+    //     BCType::Force, 2, 5,
+    //     GlobalDOFParameter::Z, -625.0)?;
 
     fe_model.add_bc(
-        BCType::Force, 1, 2,
-        GlobalDOFParameter::Y, 100.0)?;
+        BCType::Force, 3, 5,
+        GlobalDOFParameter::ThZ, -1000.0)?;
 
     let global_analysis_result = fe_model.global_analysis()?;
     let reactions = global_analysis_result.extract_reactions();
@@ -341,6 +341,175 @@ fn main() -> Result<(), String>
     let elements_analysis_results =
         fe_model.elements_analysis(&displacements)?;
     println!("{:?}", elements_analysis_results);
+
+
+
+    // let mut fe_model = FEModel::create(TOLERANCE);
+    // fe_model.add_node(1u16, 0.0, 0.0, 0.0)?;
+    // fe_model.add_node(2, 0.0, 0.5, 0.0)?;
+    // fe_model.add_node(3, 0.0, 1.0, 0.0)?;
+    // fe_model.add_node(4, 0.0, 1.5, 0.0)?;
+    // fe_model.add_node(5, 0.0, 2.0, 0.0)?;
+    //
+    // fe_model.add_node(6, 0.5, 2.333, 0.0)?;
+    // fe_model.add_node(7, 1.0, 2.666, 0.0)?;
+    // fe_model.add_node(8, 1.5, 3.0, 0.0)?;
+    //
+    // fe_model.add_node(9, 2.0, 2.666, 0.0)?;
+    // fe_model.add_node(10, 2.5, 2.333, 0.0)?;
+    // fe_model.add_node(11, 3.0, 2.0, 0.0)?;
+    //
+    // fe_model.add_node(12, 3.0, 1.5, 0.0)?;
+    // fe_model.add_node(13, 3.0, 1.0, 0.0)?;
+    // fe_model.add_node(14, 3.0, 0.5, 0.0)?;
+    // fe_model.add_node(15, 3.0, 0.0, 0.0)?;
+    //
+    // fe_model.add_element(
+    //     1,
+    //     FEType::Beam2n1ipT,
+    //     vec![1, 2],
+    //     vec![2e11, 0.3, 1e-2, 5e-6, 4e-6, 0.0, 3e-6, 0.8333, 0.0, 0.0, -1.0])?;
+    //
+    // fe_model.add_element(
+    //     2,
+    //     FEType::Beam2n1ipT,
+    //     vec![2, 3],
+    //     vec![2e11, 0.3, 1e-2, 5e-6, 4e-6, 0.0, 3e-6, 0.8333, 0.0, 0.0, -1.0])?;
+    //
+    // fe_model.add_element(
+    //     3,
+    //     FEType::Beam2n1ipT,
+    //     vec![3, 4],
+    //     vec![2e11, 0.3, 1e-2, 5e-6, 4e-6, 0.0, 3e-6, 0.8333, 0.0, 0.0, -1.0])?;
+    //
+    // fe_model.add_element(
+    //     4,
+    //     FEType::Beam2n1ipT,
+    //     vec![4, 5],
+    //     vec![2e11, 0.3, 1e-2, 5e-6, 4e-6, 0.0, 3e-6, 0.8333, 0.0, 0.0, -1.0])?;
+    //
+    // fe_model.add_element(
+    //     5,
+    //     FEType::Beam2n1ipT,
+    //     vec![5, 6],
+    //     vec![2e11, 0.3, 1e-2, 5e-6, 4e-6, 0.0, 3e-6, 0.8333, 0.0, 0.0, -1.0])?;
+    //
+    // fe_model.add_element(
+    //     6,
+    //     FEType::Beam2n1ipT,
+    //     vec![6, 7],
+    //     vec![2e11, 0.3, 1e-2, 5e-6, 4e-6, 0.0, 3e-6, 0.8333, 0.0, 0.0, -1.0])?;
+    //
+    // fe_model.add_element(
+    //     7,
+    //     FEType::Beam2n1ipT,
+    //     vec![7, 8],
+    //     vec![2e11, 0.3, 1e-2, 5e-6, 4e-6, 0.0, 3e-6, 0.8333, 0.0, 0.0, -1.0])?;
+    //
+    // fe_model.add_element(
+    //     8,
+    //     FEType::Beam2n1ipT,
+    //     vec![8, 9],
+    //     vec![2e11, 0.3, 1e-2, 5e-6, 4e-6, 0.0, 3e-6, 0.8333, 0.0, 0.0, -1.0])?;
+    //
+    // fe_model.add_element(
+    //     9,
+    //     FEType::Beam2n1ipT,
+    //     vec![9, 10],
+    //     vec![2e11, 0.3, 1e-2, 5e-6, 4e-6, 0.0, 3e-6, 0.8333, 0.0, 0.0, -1.0])?;
+    //
+    // fe_model.add_element(
+    //     10,
+    //     FEType::Beam2n1ipT,
+    //     vec![10, 11],
+    //     vec![2e11, 0.3, 1e-2, 5e-6, 4e-6, 0.0, 3e-6, 0.8333, 0.0, 0.0, -1.0])?;
+    //
+    // fe_model.add_element(
+    //     11,
+    //     FEType::Beam2n1ipT,
+    //     vec![11, 12],
+    //     vec![2e11, 0.3, 1e-2, 5e-6, 4e-6, 0.0, 3e-6, 0.8333, 0.0, 0.0, -1.0])?;
+    //
+    // fe_model.add_element(
+    //     12,
+    //     FEType::Beam2n1ipT,
+    //     vec![12, 13],
+    //     vec![2e11, 0.3, 1e-2, 5e-6, 4e-6, 0.0, 3e-6, 0.8333, 0.0, 0.0, -1.0])?;
+    //
+    // fe_model.add_element(
+    //     13,
+    //     FEType::Beam2n1ipT,
+    //     vec![13, 14],
+    //     vec![2e11, 0.3, 1e-2, 5e-6, 4e-6, 0.0, 3e-6, 0.8333, 0.0, 0.0, -1.0])?;
+    //
+    // fe_model.add_element(
+    //     14,
+    //     FEType::Beam2n1ipT,
+    //     vec![14, 15],
+    //     vec![2e11, 0.3, 1e-2, 5e-6, 4e-6, 0.0, 3e-6, 0.8333, 0.0, 0.0, -1.0])?;
+    //
+    // fe_model.add_bc(
+    //     BCType::Displacement, 1, 1,
+    //     GlobalDOFParameter::X, 0.0)?;
+    // fe_model.add_bc(
+    //     BCType::Displacement, 2, 1,
+    //     GlobalDOFParameter::Y, 0.0)?;
+    // fe_model.add_bc(
+    //     BCType::Displacement, 3, 1,
+    //     GlobalDOFParameter::Z, 0.0)?;
+    // fe_model.add_bc(
+    //     BCType::Displacement, 4, 15,
+    //     GlobalDOFParameter::X, 0.0)?;
+    // fe_model.add_bc(
+    //     BCType::Displacement, 5, 15,
+    //     GlobalDOFParameter::Y, 0.0)?;
+    // fe_model.add_bc(
+    //     BCType::Displacement, 6, 15,
+    //     GlobalDOFParameter::Z, 0.0)?;
+    //
+    // // fe_model.add_bc(
+    // //     BCType::Displacement, 7, 2,
+    // //     GlobalDOFParameter::ThX, 0.0)?;
+    // //
+    // // fe_model.add_bc(
+    // //     BCType::Displacement, 8, 3,
+    // //     GlobalDOFParameter::ThX, 0.0)?;
+    // //
+    // // fe_model.add_bc(
+    // //     BCType::Displacement, 9, 4,
+    // //     GlobalDOFParameter::ThX, 0.0)?;
+    // //
+    // // fe_model.add_bc(
+    // //     BCType::Displacement, 10, 5,
+    // //     GlobalDOFParameter::ThX, 0.0)?;
+    //
+    // fe_model.add_bc(
+    //     BCType::Force, 1, 8,
+    //     GlobalDOFParameter::Y, -20000.0)?;
+    //
+    // let global_analysis_result = fe_model.global_analysis()?;
+    // let reactions = global_analysis_result.extract_reactions();
+    // for (reaction, dof_parameter_data) in
+    //     reactions.extract_reactions_values().iter()
+    //         .zip(reactions.extract_dof_parameters_data())
+    // {
+    //     println!("reaction: {}, node: {}, parameter: {:?}", reaction, dof_parameter_data.extract_node_number(),
+    //              dof_parameter_data.extract_dof_parameter());
+    // }
+    // println!();
+    // let displacements = global_analysis_result.extract_displacements();
+    // for (displacement, dof_parameter_data) in
+    //     displacements.extract_displacements_values().iter()
+    //         .zip(displacements.extract_dof_parameters_data().iter())
+    // {
+    //     println!("displacement: {}, node: {}, parameter: {:?}", displacement, dof_parameter_data.extract_node_number(),
+    //              dof_parameter_data.extract_dof_parameter());
+    // }
+    //
+    // println!();
+    // let elements_analysis_results =
+    //     fe_model.elements_analysis(&displacements)?;
+    // println!("{:?}", elements_analysis_results);
 
     Ok(())
 }

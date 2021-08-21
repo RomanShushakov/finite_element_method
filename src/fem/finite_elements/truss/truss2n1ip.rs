@@ -380,7 +380,6 @@ impl<T, V> FiniteElementTrait<T, V> for Truss2n1ip<T, V>
                     stresses_components.push(*stress_strain_component);
                 }
 
-
                 let mut coeff_1 = V::from(0f32);
                 (0..POINTS_NUMBER_FOR_TAPERED_TRUSS - 1).for_each(|_| coeff_1 += V::from(1f32));
                 let mut coeff_2 = V::from(0f32);

@@ -484,7 +484,7 @@ impl<T, V> BeamAuxFunctions<T, V>
         alpha: V, r: V, tolerance: V, nodes: &HashMap<T, FENode<V>>)
         -> Result<ExtendedMatrix<T, V>, String>
     {
-        let f = |data: &str| println!("{}", data);
+        // let f = |data: &str| println!("{}", data);
 
         let mut lhs_matrix_u = BeamAuxFunctions::strain_displacement_matrix_u(
             node_1_number, node_2_number, r, tolerance, nodes);
@@ -500,9 +500,9 @@ impl<T, V> BeamAuxFunctions<T, V>
         matrix_u.multiply_by_number(BeamAuxFunctions::determinant_of_jacobian(
             node_1_number, node_2_number, r, nodes) * alpha);
 
-        println!("Matrix u");
-        matrix_u.show_matrix(f);
-        println!();
+        // println!("Matrix u");
+        // matrix_u.show_matrix(f);
+        // println!();
 
         let mut lhs_matrix_v = BeamAuxFunctions::strain_displacement_matrix_v(
             node_1_number, node_2_number, r, tolerance, nodes)
@@ -522,9 +522,9 @@ impl<T, V> BeamAuxFunctions<T, V>
         matrix_v.multiply_by_number(BeamAuxFunctions::determinant_of_jacobian(
             node_1_number, node_2_number, r, nodes) * alpha);
 
-        println!("Matrix v");
-        matrix_v.show_matrix(f);
-        println!();
+        // println!("Matrix v");
+        // matrix_v.show_matrix(f);
+        // println!();
 
         let mut lhs_matrix_w = BeamAuxFunctions::strain_displacement_matrix_w(
             node_1_number, node_2_number, r, tolerance, nodes)
@@ -542,9 +542,9 @@ impl<T, V> BeamAuxFunctions<T, V>
         matrix_w.multiply_by_number(BeamAuxFunctions::determinant_of_jacobian(
             node_1_number, node_2_number, r, nodes) * alpha);
 
-        println!("Matrix w");
-        matrix_w.show_matrix(f);
-        println!();
+        // println!("Matrix w");
+        // matrix_w.show_matrix(f);
+        // println!();
 
         let mut lhs_matrix_thu = BeamAuxFunctions::strain_displacement_matrix_thu(
             node_1_number, node_2_number, r, tolerance, nodes);
@@ -555,13 +555,14 @@ impl<T, V> BeamAuxFunctions<T, V>
             &rhs_matrix_thu)
             .map_err(|e| format!("Beam2n2ipT: Local stiffness matrix could not be calculated! \
                 Reason: {}", e))?;
-        matrix_thu.multiply_by_number(it);
+        let coeff_thu = shear_modulus * it;
+        matrix_thu.multiply_by_number(coeff_thu);
         matrix_thu.multiply_by_number(BeamAuxFunctions::determinant_of_jacobian(
             node_1_number, node_2_number, r, nodes) * alpha);
 
-        println!("Matrix thu");
-        matrix_thu.show_matrix(f);
-        println!();
+        // println!("Matrix thu");
+        // matrix_thu.show_matrix(f);
+        // println!();
 
         let mut lhs_matrix_thv = BeamAuxFunctions::strain_displacement_matrix_thv(
             node_1_number, node_2_number, r, tolerance, nodes);
@@ -577,9 +578,9 @@ impl<T, V> BeamAuxFunctions<T, V>
         matrix_thv.multiply_by_number(BeamAuxFunctions::determinant_of_jacobian(
             node_1_number, node_2_number, r, nodes) * alpha);
 
-        println!("Matrix thv");
-        matrix_thv.show_matrix(f);
-        println!();
+        // println!("Matrix thv");
+        // matrix_thv.show_matrix(f);
+        // println!();
 
         let mut lhs_matrix_thw = BeamAuxFunctions::strain_displacement_matrix_thw(
             node_1_number, node_2_number, r, tolerance, nodes);
@@ -595,9 +596,9 @@ impl<T, V> BeamAuxFunctions<T, V>
         matrix_thw.multiply_by_number(BeamAuxFunctions::determinant_of_jacobian(
             node_1_number, node_2_number, r, nodes) * alpha);
 
-        println!("Matrix thw");
-        matrix_thw.show_matrix(f);
-        println!();
+        // println!("Matrix thw");
+        // matrix_thw.show_matrix(f);
+        // println!();
 
         let matrix = ((((matrix_u.add_matrix(&matrix_v)
             .map_err(|e| format!("Beam2n2ipT: Local stiffness matrix could not be calculated! \
@@ -742,6 +743,7 @@ impl<T, V> Beam2n1ipT<T, V>
             i22 = i11_init * (angle.my_sin()).my_powi(2) +
                 i22_init * (angle.my_cos()).my_powi(2) +
                 i12_init * (V::from(2f32) * angle).my_sin();
+            i += 1;
         }
 
         let integration_point_1 = IntegrationPoint {
@@ -881,6 +883,7 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
             i22 = i11_init * (angle.my_sin()).my_powi(2) +
                 i22_init * (angle.my_cos()).my_powi(2) +
                 i12_init * (V::from(2f32) * angle).my_sin();
+            i += 1;
         }
 
         let it = properties[6];
@@ -1180,44 +1183,77 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
     {
         let element_local_displacements =
             self.extract_local_displacements(global_displacements, tolerance)?;
+
         let r = self.state.integration_points[0].r;
+        let mut strains_values = Vec::new();
         let mut strains_components = Vec::new();
+        let mut stresses_values = Vec::new();
         let mut stresses_components = Vec::new();
-        let mut forces_components = Vec::new();
         let mut forces_values = Vec::new();
-        let strain_displacement_matrix =
+        let mut forces_components = Vec::new();
+
+        let strain_displacement_matrix_u =
             BeamAuxFunctions::strain_displacement_matrix_u(
                 self.node_1_number, self.node_2_number, r, tolerance, nodes);
+        let strains_matrix_u =
+            strain_displacement_matrix_u.multiply_by_matrix(&element_local_displacements)?;
+        let axial_force = BeamAuxFunctions::extract_column_matrix_values(
+            &strains_matrix_u)[0] * self.area * self.young_modulus;
+        forces_components.push(ForceComponent::Axial);
+        forces_values.push(axial_force);
 
-        let strains_matrix =
-            strain_displacement_matrix.multiply_by_matrix(&element_local_displacements)?;
+        let strain_displacement_matrix_v =
+            BeamAuxFunctions::strain_displacement_matrix_v(
+                self.node_1_number, self.node_2_number, r, tolerance, nodes)?;
+        let strains_matrix_v =
+            strain_displacement_matrix_v.multiply_by_matrix(&element_local_displacements)?;
+        let shear_modulus = self.young_modulus /
+            (V::from(2f32) * (V::from(1f32) + self.poisson_ratio));
+        let shear_y = BeamAuxFunctions::extract_column_matrix_values(
+            &strains_matrix_v)[0] * shear_modulus * self.area * self.shape_factor;
+        forces_components.push(ForceComponent::ShearY);
+        forces_values.push(shear_y);
 
-        let stresses_matrix =
-            {
-                let mut matrix = strains_matrix.clone();
-                matrix.multiply_by_number(self.young_modulus);
-                matrix
-            };
+        let strain_displacement_matrix_w =
+            BeamAuxFunctions::strain_displacement_matrix_w(
+                self.node_1_number, self.node_2_number, r, tolerance, nodes)?;
+        let strains_matrix_w =
+            strain_displacement_matrix_w.multiply_by_matrix(&element_local_displacements)?;
+        let shear_z = BeamAuxFunctions::extract_column_matrix_values(
+            &strains_matrix_w)[0] * shear_modulus * self.area * self.shape_factor;
+        forces_components.push(ForceComponent::ShearZ);
+        forces_values.push(shear_z);
 
-        for component_number in &BEAM_STRESS_STRAIN_COMPONENTS_NUMBERS
-        {
-            let stress_strain_component =
-                StressStrainComponent::iterator().nth(*component_number)
-                    .ok_or(format!("Beam2n2ipT: Stress strain component number {} could \
-                        not be extracted", component_number))?;
-            strains_components.push(*stress_strain_component);
-            stresses_components.push(*stress_strain_component);
-        }
-        let strains_values =
-            BeamAuxFunctions::extract_column_matrix_values(&strains_matrix);
-        let stresses_values =
-            BeamAuxFunctions::extract_column_matrix_values(&stresses_matrix);
-        for stress in &stresses_values
-        {
-            let axial_force = *stress * self.area;
-            forces_components.push(ForceComponent::Axial);
-            forces_values.push(axial_force);
-        }
+        let strain_displacement_matrix_thu =
+            BeamAuxFunctions::strain_displacement_matrix_thu(
+                self.node_1_number, self.node_2_number, r, tolerance, nodes);
+        let strains_matrix_thu =
+            strain_displacement_matrix_thu.multiply_by_matrix(&element_local_displacements)?;
+        let moment_x = BeamAuxFunctions::extract_column_matrix_values(
+            &strains_matrix_thu)[0] * shear_modulus * self.it;
+        forces_components.push(ForceComponent::MomentX);
+        forces_values.push(moment_x);
+
+        let strain_displacement_matrix_thv =
+            BeamAuxFunctions::strain_displacement_matrix_thv(
+                self.node_1_number, self.node_2_number, r, tolerance, nodes);
+        let strains_matrix_thv =
+            strain_displacement_matrix_thv.multiply_by_matrix(&element_local_displacements)?;
+        let moment_y = BeamAuxFunctions::extract_column_matrix_values(
+            &strains_matrix_thv)[0] * self.young_modulus * self.i22;
+        forces_components.push(ForceComponent::MomentY);
+        forces_values.push(moment_y);
+
+        let strain_displacement_matrix_thw =
+            BeamAuxFunctions::strain_displacement_matrix_thw(
+                self.node_1_number, self.node_2_number, r, tolerance, nodes);
+        let strains_matrix_thw =
+            strain_displacement_matrix_thw.multiply_by_matrix(&element_local_displacements)?;
+        let moment_z = BeamAuxFunctions::extract_column_matrix_values(
+            &strains_matrix_thw)[0] * self.young_modulus * self.i11;
+        forces_components.push(ForceComponent::MomentZ);
+        forces_values.push(moment_z);
+
         let element_analysis_data = ElementAnalysisData::create(
             number, strains_values, strains_components,
             stresses_values, stresses_components, forces_values, forces_components);
@@ -1245,69 +1281,3 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
         properties
     }
 }
-
-
-                    // let length = (x.my_powi(2) + y.my_powi(2) + z.my_powi(2)).my_sqrt();
-                    //
-                    // let (u, v, w) = (length, V::from(0f32), V::from(0f32));
-                    // let alpha = ((x * u + y * v + z * w) / (length * length)).my_acos();
-                    // let (rotation_axis_coord_x, mut rotation_axis_coord_y,
-                    //     mut rotation_axis_coord_z) = (V::from(0f32), V::from(0f32), V::from(0f32));
-                    // if x != V::from(0f32) && y == V::from(0f32) && z == V::from(0f32)
-                    // {
-                    //     rotation_axis_coord_z = x;
-                    // }
-                    // else
-                    // {
-                    //     rotation_axis_coord_y = z * length;
-                    //     rotation_axis_coord_z = y * V::from(-1f32) * length;
-                    // }
-                    // let norm = V::from(1f32) / (rotation_axis_coord_x.my_powi(2) +
-                    //     rotation_axis_coord_y.my_powi(2) + rotation_axis_coord_z.my_powi(2))
-                    //     .my_sqrt();
-                    // let (x_n, y_n, z_n) = (rotation_axis_coord_x * norm,
-                    //     rotation_axis_coord_y * norm, rotation_axis_coord_z * norm);
-                    // let (c, s) = (alpha.my_cos(), alpha.my_sin());
-                    // let t = V::from(1f32) - c;
-                    // let q_11 = compare_with_tolerance(t * x_n * x_n + c, tolerance);
-                    // let q_12 = compare_with_tolerance(t * x_n * y_n - z_n * s, tolerance);
-                    // let q_13 = compare_with_tolerance(t * x_n * z_n + y_n * s, tolerance);
-                    // let q_21 = compare_with_tolerance(t * x_n * y_n + z_n * s, tolerance);
-                    // let q_22 = compare_with_tolerance(t * y_n * y_n + c, tolerance);
-                    // let q_23 = compare_with_tolerance(t * y_n * z_n - x_n * s, tolerance);
-                    // let q_31 = compare_with_tolerance(t * x_n * z_n - y_n * s, tolerance);
-                    // let q_32 = compare_with_tolerance(t * y_n * z_n + x_n * s, tolerance);
-                    // let q_33 = compare_with_tolerance(t * z_n * z_n + c, tolerance);
-                    //
-                    // let rotation_matrix = ExtendedMatrix::create(3,
-                    //     3, vec![q_11, q_12, q_13, q_21, q_22, q_23, q_31,
-                    //     q_32, q_33], tolerance);
-                    //
-                    // let projection_of_vector = ExtendedMatrix::create(
-                    //     3, 1,
-                    //     projection_of_beam_section_orientation_vector.to_vec(),
-                    //     tolerance);
-                    //
-                    // let transformed_projection_of_vector =
-                    //     rotation_matrix.multiply_by_matrix(&projection_of_vector)
-                    //         .map_err(|e|JsValue::from(e))?;
-                    //
-                    // let all_values_of_transformed_projection_of_vector =
-                    //     transformed_projection_of_vector.extract_all_elements_values();
-                    //
-                    // let transformed_projection_of_vector_x = extract_element_value(0,
-                    //     0, &all_values_of_transformed_projection_of_vector);
-                    //
-                    // let transformed_projection_of_vector_y = extract_element_value(1,
-                    //     0, &all_values_of_transformed_projection_of_vector);
-                    //
-                    // let transformed_projection_of_vector_z = extract_element_value(2,
-                    //     0, &all_values_of_transformed_projection_of_vector);
-                    //
-                    // let angle = (transformed_projection_of_vector_y /
-                    //     (transformed_projection_of_vector_x * transformed_projection_of_vector_x +
-                    //     transformed_projection_of_vector_y * transformed_projection_of_vector_y +
-                    //     transformed_projection_of_vector_z * transformed_projection_of_vector_z)
-                    //         .my_sqrt()
-                    //     ).my_acos();
-
