@@ -13,7 +13,7 @@ use crate::fem::global_analysis::fe_stiffness::
 };
 use crate::fem::global_analysis::fe_dof_parameter_data::global_dof;
 
-use crate::fem::fe_model::SeparatedMatrix;
+use crate::fem::separated_matrix::SeparatedMatrix;
 
 
 pub fn compose_stiffness_sub_groups<'a, T>(global_group_position: T,
@@ -198,7 +198,9 @@ pub fn separate<'a, T, V>(matrix: ExtendedMatrix<T, V>, positions: Vec<MatrixEle
     }
     let k_bb_matrix = ExtendedMatrix::create(k_bb_rows_number,
         k_bb_columns_number, k_bb_elements, tolerance);
-    Ok(SeparatedMatrix {
-        k_aa: k_aa_matrix, k_ab: k_ab_matrix, k_ba: k_ba_matrix, k_bb: k_bb_matrix
-    })
+
+    let separated_matrix = SeparatedMatrix::create(k_aa_matrix,
+        k_ab_matrix, k_ba_matrix, k_bb_matrix);
+
+    Ok(separated_matrix)
 }

@@ -27,32 +27,31 @@ use crate::fem::functions::{separate, compose_stiffness_sub_groups};
 
 use crate::my_float::MyFloatTrait;
 
-// use crate::auxiliary::{FEDrawnElementData, FEDrawnBCData, FEDrawnNodeData};
 
-
-pub struct SeparatedMatrix<T, V>
+struct State<T, V>
 {
-    pub k_aa: ExtendedMatrix<T, V>,
-    pub k_ab: ExtendedMatrix<T, V>,
-    pub k_ba: ExtendedMatrix<T, V>,
-    pub k_bb: ExtendedMatrix<T, V>,
+    stiffness_groups: Vec<StiffnessGroup<T>>,
+    nodes_dof_parameters_global: Vec<DOFParameterData<T>>,
+    tolerance: V,
 }
 
 
-pub struct State<T, V>
+impl<T, V> State<T, V>
 {
-    pub stiffness_groups: Vec<StiffnessGroup<T>>,
-    pub nodes_dof_parameters_global: Vec<DOFParameterData<T>>,
-    pub tolerance: V,
+    fn create(stiffness_groups: Vec<StiffnessGroup<T>>,
+        nodes_dof_parameters_global: Vec<DOFParameterData<T>>, tolerance: V,) -> Self
+    {
+        State { stiffness_groups, nodes_dof_parameters_global, tolerance }
+    }
 }
 
 
 pub struct FEModel<T, V>
 {
-pub nodes: HashMap<T, FENode<V>>,                               // Hashmap { node_number: Node }
+    pub nodes: HashMap<T, FENode<V>>,                           // Hashmap { node_number: Node }
     pub elements: HashMap<T, FiniteElement<T, V>>,              // Hashmap { element_number: FiniteElement }
     pub boundary_conditions: Vec<BoundaryCondition<T, V>>,
-    pub state: State<T, V>,
+    state: State<T, V>,
 }
 
 
@@ -66,8 +65,8 @@ impl<T, V> FEModel<T, V>
 {
     pub fn create(tolerance: V) -> Self
     {
-        let state = State { stiffness_groups: Vec::new(), nodes_dof_parameters_global: Vec::new(),
-            tolerance };
+        let state = State::create(Vec::new(),
+            Vec::new(), tolerance);
 
         FEModel { nodes: HashMap::new(), elements: HashMap::new(),
             boundary_conditions: Vec::new(), state }
@@ -671,14 +670,14 @@ impl<T, V> FEModel<T, V>
         let ub_matrix = self.compose_matrix_by_rows_numbers(&ub_rb_rows_numbers);
         let separated_matrix =
             separate(global_stiffness_matrix, separation_positions, self.state.tolerance)?;
-        let ua_matrix = separated_matrix.k_aa
+        let ua_matrix = separated_matrix.k_aa()
             .naive_gauss_elimination(&ra_matrix.add_subtract_matrix(
-            &separated_matrix.k_ab.multiply_by_matrix(&ub_matrix)?,
+            &separated_matrix.k_ab().multiply_by_matrix(&ub_matrix)?,
             Operation::Subtraction)?)?;
-        let reactions_values_matrix = separated_matrix.k_ba
+        let reactions_values_matrix = separated_matrix.k_ba()
             .multiply_by_matrix(&ua_matrix)?
             .add_subtract_matrix(
-                &separated_matrix.k_bb
+                &separated_matrix.k_bb()
                     .multiply_by_matrix(&ub_matrix)?,
                         Operation::Addition)?;
         let all_reactions =
