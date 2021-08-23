@@ -6,9 +6,9 @@ use crate::fem::element_analysis::fe_element_analysis_result::EARComponentTrait;
 #[derive(Debug, Clone, PartialEq, Copy)]
 pub enum ForceComponent
 {
-    Axial,
-    ShearY,
-    ShearZ,
+    ForceX,
+    ForceY,
+    ForceZ,
     MomentX,
     MomentY,
     MomentZ,
@@ -21,9 +21,9 @@ impl ForceComponent
     {
         match self
         {
-            ForceComponent::Axial => "Axial",
-            ForceComponent::ShearY => "ShearY",
-            ForceComponent::ShearZ => "ShearZ",
+            ForceComponent::ForceX => "ForceX",
+            ForceComponent::ForceY => "ForceY",
+            ForceComponent::ForceZ => "ForceZ",
             ForceComponent::MomentX => "MomentX",
             ForceComponent::MomentY => "MomentY",
             ForceComponent::MomentZ => "MomentZ",

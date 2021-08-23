@@ -58,13 +58,13 @@ impl<T> DOFParameterData<T>
     }
 
 
-    pub fn extract_node_number(&self) -> T
+    pub fn node_number(&self) -> T
     {
         self.node_number
     }
 
 
-    pub fn extract_dof_parameter(&self) -> GlobalDOFParameter
+    pub fn dof_parameter(&self) -> GlobalDOFParameter
     {
         self.dof_parameter
     }

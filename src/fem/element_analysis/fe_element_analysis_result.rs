@@ -2,108 +2,125 @@ use std::any::Any;
 
 use crate::fem::element_analysis::fe_stress_strain_components::StressStrainComponent;
 use crate::fem::element_analysis::fe_force_moment_components::ForceComponent;
+use std::collections::HashMap;
 
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ElementStrains<V>
 {
-    pub strains_values: Vec<V>,
-    pub strains_components: Vec<StressStrainComponent>,
+    strains_values: Vec<V>,
+    strains_components: Vec<StressStrainComponent>,
+}
+
+
+impl<V> ElementStrains<V>
+{
+    pub fn create(strains_values: Vec<V>, strains_components: Vec<StressStrainComponent>) -> Self
+    {
+        ElementStrains { strains_values, strains_components }
+    }
+
+
+    pub fn strains_values(&self) -> &[V]
+    {
+        self.strains_values.as_slice()
+    }
+
+
+    pub fn strains_components(&self) -> &[StressStrainComponent]
+    {
+        self.strains_components.as_slice()
+    }
 }
 
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ElementStresses<V>
 {
-    pub stresses_values: Vec<V>,
-    pub stresses_components: Vec<StressStrainComponent>,
+    stresses_values: Vec<V>,
+    stresses_components: Vec<StressStrainComponent>,
 }
+
+
+impl<V> ElementStresses<V>
+{
+    pub fn create(stresses_values: Vec<V>, stresses_components: Vec<StressStrainComponent>) -> Self
+    {
+        ElementStresses { stresses_values, stresses_components }
+    }
+
+
+    pub fn stresses_values(&self) -> &[V]
+    {
+        self.stresses_values.as_slice()
+    }
+
+
+    pub fn stresses_components(&self) -> &[StressStrainComponent]
+    {
+        self.stresses_components.as_slice()
+    }
+}
+
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ElementForces<V>
 {
-    pub forces_values: Vec<V>,
-    pub forces_components: Vec<ForceComponent>,
+    forces_values: Vec<V>,
+    forces_components: Vec<ForceComponent>,
+}
+
+
+impl<V> ElementForces<V>
+{
+    pub fn create(forces_values: Vec<V>, forces_components: Vec<ForceComponent>) -> Self
+    {
+        ElementForces { forces_values, forces_components }
+    }
+
+
+    pub fn forces_values(&self) -> &[V]
+    {
+        self.forces_values.as_slice()
+    }
+
+
+    pub fn forces_components(&self) -> &[ForceComponent]
+    {
+        self.forces_components.as_slice()
+    }
 }
 
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct ElementAnalysisData<T, V>
+pub struct ElementAnalysisData<V>
 {
-    element_number: T,
-    strains: ElementStrains<V>,
-    stresses: ElementStresses<V>,
-    forces: ElementForces<V>,
+    strains: Option<ElementStrains<V>>,
+    stresses: Option<ElementStresses<V>>,
+    forces: Option<ElementForces<V>>,
 }
 
 
-impl<T, V> ElementAnalysisData<T, V>
-    where T: Copy + PartialEq,
-          V: Copy + PartialEq,
+impl<V> ElementAnalysisData<V>
+    where V: Copy + PartialEq,
 {
-    pub fn create(element_number: T,
-        strains_values: Vec<V>, strains_components: Vec<StressStrainComponent>,
-        stresses_values: Vec<V>, stresses_components: Vec<StressStrainComponent>,
-        forces_values: Vec<V>, forces_components: Vec<ForceComponent>) -> Self
+    pub fn create(strains: Option<ElementStrains<V>>, stresses: Option<ElementStresses<V>>,
+        forces: Option<ElementForces<V>>) -> Self
     {
-        let strains = ElementStrains { strains_values, strains_components };
-        let stresses = ElementStresses { stresses_values, stresses_components };
-        let forces = ElementForces { forces_values, forces_components };
-        ElementAnalysisData { element_number, strains, stresses, forces }
+        ElementAnalysisData { strains, stresses, forces }
     }
 
 
-    pub fn number_same(&self, number: T) -> bool
+    pub fn extract_and_drop(self)
+        -> (Option<ElementStrains<V>>, Option<ElementStresses<V>>, Option<ElementForces<V>>)
     {
-        self.element_number == number
+        (self.strains, self.stresses, self.forces)
     }
 
 
-    pub fn extract_element_number(&self) -> T
-    {
-        self.element_number
-    }
-
-
-    pub fn extract_strains(&self) -> ElementStrains<V>
-    {
-        self.strains.clone()
-    }
-
-
-    pub fn extract_stresses(&self) -> ElementStresses<V>
-    {
-        self.stresses.clone()
-    }
-
-
-    pub fn extract_forces(&self) -> ElementForces<V>
+    pub fn extract_forces(&self) -> Option<ElementForces<V>>
     {
         self.forces.clone()
-    }
-}
-
-
-#[derive(Debug)]
-pub struct ElementsAnalysisResult<T, V>
-{
-    elements_analysis_data: Vec<ElementAnalysisData<T, V>>,
-}
-
-
-impl<T, V> ElementsAnalysisResult<T, V>
-    where T: Copy,
-          V: Copy,
-{
-    pub fn create(elements_analysis_data: Vec<ElementAnalysisData<T, V>>) -> Self
-    {
-        ElementsAnalysisResult { elements_analysis_data }
-    }
-
-
-    pub fn extract_elements_analysis_data(&self) -> Vec<ElementAnalysisData<T, V>>
-    {
-        self.elements_analysis_data.clone()
     }
 }
 

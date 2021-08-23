@@ -1,6 +1,8 @@
 use std::hash::Hash;
 use std::fmt::Debug;
 use std::ops::{Sub, Mul, Add, Div, Rem, SubAssign, AddAssign, MulAssign};
+use std::collections::HashMap;
+use std::f32::consts::PI;
 
 use extended_matrix::basic_matrix::basic_matrix::MatrixElementPosition;
 use extended_matrix::extended_matrix::ExtendedMatrix;
@@ -14,20 +16,14 @@ use crate::fem::global_analysis::fe_dof_parameter_data::{GlobalDOFParameter, DOF
 use crate::fem::global_analysis::fe_global_analysis_result::Displacements;
 
 use crate::fem::element_analysis::fe_force_moment_components::ForceComponent;
-use crate::fem::element_analysis::fe_element_analysis_result::ElementAnalysisData;
+use crate::fem::element_analysis::fe_element_analysis_result::{ElementAnalysisData, ElementForces};
 use crate::fem::element_analysis::fe_stress_strain_components::StressStrainComponent;
 
 use crate::fem::finite_elements::functions::compare_with_tolerance;
 
 use crate::my_float::MyFloatTrait;
 
-
-use crate::fem::finite_elements::beam::consts::
-{
-    BEAM_NODE_DOF, BEAM2N1IPT_NODES_NUMBER, BEAM_STRESS_STRAIN_COMPONENTS_NUMBERS,
-};
-use std::collections::HashMap;
-use std::f32::consts::PI;
+use crate::fem::finite_elements::beam::consts::{ BEAM_NODE_DOF, BEAM2N1IPT_NODES_NUMBER };
 
 
 struct BeamAuxFunctions<T, V>(T, V);
@@ -794,12 +790,12 @@ impl<T, V> Beam2n1ipT<T, V>
         let mut element_global_displacements_values = Vec::new();
         for lhs_dof_parameter_data in &self.state.nodes_dof_parameters_global
         {
-            if let Some(position) = global_displacements.extract_dof_parameters_data()
+            if let Some(position) = global_displacements.dof_parameters_data()
                 .iter()
                 .position(|rhs_dof_parameter_data|
                     rhs_dof_parameter_data == lhs_dof_parameter_data)
             {
-                let displacement_value = global_displacements.extract_displacements_values()[position];
+                let displacement_value = global_displacements.displacements_values()[position];
                 element_global_displacements_values.push(displacement_value);
             }
             else
@@ -1178,17 +1174,12 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
 
 
     fn extract_element_analysis_data(&self, global_displacements: &Displacements<T, V>,
-        tolerance: V, nodes: &HashMap<T, FENode<V>>, number: T)
-        -> Result<ElementAnalysisData<T, V>, String>
+        tolerance: V, nodes: &HashMap<T, FENode<V>>) -> Result<ElementAnalysisData<V>, String>
     {
         let element_local_displacements =
             self.extract_local_displacements(global_displacements, tolerance)?;
 
         let r = self.state.integration_points[0].r;
-        let mut strains_values = Vec::new();
-        let mut strains_components = Vec::new();
-        let mut stresses_values = Vec::new();
-        let mut stresses_components = Vec::new();
         let mut forces_values = Vec::new();
         let mut forces_components = Vec::new();
 
@@ -1197,10 +1188,10 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
                 self.node_1_number, self.node_2_number, r, tolerance, nodes);
         let strains_matrix_u =
             strain_displacement_matrix_u.multiply_by_matrix(&element_local_displacements)?;
-        let axial_force = BeamAuxFunctions::extract_column_matrix_values(
+        let force_x = BeamAuxFunctions::extract_column_matrix_values(
             &strains_matrix_u)[0] * self.area * self.young_modulus;
-        forces_components.push(ForceComponent::Axial);
-        forces_values.push(axial_force);
+        forces_components.push(ForceComponent::ForceX);
+        forces_values.push(force_x);
 
         let strain_displacement_matrix_v =
             BeamAuxFunctions::strain_displacement_matrix_v(
@@ -1211,7 +1202,7 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
             (V::from(2f32) * (V::from(1f32) + self.poisson_ratio));
         let shear_y = BeamAuxFunctions::extract_column_matrix_values(
             &strains_matrix_v)[0] * shear_modulus * self.area * self.shape_factor;
-        forces_components.push(ForceComponent::ShearY);
+        forces_components.push(ForceComponent::ForceY);
         forces_values.push(shear_y);
 
         let strain_displacement_matrix_w =
@@ -1221,7 +1212,7 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
             strain_displacement_matrix_w.multiply_by_matrix(&element_local_displacements)?;
         let shear_z = BeamAuxFunctions::extract_column_matrix_values(
             &strains_matrix_w)[0] * shear_modulus * self.area * self.shape_factor;
-        forces_components.push(ForceComponent::ShearZ);
+        forces_components.push(ForceComponent::ForceZ);
         forces_values.push(shear_z);
 
         let strain_displacement_matrix_thu =
@@ -1254,9 +1245,11 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
         forces_components.push(ForceComponent::MomentZ);
         forces_values.push(moment_z);
 
+        let element_forces = ElementForces::create(forces_values,
+            forces_components);
+
         let element_analysis_data = ElementAnalysisData::create(
-            number, strains_values, strains_components,
-            stresses_values, stresses_components, forces_values, forces_components);
+            None, None, Some(element_forces));
         Ok(element_analysis_data)
 
     }

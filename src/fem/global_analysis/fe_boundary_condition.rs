@@ -87,7 +87,7 @@ impl<T, V> BCTrait<T, V> for Force<T, V>
 
     fn extract_node_number(&self) -> T
     {
-        self.dof_parameter_data.extract_node_number()
+        self.dof_parameter_data.node_number()
     }
 
 
@@ -99,7 +99,7 @@ impl<T, V> BCTrait<T, V> for Force<T, V>
 
     fn extract_dof_parameter(&self) -> GlobalDOFParameter
     {
-        self.dof_parameter_data.extract_dof_parameter()
+        self.dof_parameter_data.dof_parameter()
     }
 
 
@@ -141,7 +141,7 @@ impl<T, V> BCTrait<T, V> for Displacement<T, V>
 
     fn extract_node_number(&self) -> T
     {
-        self.dof_parameter_data.extract_node_number()
+        self.dof_parameter_data.node_number()
     }
 
 
@@ -153,7 +153,7 @@ impl<T, V> BCTrait<T, V> for Displacement<T, V>
 
     fn extract_dof_parameter(&self) -> GlobalDOFParameter
     {
-        self.dof_parameter_data.extract_dof_parameter()
+        self.dof_parameter_data.dof_parameter()
     }
 
 

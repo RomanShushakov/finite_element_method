@@ -20,13 +20,13 @@ impl<T, V> Displacements<T, V>
     }
 
 
-    pub fn extract_displacements_values(&self) -> &[V]
+    pub fn displacements_values(&self) -> &[V]
     {
         self.displacements_values.as_slice()
     }
 
 
-    pub fn extract_dof_parameters_data(&self) -> &[DOFParameterData<T>]
+    pub fn dof_parameters_data(&self) -> &[DOFParameterData<T>]
     {
         self.dof_parameters_data.as_slice()
     }
@@ -47,13 +47,13 @@ impl<T, V> Reactions<T, V>
         Reactions { reactions_values, dof_parameters_data }
     }
 
-    pub fn extract_reactions_values(&self) -> &[V]
+    pub fn reactions_values(&self) -> &[V]
     {
         self.reactions_values.as_slice()
     }
 
 
-    pub fn extract_dof_parameters_data(&self) -> &[DOFParameterData<T>]
+    pub fn dof_parameters_data(&self) -> &[DOFParameterData<T>]
     {
         self.dof_parameters_data.as_slice()
     }
@@ -94,8 +94,8 @@ impl<T, V> GlobalAnalysisResult<T, V>
         let mut reactions_values = Vec::new();
         let mut dof_parameters_data = Vec::new();
         for (reaction_value, dof_parameter_data) in
-            self.reactions.extract_reactions_values().iter()
-                .zip(self.reactions.extract_dof_parameters_data())
+            self.reactions.reactions_values().iter()
+                .zip(self.reactions.dof_parameters_data())
         {
             reactions_values.push(*reaction_value);
             dof_parameters_data.push(*dof_parameter_data);
@@ -109,8 +109,8 @@ impl<T, V> GlobalAnalysisResult<T, V>
         let mut displacements_values = Vec::new();
         let mut dof_parameters_data = Vec::new();
         for (displacement_value, dof_parameter_data) in
-            self.displacements.extract_displacements_values()
-                .iter().zip(self.displacements.extract_dof_parameters_data())
+            self.displacements.displacements_values()
+                .iter().zip(self.displacements.dof_parameters_data())
         {
             displacements_values.push(*displacement_value);
             dof_parameters_data.push(*dof_parameter_data);

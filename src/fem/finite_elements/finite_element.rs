@@ -63,8 +63,7 @@ pub trait FiniteElementTrait<T, V>
     fn refresh(&mut self, tolerance: V, nodes: &HashMap<T, FENode<V>>) -> Result<(), String>;
     fn nodes_numbers_same(&self, nodes_numbers: Vec<T>) -> bool;
     fn extract_element_analysis_data(&self, global_displacements: &Displacements<T, V>,
-        tolerance: V, nodes: &HashMap<T, FENode<V>>, number: T)
-        -> Result<ElementAnalysisData<T, V>, String>;
+        tolerance: V, nodes: &HashMap<T, FENode<V>>) -> Result<ElementAnalysisData<V>, String>;
     fn extract_nodes_numbers(&self) -> Vec<T>;
     fn extract_fe_properties(&self) -> Vec<V>;
 }
@@ -253,12 +252,10 @@ impl<T, V> FiniteElement<T, V>
 
 
     pub fn extract_element_analysis_data(&self, global_displacements: &Displacements<T, V>,
-        tolerance: V, nodes: &HashMap<T, FENode<V>>, number: T)
-        -> Result<ElementAnalysisData<T, V>, String>
+        tolerance: V, nodes: &HashMap<T, FENode<V>>) -> Result<ElementAnalysisData<V>, String>
     {
-        let element_analysis_data =
-            self.element.extract_element_analysis_data(global_displacements, tolerance, nodes,
-                number)?;
+        let element_analysis_data = self.element.extract_element_analysis_data(
+            global_displacements, tolerance, nodes)?;
         Ok(element_analysis_data)
     }
 

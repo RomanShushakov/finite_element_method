@@ -19,7 +19,7 @@ use crate::fem::global_analysis::fe_dof_parameter_data::
     global_dof, DOFParameterData, GLOBAL_DOF, GlobalDOFParameter
 };
 
-use crate::fem::element_analysis::fe_element_analysis_result::ElementsAnalysisResult;
+use crate::fem::element_analysis::fe_element_analysis_result::ElementAnalysisData;
 
 use crate::fem::functions::{separate, compose_stiffness_sub_groups};
 
@@ -517,12 +517,12 @@ impl<T, V> FEModel<T, V>
                 .iter()
                 .position(|bc|
                     bc.dof_parameter_data_same(
-                        dof_parameter_data.extract_dof_parameter(),
-                        dof_parameter_data.extract_node_number()))
+                        dof_parameter_data.dof_parameter(),
+                        dof_parameter_data.node_number()))
             {
                 let bc_type = self.boundary_conditions[position].extract_bc_type();
-                let dof_parameter = dof_parameter_data.extract_dof_parameter();
-                let node_number = dof_parameter_data.extract_node_number();
+                let dof_parameter = dof_parameter_data.dof_parameter();
+                let node_number = dof_parameter_data.node_number();
                 return Err(format!("FEModel: Model could not be analyzed because where are \
                     no stiffness to withstand {}::{:?} applied at node {:?}!", bc_type.as_str(),
                     dof_parameter, node_number))
@@ -544,8 +544,8 @@ impl<T, V> FEModel<T, V>
                     &self.state.nodes_dof_parameters_global
                 {
                     if bc.dof_parameter_data_same(
-                        dof_parameter_data.extract_dof_parameter(),
-                        dof_parameter_data.extract_node_number())
+                        dof_parameter_data.dof_parameter(),
+                        dof_parameter_data.node_number())
                     {
                         separation_positions.push(
                             MatrixElementPosition::create(row, row));
@@ -586,8 +586,8 @@ impl<T, V> FEModel<T, V>
                 .iter()
                 .position(|bc|
                     bc.dof_parameter_data_same(
-                        node_dof_parameter.extract_dof_parameter(),
-                        node_dof_parameter.extract_node_number()))
+                        node_dof_parameter.dof_parameter(),
+                        node_dof_parameter.node_number()))
             {
                 let value = self.boundary_conditions[position].extract_value();
                 all_elements.push(value);
@@ -747,19 +747,17 @@ impl<T, V> FEModel<T, V>
 
 
     pub fn elements_analysis(&self, global_displacements: &Displacements<T, V>)
-        -> Result<ElementsAnalysisResult<T, V>, String>
+        -> Result<HashMap<T, ElementAnalysisData<V>>, String>
     {
-        let mut elements_analysis_data = Vec::new();
+        let mut elements_analysis_result = HashMap::new();
         for (element_number, element) in self.elements.iter()
         {
-            let element_analysis_data =
-                element.extract_element_analysis_data(global_displacements, self.state.tolerance,
-                &self.nodes, *element_number)?;
-            elements_analysis_data.push(element_analysis_data);
+            let element_analysis_data = element.extract_element_analysis_data(
+                global_displacements, self.state.tolerance, &self.nodes)?;
+            elements_analysis_result.insert(*element_number, element_analysis_data);
         }
-        let elements_analysis_results =
-            ElementsAnalysisResult::create(elements_analysis_data);
-        Ok(elements_analysis_results)
+
+        Ok(elements_analysis_result)
     }
 
 

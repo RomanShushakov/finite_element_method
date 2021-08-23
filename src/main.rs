@@ -112,24 +112,47 @@ fn main() -> Result<(), String>
     // let global_analysis_result = fe_model.global_analysis()?;
     // let reactions = global_analysis_result.extract_reactions();
     // for (reaction, dof_parameter_data) in
-    //     reactions.reactions_values.iter().zip(reactions.dof_parameters_data)
+    //     reactions.reactions_values().iter().zip(reactions.dof_parameters_data())
     // {
-    //     println!("{}, node: {}, parameter: {:?}", reaction, dof_parameter_data.node_number,
-    //              dof_parameter_data.dof_parameter);
+    //     println!("{}, node: {}, parameter: {:?}", reaction, dof_parameter_data.node_number(),
+    //              dof_parameter_data.dof_parameter());
     // }
     // println!();
     // let displacements = global_analysis_result.extract_displacements();
     // for (displacement, dof_parameter_data) in
-    //     displacements.displacements_values.iter().zip(displacements.dof_parameters_data.iter())
+    //     displacements.displacements_values().iter().zip(
+    //         displacements.dof_parameters_data().iter())
     // {
-    //     println!("{}, node: {}, parameter: {:?}", displacement, dof_parameter_data.node_number,
-    //              dof_parameter_data.dof_parameter);
+    //     println!("{}, node: {}, parameter: {:?}", displacement, dof_parameter_data.node_number(),
+    //              dof_parameter_data.dof_parameter());
     // }
     //
     // println!();
-    // let elements_analysis_results =
+    // let mut elements_analysis_results =
     //     fe_model.elements_analysis(&displacements)?;
-    // println!("{:?}", elements_analysis_results);
+    //
+    // for (element_number, element_analysis_data) in
+    //     elements_analysis_results.iter()
+    // {
+    //     if let Some(element_forces) = element_analysis_data.extract_forces()
+    //     {
+    //         let mut forces_values = String::from("Element forces: ");
+    //         let mut forces_components = String::from("Element forces components: ");
+    //         for force_value in element_forces.forces_values()
+    //         {
+    //             forces_values += &format!("{:?}, ", force_value);
+    //         }
+    //         for force_component in element_forces.forces_components()
+    //         {
+    //             forces_components += &format!("{:?}, ", force_component);
+    //         }
+    //
+    //         println!("Element number: {}", element_number);
+    //         println!("{}", forces_values);
+    //         println!("{}", forces_components);
+    //         println!();
+    //     }
+    // }
 
 
     // let mut fe_model = FEModel::create(TOLERANCE);
@@ -213,18 +236,20 @@ fn main() -> Result<(), String>
     // let global_analysis_result = fe_model.global_analysis()?;
     // let reactions = global_analysis_result.extract_reactions();
     // for (reaction, dof_parameter_data) in
-    //     reactions.reactions_values.iter().zip(reactions.dof_parameters_data)
+    //     reactions.extract_reactions_values().iter().zip(
+    //         reactions.extract_dof_parameters_data())
     // {
-    //     println!("{}, node: {}, parameter: {:?}", reaction, dof_parameter_data.node_number,
-    //              dof_parameter_data.dof_parameter);
+    //     println!("{}, node: {}, parameter: {:?}", reaction, dof_parameter_data.extract_node_number(),
+    //         dof_parameter_data.extract_dof_parameter());
     // }
     // println!();
     // let displacements = global_analysis_result.extract_displacements();
     // for (displacement, dof_parameter_data) in
-    //     displacements.displacements_values.iter().zip(displacements.dof_parameters_data.iter())
+    //     displacements.extract_displacements_values().iter().zip(
+    //         displacements.extract_dof_parameters_data().iter())
     // {
-    //     println!("{}, node: {}, parameter: {:?}", displacement, dof_parameter_data.node_number,
-    //              dof_parameter_data.dof_parameter);
+    //     println!("{}, node: {}, parameter: {:?}", displacement, dof_parameter_data.extract_node_number(),
+    //         dof_parameter_data.extract_dof_parameter());
     // }
     //
     // println!();
@@ -306,42 +331,63 @@ fn main() -> Result<(), String>
     //     BCType::Displacement, 10, 5,
     //     GlobalDOFParameter::ThX, 0.0)?;
 
-    // fe_model.add_bc(
-    //     BCType::Force, 1, 5,
-    //     GlobalDOFParameter::Y, 100.0)?;
+    fe_model.add_bc(
+        BCType::Force, 1, 5,
+        GlobalDOFParameter::Y, 100.0)?;
 
     // fe_model.add_bc(
     //     BCType::Force, 2, 5,
     //     GlobalDOFParameter::Z, -625.0)?;
 
-    fe_model.add_bc(
-        BCType::Force, 3, 5,
-        GlobalDOFParameter::ThZ, -1000.0)?;
+    // fe_model.add_bc(
+    //     BCType::Force, 3, 5,
+    //     GlobalDOFParameter::ThZ, -1000.0)?;
 
     let global_analysis_result = fe_model.global_analysis()?;
     let reactions = global_analysis_result.extract_reactions();
     for (reaction, dof_parameter_data) in
-        reactions.extract_reactions_values().iter()
-            .zip(reactions.extract_dof_parameters_data())
+        reactions.reactions_values().iter()
+            .zip(reactions.dof_parameters_data())
     {
-        println!("reaction: {}, node: {}, parameter: {:?}", reaction, dof_parameter_data.extract_node_number(),
-                 dof_parameter_data.extract_dof_parameter());
+        println!("reaction: {}, node: {}, parameter: {:?}", reaction, dof_parameter_data.node_number(),
+                 dof_parameter_data.dof_parameter());
     }
     println!();
     let displacements = global_analysis_result.extract_displacements();
     for (displacement, dof_parameter_data) in
-        displacements.extract_displacements_values().iter()
-            .zip(displacements.extract_dof_parameters_data().iter())
+        displacements.displacements_values().iter()
+            .zip(displacements.dof_parameters_data().iter())
     {
-        println!("displacement: {}, node: {}, parameter: {:?}", displacement, dof_parameter_data.extract_node_number(),
-                 dof_parameter_data.extract_dof_parameter());
+        println!("displacement: {}, node: {}, parameter: {:?}", displacement, dof_parameter_data.node_number(),
+                 dof_parameter_data.dof_parameter());
     }
 
     println!();
-    let elements_analysis_results =
+    let mut elements_analysis_results =
         fe_model.elements_analysis(&displacements)?;
-    println!("{:?}", elements_analysis_results);
 
+    for (element_number, element_analysis_data) in
+        elements_analysis_results.iter()
+    {
+        if let Some(element_forces) = element_analysis_data.extract_forces()
+        {
+            let mut forces_values = String::from("Element forces: ");
+            let mut forces_components = String::from("Element forces components: ");
+            for force_value in element_forces.forces_values()
+            {
+                forces_values += &format!("{:?}, ", force_value);
+            }
+            for force_component in element_forces.forces_components()
+            {
+                forces_components += &format!("{:?}, ", force_component);
+            }
+
+            println!("Element number: {}", element_number);
+            println!("{}", forces_values);
+            println!("{}", forces_components);
+            println!();
+        }
+    }
 
 
     // let mut fe_model = FEModel::create(TOLERANCE);
