@@ -3,6 +3,7 @@ use std::any::Any;
 use crate::fem::element_analysis::fe_stress_strain_components::StressStrainComponent;
 use crate::fem::element_analysis::fe_force_moment_components::ForceComponent;
 use std::collections::HashMap;
+use crate::fem::finite_elements::finite_element::FEType;
 
 
 #[derive(Debug, Clone, PartialEq)]
@@ -121,6 +122,35 @@ impl<V> ElementAnalysisData<V>
     pub fn extract_forces(&self) -> Option<ElementForces<V>>
     {
         self.forces.clone()
+    }
+}
+
+
+pub struct ElementsAnalysisResult<T, V>
+{
+    elements_analysis_data: HashMap<T, ElementAnalysisData<V>>,
+    analyzed_elements_types: HashMap<FEType, Vec<T>>,
+}
+
+
+impl<T, V> ElementsAnalysisResult<T, V>
+{
+    pub fn create(elements_analysis_data: HashMap<T, ElementAnalysisData<V>>,
+        analyzed_elements_types: HashMap<FEType, Vec<T>>) -> Self
+    {
+        ElementsAnalysisResult { elements_analysis_data, analyzed_elements_types }
+    }
+
+
+    pub fn analyzed_elements_types(&self) -> &HashMap<FEType, Vec<T>>
+    {
+        &self.analyzed_elements_types
+    }
+
+
+    pub fn elements_analysis_data(&self) -> &HashMap<T, ElementAnalysisData<V>>
+    {
+        &self.elements_analysis_data
     }
 }
 

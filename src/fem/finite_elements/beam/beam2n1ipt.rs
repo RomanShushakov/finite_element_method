@@ -1200,20 +1200,20 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
             strain_displacement_matrix_v.multiply_by_matrix(&element_local_displacements)?;
         let shear_modulus = self.young_modulus /
             (V::from(2f32) * (V::from(1f32) + self.poisson_ratio));
-        let shear_y = BeamAuxFunctions::extract_column_matrix_values(
+        let force_y = BeamAuxFunctions::extract_column_matrix_values(
             &strains_matrix_v)[0] * shear_modulus * self.area * self.shape_factor;
         forces_components.push(ForceComponent::ForceY);
-        forces_values.push(shear_y);
+        forces_values.push(force_y);
 
         let strain_displacement_matrix_w =
             BeamAuxFunctions::strain_displacement_matrix_w(
                 self.node_1_number, self.node_2_number, r, tolerance, nodes)?;
         let strains_matrix_w =
             strain_displacement_matrix_w.multiply_by_matrix(&element_local_displacements)?;
-        let shear_z = BeamAuxFunctions::extract_column_matrix_values(
+        let force_z = BeamAuxFunctions::extract_column_matrix_values(
             &strains_matrix_w)[0] * shear_modulus * self.area * self.shape_factor;
         forces_components.push(ForceComponent::ForceZ);
-        forces_values.push(shear_z);
+        forces_values.push(force_z);
 
         let strain_displacement_matrix_thu =
             BeamAuxFunctions::strain_displacement_matrix_thu(
@@ -1225,25 +1225,39 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
         forces_components.push(ForceComponent::MomentX);
         forces_values.push(moment_x);
 
+        let length = BeamAuxFunctions::length(self.node_1_number, self.node_2_number, nodes);
+
         let strain_displacement_matrix_thv =
             BeamAuxFunctions::strain_displacement_matrix_thv(
                 self.node_1_number, self.node_2_number, r, tolerance, nodes);
         let strains_matrix_thv =
             strain_displacement_matrix_thv.multiply_by_matrix(&element_local_displacements)?;
-        let moment_y = BeamAuxFunctions::extract_column_matrix_values(
+        let moment_y_average = BeamAuxFunctions::extract_column_matrix_values(
             &strains_matrix_thv)[0] * self.young_modulus * self.i22;
         forces_components.push(ForceComponent::MomentY);
-        forces_values.push(moment_y);
+        forces_values.push(moment_y_average);
+        let moment_y_min = moment_y_average - length * force_z.my_abs() / V::from(2f32);
+        forces_components.push(ForceComponent::MomentY);
+        forces_values.push(moment_y_min);
+        let moment_y_max = moment_y_average + length * force_z.my_abs() / V::from(2f32);
+        forces_components.push(ForceComponent::MomentY);
+        forces_values.push(moment_y_max);
 
         let strain_displacement_matrix_thw =
             BeamAuxFunctions::strain_displacement_matrix_thw(
                 self.node_1_number, self.node_2_number, r, tolerance, nodes);
         let strains_matrix_thw =
             strain_displacement_matrix_thw.multiply_by_matrix(&element_local_displacements)?;
-        let moment_z = BeamAuxFunctions::extract_column_matrix_values(
+        let moment_z_average = BeamAuxFunctions::extract_column_matrix_values(
             &strains_matrix_thw)[0] * self.young_modulus * self.i11;
         forces_components.push(ForceComponent::MomentZ);
-        forces_values.push(moment_z);
+        forces_values.push(moment_z_average);
+        let moment_z_min = moment_z_average - length * force_y.my_abs() / V::from(2f32);
+        forces_components.push(ForceComponent::MomentZ);
+        forces_values.push(moment_z_min);
+        let moment_z_max = moment_z_average + length * force_y.my_abs() / V::from(2f32);
+        forces_components.push(ForceComponent::MomentZ);
+        forces_values.push(moment_z_max);
 
         let element_forces = ElementForces::create(forces_values,
             forces_components);

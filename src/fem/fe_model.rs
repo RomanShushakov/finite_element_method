@@ -1,4 +1,4 @@
-use std::ops::{Sub, Div, Rem, SubAssign, Mul, Add, AddAssign, MulAssign};
+use std::ops::{Sub, Div, Rem, SubAssign, Mul, Add, AddAssign, MulAssign, DivAssign};
 use std::hash::Hash;
 use std::fmt::Debug;
 use std::collections::{HashSet, HashMap};
@@ -13,13 +13,15 @@ use crate::fem::finite_elements::fe_node::FENode;
 use crate::fem::finite_elements::finite_element::{FiniteElement, FEType};
 use crate::fem::global_analysis::fe_stiffness::StiffnessGroup;
 use crate::fem::global_analysis::fe_boundary_condition::{BoundaryCondition, BCType};
-use crate::fem::global_analysis::fe_global_analysis_result::{GlobalAnalysisResult, Displacements};
+use crate::fem::global_analysis::fe_global_analysis_result::{GlobalAnalysisResult, Displacements, Reactions};
 use crate::fem::global_analysis::fe_dof_parameter_data::
 {
     global_dof, DOFParameterData, GLOBAL_DOF, GlobalDOFParameter
 };
 
-use crate::fem::element_analysis::fe_element_analysis_result::ElementAnalysisData;
+use crate::fem::element_analysis::fe_element_analysis_result::{ElementAnalysisData, ElementsAnalysisResult};
+use crate::fem::element_analysis::fe_force_moment_components::ForceComponent;
+use crate::fem::element_analysis::beam::beam_element_nodal_forces::{NodalForces, BeamElementNodalForces};
 
 use crate::fem::functions::{separate, compose_stiffness_sub_groups};
 
@@ -60,7 +62,7 @@ impl<T, V> FEModel<T, V>
              AddAssign + 'static,
           V: Copy + Sub<Output = V> + Mul<Output = V> + Add<Output = V> + Div<Output = V> +
              PartialEq + Debug + AddAssign + MulAssign + SubAssign + Into<f64> + PartialOrd +
-             MyFloatTrait + From<f32> + MyFloatTrait<Other = V> +'static,
+             MyFloatTrait + From<f32> + MyFloatTrait<Other = V> + DivAssign + 'static,
 {
     pub fn create(tolerance: V) -> Self
     {
@@ -385,14 +387,9 @@ impl<T, V> FEModel<T, V>
             vec![V::from(0f32); (self.nodes.len() * GLOBAL_DOF).pow(2)],
             self.state.tolerance);
 
-        for (element_number, element) in self.elements.iter()
+        for element in self.elements.values()
         {
             let element_stiffness_matrix = element.extract_stiffness_matrix()?;
-
-            // println!("Element number: {:?}", element_number);
-            // let f = |data: &str| println!("{}", data);
-            // element_stiffness_matrix.show_matrix(f);
-            // println!();
 
             let element_stiffness_groups = element.extract_stiffness_groups();
             for element_stiffness_group in element_stiffness_groups
@@ -419,14 +416,14 @@ impl<T, V> FEModel<T, V>
         dof_parameter: GlobalDOFParameter, value: V) -> Result<(), String>
     {
         if self.boundary_conditions.iter().position(|bc|
-            bc.number_same(number) && bc.type_same(bc_type)).is_some()
+            bc.is_number_same(number) && bc.is_type_same(bc_type)).is_some()
         {
             return Err(format!("FEModel: {} could not be added because the same {} number does \
                 already exist!", bc_type.as_str(), bc_type.as_str().to_lowercase()));
         }
 
         if self.boundary_conditions.iter().position(|bc|
-            bc.dof_parameter_data_same(dof_parameter, node_number)).is_some()
+            bc.is_dof_parameter_data_same(dof_parameter, node_number)).is_some()
         {
             return Err(format!("FEModel: {} could not be added because the the force or \
                 displacement with the same dof parameter data does already exist!",
@@ -457,10 +454,10 @@ impl<T, V> FEModel<T, V>
         }
 
         if self.boundary_conditions.iter().position(|bc|
-            (bc.dof_parameter_data_same(dof_parameter, node_number) &&
-            !bc.number_same(number)) ||
-            (bc.dof_parameter_data_same(dof_parameter, node_number) &&
-            bc.number_same(number) && !bc.type_same(bc_type))).is_some()
+            (bc.is_dof_parameter_data_same(dof_parameter, node_number) &&
+            !bc.is_number_same(number)) ||
+            (bc.is_dof_parameter_data_same(dof_parameter, node_number) &&
+            bc.is_number_same(number) && !bc.is_type_same(bc_type))).is_some()
         {
             return Err(format!("FEModel: {} could not be updated because the the force or \
                 displacement with the same dof parameter data does already exist!",
@@ -468,7 +465,7 @@ impl<T, V> FEModel<T, V>
         }
 
         if let Some(position) =  self.boundary_conditions.iter().position(|bc|
-            bc.number_same(number) && bc.type_same(bc_type))
+            bc.is_number_same(number) && bc.is_type_same(bc_type))
         {
             self.boundary_conditions[position].update(node_number, dof_parameter, value);
             Ok(())
@@ -484,7 +481,7 @@ impl<T, V> FEModel<T, V>
     pub fn delete_bc(&mut self, bc_type: BCType, number: T) -> Result<(), String>
     {
         if let Some(position) =  self.boundary_conditions.iter().position(|bc|
-            bc.number_same(number) && bc.type_same(bc_type))
+            bc.is_number_same(number) && bc.is_type_same(bc_type))
         {
             self.boundary_conditions.remove(position);
             Ok(())
@@ -516,7 +513,7 @@ impl<T, V> FEModel<T, V>
             if let Some(position) = self.boundary_conditions
                 .iter()
                 .position(|bc|
-                    bc.dof_parameter_data_same(
+                    bc.is_dof_parameter_data_same(
                         dof_parameter_data.dof_parameter(),
                         dof_parameter_data.node_number()))
             {
@@ -537,13 +534,13 @@ impl<T, V> FEModel<T, V>
     {
         for bc in &self.boundary_conditions
         {
-            if bc.type_same(BCType::Displacement)
+            if bc.is_type_same(BCType::Displacement)
             {
                 let mut row = T::from(0u8);
                 for dof_parameter_data in
                     &self.state.nodes_dof_parameters_global
                 {
-                    if bc.dof_parameter_data_same(
+                    if bc.is_dof_parameter_data_same(
                         dof_parameter_data.dof_parameter(),
                         dof_parameter_data.node_number())
                     {
@@ -585,7 +582,7 @@ impl<T, V> FEModel<T, V>
             if let Some(position) = self.boundary_conditions
                 .iter()
                 .position(|bc|
-                    bc.dof_parameter_data_same(
+                    bc.is_dof_parameter_data_same(
                         node_dof_parameter.dof_parameter(),
                         node_dof_parameter.node_number()))
             {
@@ -654,18 +651,13 @@ impl<T, V> FEModel<T, V>
         self.update_nodes_dof_parameters_global()?;
 
         if self.boundary_conditions.iter().position(|bc|
-            bc.type_same(BCType::Displacement)).is_none()
+            bc.is_type_same(BCType::Displacement)).is_none()
         {
             return Err("FEModel: Model could not be analyzed because there are no restraints were \
                 applied!".into())
         }
         let mut global_stiffness_matrix =
             self.compose_global_stiffness_matrix()?;
-
-        // let f = |data: &str| println!("{}", data);
-        // println!("global stiffness matrix");
-        // global_stiffness_matrix.show_matrix(f);
-        // println!();
 
         let removed_zeros_rows_columns =
             global_stiffness_matrix.remove_zeros_rows_columns();
@@ -747,141 +739,164 @@ impl<T, V> FEModel<T, V>
 
 
     pub fn elements_analysis(&self, global_displacements: &Displacements<T, V>)
-        -> Result<HashMap<T, ElementAnalysisData<V>>, String>
+        -> Result<ElementsAnalysisResult<T, V>, String>
     {
         let mut elements_analysis_result = HashMap::new();
+        let mut analyzed_elements_types: HashMap<FEType, Vec<T>> = HashMap::new();
         for (element_number, element) in self.elements.iter()
         {
+            let element_type = element.extract_fe_type();
+            if let Some(element_numbers) = analyzed_elements_types
+                .get_mut(&element_type)
+            {
+                element_numbers.push(*element_number);
+            }
+            else
+            {
+                analyzed_elements_types.insert(element_type, vec![*element_number]);
+            }
             let element_analysis_data = element.extract_element_analysis_data(
                 global_displacements, self.state.tolerance, &self.nodes)?;
             elements_analysis_result.insert(*element_number, element_analysis_data);
         }
 
+        let elements_analysis_result = ElementsAnalysisResult::create(
+            elements_analysis_result, analyzed_elements_types);
+
         Ok(elements_analysis_result)
     }
 
 
-    // pub fn drawn_nodes_rc(&self, drawn_uid_number: &mut UIDNumbers) -> Rc<Vec<FEDrawnNodeData>>
-    // {
-    //     let mut nodes = Vec::new();
-    //     for node in self.nodes.iter()
-    //     {
-    //         *drawn_uid_number += 1;
-    //         let uid = *drawn_uid_number;
-    //         let number = node.borrow().extract_number();
-    //         let (x, y, z) = node.borrow().extract_coordinates();
-    //         let drawn_node_data = FEDrawnNodeData { uid, number, x, y, z };
-    //         nodes.push(drawn_node_data);
-    //     }
-    //     Rc::new(nodes)
-    // }
+    pub fn beam_elements_nodal_forces(&self, beam_element_numbers: &[T],
+        elements_analysis_data: &HashMap<T, ElementAnalysisData<V>>)
+        -> HashMap<T, BeamElementNodalForces<T, V>>
+    {
+        let mut beam_elements_nodal_forces: HashMap<T, BeamElementNodalForces<T, V>> = HashMap::new();
 
+        for beam_element_number in beam_element_numbers
+        {
+            let forces = elements_analysis_data
+                .get(beam_element_number).unwrap()
+                .extract_forces().unwrap()
+                .forces_values()
+                .to_vec();
 
-    // pub fn drawn_elements_rc(&self, drawn_uid_number: &mut UIDNumbers) -> Rc<Vec<FEDrawnElementData>>
-    // {
-    //     let mut drawn_elements = Vec::new();
-    //     for element in self.elements.iter()
-    //     {
-    //         *drawn_uid_number += 1;
-    //         let uid = *drawn_uid_number;
-    //         let fe_type = element.extract_fe_type();
-    //         let number = element.extract_fe_number();
-    //         let nodes_numbers = element.extract_nodes_numbers();
-    //         let properties = element.extract_fe_properties();
-    //         let drawn_element_data =
-    //             FEDrawnElementData { uid, fe_type, number, nodes_numbers, properties };
-    //         drawn_elements.push(drawn_element_data);
-    //     }
-    //     Rc::new(drawn_elements)
-    // }
+            let moment_y_average = forces[4];
+            let moment_y_min = forces[5];
+            let moment_y_max = forces[6];
+            let moment_z_average = forces[7];
+            let moment_z_min = forces[8];
+            let moment_z_max = forces[9];
 
+            let nodes_numbers = self.elements
+                .get(beam_element_number).unwrap()
+                .extract_nodes_numbers();
 
-    // pub fn drawn_bcs_rc(&self, drawn_uid_number: &mut UIDNumbers) -> Rc<Vec<FEDrawnBCData>>
-    // {
-    //     let mut drawn_bcs = Vec::new();
-    //     for bc in &self.boundary_conditions
-    //     {
-    //         *drawn_uid_number += 1;
-    //         let uid = *drawn_uid_number;
-    //         let bc_type = bc.extract_bc_type();
-    //         let number = bc.extract_number().into() / GLOBAL_DOF as usize;
-    //         let node_number = bc.extract_node_number().into();
-    //         let value = bc.extract_value().into();
-    //         let mut drawn_bc = FEDrawnBCData { uid, bc_type, number: number as ElementsNumbers,
-    //                 node_number: node_number as ElementsNumbers,
-    //                 is_rotation_stiffness_enabled: false, x_direction_value: None,
-    //                 y_direction_value: None, z_direction_value: None, xy_plane_value: None,
-    //                 yz_plane_value: None, zx_plane_value: None
-    //             };
-    //
-    //         for i in 0..GLOBAL_DOF
-    //         {
-    //             let dof_parameter =
-    //                 GlobalDOFParameter::iterator().nth(i as usize).unwrap();
-    //             if bc.dof_parameter_data_same(*dof_parameter,
-    //                                           T::from(node_number))
-    //             {
-    //                 match dof_parameter
-    //                 {
-    //                     GlobalDOFParameter::X => drawn_bc.x_direction_value = Some(value),
-    //                     GlobalDOFParameter::Y => drawn_bc.y_direction_value = Some(value),
-    //                     GlobalDOFParameter::Z => drawn_bc.z_direction_value = Some(value),
-    //                     GlobalDOFParameter::ThX => drawn_bc.yz_plane_value = Some(value),
-    //                     GlobalDOFParameter::ThY => drawn_bc.zx_plane_value = Some(value),
-    //                     GlobalDOFParameter::ThZ => drawn_bc.xy_plane_value = Some(value),
-    //                 }
-    //                 if i > 2 as ElementsNumbers
-    //                 {
-    //                     drawn_bc.is_rotation_stiffness_enabled = true;
-    //                 }
-    //                 break;
-    //             }
-    //         }
-    //         if let Some(position) = drawn_bcs
-    //             .iter().position(|data: &FEDrawnBCData|
-    //                 data.number == number as ElementsNumbers && data.bc_type == bc_type)
-    //         {
-    //             if !drawn_bcs[position].is_rotation_stiffness_enabled
-    //             {
-    //                 drawn_bcs[position].is_rotation_stiffness_enabled =
-    //                     drawn_bc.is_rotation_stiffness_enabled;
-    //             }
-    //             if drawn_bcs[position].x_direction_value.is_none()
-    //             {
-    //                 drawn_bcs[position].x_direction_value =
-    //                     drawn_bc.x_direction_value;
-    //             }
-    //             if drawn_bcs[position].y_direction_value.is_none()
-    //             {
-    //                 drawn_bcs[position].y_direction_value =
-    //                     drawn_bc.y_direction_value;
-    //             }
-    //             if drawn_bcs[position].z_direction_value.is_none()
-    //             {
-    //                 drawn_bcs[position].z_direction_value =
-    //                     drawn_bc.z_direction_value;
-    //             }
-    //             if drawn_bcs[position].xy_plane_value.is_none()
-    //             {
-    //                 drawn_bcs[position].xy_plane_value =
-    //                     drawn_bc.xy_plane_value;
-    //             }
-    //             if drawn_bcs[position].yz_plane_value.is_none()
-    //             {
-    //                 drawn_bcs[position].yz_plane_value =
-    //                     drawn_bc.yz_plane_value;
-    //             }
-    //             if drawn_bcs[position].zx_plane_value.is_none()
-    //             {
-    //                 drawn_bcs[position].zx_plane_value =
-    //                     drawn_bc.zx_plane_value;
-    //             }
-    //         }
-    //         else
-    //         {
-    //             drawn_bcs.push(drawn_bc);
-    //         }
-    //     }
-    //     Rc::new(drawn_bcs)
-    // }
+            let node_1_number = nodes_numbers[0];
+            let node_2_number = nodes_numbers[1];
+
+            let node_1_forces_components =
+                vec![ForceComponent::MomentY, ForceComponent::MomentZ];
+            let node_2_forces_components =
+                vec![ForceComponent::MomentY, ForceComponent::MomentZ];
+            let mut node_1_forces_values = Vec::new();
+            let mut node_2_forces_values = Vec::new();
+
+            if let Some(position) = beam_element_numbers.iter()
+                .position(|number| number != beam_element_number &&
+                    self.elements.get(number).unwrap()
+                        .node_belong_element(node_1_number))
+            {
+                let neighbour_forces = elements_analysis_data
+                    .get(&beam_element_numbers[position]).unwrap()
+                    .extract_forces().unwrap()
+                    .forces_values().to_vec();
+                let neighbour_moment_y_average = neighbour_forces[4];
+                let neighbour_moment_z_average = neighbour_forces[7];
+
+                if moment_y_average > neighbour_moment_y_average
+                {
+                    node_1_forces_values.push(moment_y_min);
+                    node_2_forces_values.push(moment_y_max);
+                }
+                else
+                {
+                    node_1_forces_values.push(moment_y_max);
+                    node_2_forces_values.push(moment_y_min);
+                }
+
+                if moment_z_average > neighbour_moment_z_average
+                {
+                    node_1_forces_values.push(moment_z_min);
+                    node_2_forces_values.push(moment_z_max);
+                }
+                else
+                {
+                    node_1_forces_values.push(moment_z_max);
+                    node_2_forces_values.push(moment_z_min);
+                }
+
+                let mut beam_element_nodal_forces = HashMap::new();
+
+                beam_element_nodal_forces.insert(node_1_number, NodalForces::create(
+                    node_1_forces_values, node_1_forces_components));
+                beam_element_nodal_forces.insert(node_2_number, NodalForces::create(
+                    node_2_forces_values, node_2_forces_components));
+
+                beam_elements_nodal_forces.insert(*beam_element_number,
+                    BeamElementNodalForces::create(beam_element_nodal_forces));
+
+                continue;
+            }
+
+            if let Some(position) = beam_element_numbers.iter()
+                .position(|number| number != beam_element_number &&
+                    self.elements.get(number).unwrap()
+                        .node_belong_element(node_2_number))
+            {
+                let neighbour_forces = elements_analysis_data
+                    .get(&beam_element_numbers[position]).unwrap()
+                    .extract_forces().unwrap()
+                    .forces_values().to_vec();
+                let neighbour_moment_y_average = neighbour_forces[4];
+                let neighbour_moment_z_average = neighbour_forces[7];
+
+                if moment_y_average > neighbour_moment_y_average
+                {
+                    node_2_forces_values.push(moment_y_min);
+                    node_1_forces_values.push(moment_y_max);
+                }
+                else
+                {
+                    node_2_forces_values.push(moment_y_max);
+                    node_1_forces_values.push(moment_y_min);
+                }
+
+                if moment_z_average > neighbour_moment_z_average
+                {
+                    node_2_forces_values.push(moment_z_min);
+                    node_1_forces_values.push(moment_z_max);
+                }
+                else
+                {
+                    node_2_forces_values.push(moment_z_max);
+                    node_1_forces_values.push(moment_z_min);
+                }
+
+                let mut beam_element_nodal_forces = HashMap::new();
+
+                beam_element_nodal_forces.insert(node_1_number, NodalForces::create(
+                    node_1_forces_values, node_1_forces_components));
+                beam_element_nodal_forces.insert(node_2_number, NodalForces::create(
+                    node_2_forces_values, node_2_forces_components));
+
+                beam_elements_nodal_forces.insert(*beam_element_number,
+                    BeamElementNodalForces::create(beam_element_nodal_forces));
+
+                continue;
+            }
+        }
+
+        beam_elements_nodal_forces
+    }
 }

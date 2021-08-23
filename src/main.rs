@@ -336,6 +336,10 @@ fn main() -> Result<(), String>
         GlobalDOFParameter::Y, 100.0)?;
 
     // fe_model.add_bc(
+    //     BCType::Force, 2, 3,
+    //     GlobalDOFParameter::ThZ, 1500.0)?;
+
+    // fe_model.add_bc(
     //     BCType::Force, 2, 5,
     //     GlobalDOFParameter::Z, -625.0)?;
 
@@ -363,11 +367,42 @@ fn main() -> Result<(), String>
     }
 
     println!();
-    let mut elements_analysis_results =
-        fe_model.elements_analysis(&displacements)?;
+    let elements_analysis_results = fe_model.elements_analysis(
+        &displacements)?;
+
+    if let Some(beam_element_numbers) = elements_analysis_results
+        .analyzed_elements_types().get(&FEType::Beam2n1ipT)
+    {
+        let beam_elements_nodal_forces =
+            fe_model.beam_elements_nodal_forces(beam_element_numbers,
+            elements_analysis_results.elements_analysis_data());
+        for (element_number, beam_element_nodal_forces) in
+            beam_elements_nodal_forces.iter()
+        {
+            println!("Element number: {}", element_number);
+            for (node_number, nodal_forces) in beam_element_nodal_forces.beam_element_nodal_forces()
+            {
+                let mut forces_values = String::from("Nodal forces: ");
+                let mut forces_components = String::from("Nodal forces components: ");
+                for force_value in nodal_forces.forces_values()
+                {
+                    forces_values += &format!("{:?}, ", force_value);
+                }
+                for force_component in nodal_forces.forces_components()
+                {
+                    forces_components += &format!("{:?}, ", force_component);
+                }
+
+                println!("\t Node number: {}", node_number);
+                println!("\t \t {}", forces_values);
+                println!("\t \t {}", forces_components);
+                println!();
+            }
+        }
+    }
 
     for (element_number, element_analysis_data) in
-        elements_analysis_results.iter()
+        elements_analysis_results.elements_analysis_data().iter()
     {
         if let Some(element_forces) = element_analysis_data.extract_forces()
         {

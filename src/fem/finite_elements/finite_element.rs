@@ -20,7 +20,7 @@ use crate::fem::global_analysis::fe_global_analysis_result::Displacements;
 use self::FEType::*;
 
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Eq, Hash)]
 pub enum FEType
 {
     Truss2n1ip,
