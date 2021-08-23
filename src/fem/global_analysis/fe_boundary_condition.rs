@@ -285,12 +285,4 @@ impl<T, V> BoundaryCondition<T, V>
     {
         self.boundary_condition.extract_dof_parameter()
     }
-
-    // pub fn show(&self)
-    // {
-    //     println!("{}, dof_param: {:?}, node: {:?}, value: {:?}", self.bc_type.as_str(),
-    //              self.boundary_condition.extract_dof_parameter(),
-    //              self.boundary_condition.extract_node_number(),
-    //              self.boundary_condition.extract_value())
-    // }
 }

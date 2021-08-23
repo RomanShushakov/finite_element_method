@@ -128,8 +128,8 @@ impl<V> ElementAnalysisData<V>
 
 pub struct ElementsAnalysisResult<T, V>
 {
-    elements_analysis_data: HashMap<T, ElementAnalysisData<V>>,
-    analyzed_elements_types: HashMap<FEType, Vec<T>>,
+    elements_analysis_data: HashMap<T, ElementAnalysisData<V>>,     // Hashmap { element_number: ElementAnalysisData }
+    analyzed_elements_types: HashMap<FEType, Vec<T>>,               // Hashmap { FEType: Vec<element_number, ...> }
 }
 
 

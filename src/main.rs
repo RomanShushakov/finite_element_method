@@ -2,17 +2,12 @@ use std::hash::Hash;
 use std::ops::{Rem, Sub, Div, Mul, Add, SubAssign, AddAssign, MulAssign};
 use std::fmt::Debug;
 
-use extended_matrix::extended_matrix::ExtendedMatrix;
-
-use crate::my_float::MyFloatTrait;
 use crate::fem::fe_model::FEModel;
 use crate::fem::finite_elements::finite_element::FEType;
 use crate::fem::global_analysis::fe_boundary_condition::BCType;
 use crate::fem::global_analysis::fe_dof_parameter_data::GlobalDOFParameter;
 
 mod fem;
-
-mod auxiliary;
 
 mod my_float;
 

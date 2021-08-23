@@ -49,8 +49,8 @@ pub struct State<T, V>
 
 pub struct FEModel<T, V>
 {
-    pub nodes: HashMap<T, FENode<V>>,   // Hashmap { node_number: Node }
-    pub elements: HashMap<T, FiniteElement<T, V>>,  // Hashmap { element_number: FiniteElement }
+pub nodes: HashMap<T, FENode<V>>,                               // Hashmap { node_number: Node }
+    pub elements: HashMap<T, FiniteElement<T, V>>,              // Hashmap { element_number: FiniteElement }
     pub boundary_conditions: Vec<BoundaryCondition<T, V>>,
     pub state: State<T, V>,
 }

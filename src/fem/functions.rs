@@ -111,23 +111,6 @@ pub fn separate<'a, T, V>(matrix: ExtendedMatrix<T, V>, positions: Vec<MatrixEle
         i += T::from(1u8);
     }
 
-    // for i in 0..shape.0.into()
-    // {
-    //     for j in 0..shape.1.into()
-    //     {
-    //         if positions.iter().position(|p|
-    //                 p.row == T::from(i)).is_none() &&
-    //             positions.iter().position(|p|
-    //                 p.column == T::from(j)).is_none()
-    //         {
-    //             let row = T::from(i);
-    //             let column = T::from(j);
-    //             let value = extract_element_value(row, column, &all_elements_values);
-    //             k_aa_elements.push(value);
-    //         }
-    //     }
-    // }
-
     let k_aa_matrix = ExtendedMatrix::create(k_aa_rows_number,
         k_aa_columns_number, k_aa_elements, tolerance);
 
@@ -157,25 +140,6 @@ pub fn separate<'a, T, V>(matrix: ExtendedMatrix<T, V>, positions: Vec<MatrixEle
         }
         i += T::from(1u8);
     }
-
-    // for i in 0..shape.0.into()
-    // {
-    //     if positions.iter().position(|p| p.row == T::from(i)).is_none()
-    //     {
-    //         for j in 0..positions.len()
-    //         {
-    //             let row = T::from(i);
-    //             let column = positions[j].column;
-    //             if column > shape.1
-    //             {
-    //                 return Err("Extended matrix: Matrix could not be separated! Matrix Kab \
-    //                     could not be composed!");
-    //             }
-    //             let value = extract_element_value(row, column, &all_elements_values);
-    //             k_ab_elements.push(value);
-    //         }
-    //     }
-    // }
 
     let k_ab_matrix = ExtendedMatrix::create(k_ab_rows_number,
         k_ab_columns_number, k_ab_elements, tolerance);
@@ -207,26 +171,6 @@ pub fn separate<'a, T, V>(matrix: ExtendedMatrix<T, V>, positions: Vec<MatrixEle
             j += T::from(1u8);
         }
     }
-
-    //  for i in 0..positions.len()
-    // {
-    //     for j in 0..shape.1.into()
-    //     {
-    //         if positions.iter().position(|p|
-    //             p.column == T::from(j)).is_none()
-    //         {
-    //             let row = positions[i].row;
-    //             let column = T::from(j);
-    //             if row > shape.0
-    //             {
-    //                 return Err("Extended matrix: Matrix could not be separated! Matrix Kba \
-    //                     could not be composed!");
-    //             }
-    //             let value = extract_element_value(row, column, &all_elements_values);
-    //             k_ba_elements.push(value);
-    //         }
-    //     }
-    // }
 
     let k_ba_matrix = ExtendedMatrix::create(k_ba_rows_number,
         k_ba_columns_number, k_ba_elements, tolerance);
