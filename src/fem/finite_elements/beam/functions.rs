@@ -472,7 +472,7 @@ impl<T, V> BeamAuxFunctions<T, V>
 
 
     pub fn local_stiffness_matrix(node_1_number: T, node_2_number: T, young_modulus: V,
-        poisson_ratio: V, area: V, shape_factor: V, it: V, i11: V, i22: V,
+        poisson_ratio: V, area: V, shape_factor_11: V, shape_factor_22: V, it: V, i11: V, i22: V,
         alpha: V, r: V, tolerance: V, nodes: &HashMap<T, FENode<V>>)
         -> Result<ExtendedMatrix<T, V>, String>
     {
@@ -503,8 +503,8 @@ impl<T, V> BeamAuxFunctions<T, V>
             .map_err(|e| format!("Beam2n2ipT: Local stiffness matrix could not be calculated! \
                 Reason: {}", e))?;
         let shear_modulus = young_modulus / (V::from(2f32) * (V::from(1f32) + poisson_ratio));
-        let coeff_v_and_w = shear_modulus * area * shape_factor;
-        matrix_v.multiply_by_number(coeff_v_and_w);
+        let coeff_v = shear_modulus * area * shape_factor_11;
+        matrix_v.multiply_by_number(coeff_v);
         matrix_v.multiply_by_number(BeamAuxFunctions::determinant_of_jacobian(
             node_1_number, node_2_number, r, nodes) * alpha);
 
@@ -520,7 +520,8 @@ impl<T, V> BeamAuxFunctions<T, V>
         let mut matrix_w = lhs_matrix_w.multiply_by_matrix(&rhs_matrix_w)
             .map_err(|e| format!("Beam2n2ipT: Local stiffness matrix could not be calculated! \
                 Reason: {}", e))?;
-        matrix_w.multiply_by_number(coeff_v_and_w);
+        let coeff_w = shear_modulus * area * shape_factor_22;
+        matrix_w.multiply_by_number(coeff_w);
         matrix_w.multiply_by_number(BeamAuxFunctions::determinant_of_jacobian(
             node_1_number, node_2_number, r, nodes) * alpha);
 

@@ -253,7 +253,8 @@ impl<T, V> FEModel<T, V>
             }
             else
             {
-                if *value <= V::from(0f32) && [i != 5, i < 8].iter().all(|condition| *condition == true)
+                if *value <= V::from(0f32) && [i != 5, i < 9].iter().all(|condition|
+                    *condition == true)
                 {
                     return Err(format!("FEData: All properties values for element {:?} should be \
                         greater than zero!", element_number));

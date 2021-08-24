@@ -63,7 +63,8 @@ pub struct Beam2n1ipT<T, V>
     i11: V,
     i22: V,
     angle: V,
-    shape_factor: V,
+    shape_factor_11: V,
+    shape_factor_22: V,
     it: V,
     local_axis_1_direction: [V; 3],
     state: State<T, V>,
@@ -79,7 +80,7 @@ impl<T, V> Beam2n1ipT<T, V>
              MyFloatTrait + PartialOrd + MyFloatTrait<Other = V> + 'static
 {
     pub fn create(node_1_number: T, node_2_number: T, young_modulus: V, poisson_ratio: V, area: V,
-        i11_init: V, i22_init: V, i12_init: V, it: V, shape_factor: V,
+        i11_init: V, i22_init: V, i12_init: V, it: V, shape_factor_11: V, shape_factor_22: V,
         local_axis_1_direction: [V; 3], tolerance: V, nodes: &HashMap<T, FENode<V>>)
         -> Result<Self, String>
     {
@@ -132,9 +133,9 @@ impl<T, V> Beam2n1ipT<T, V>
         for integration_point in &integration_points
         {
             let matrix = BeamAuxFunctions::local_stiffness_matrix(
-                node_1_number, node_2_number, young_modulus, poisson_ratio, area, shape_factor,
-                it, i11, i22, integration_point.weight, integration_point.r, tolerance,
-                nodes)?;
+                node_1_number, node_2_number, young_modulus, poisson_ratio, area, shape_factor_11,
+                shape_factor_22, it, i11, i22, integration_point.weight, integration_point.r,
+                tolerance, nodes)?;
 
             local_stiffness_matrix = local_stiffness_matrix.add_matrix(&matrix)
                 .map_err(|e| format!("Beam2n2ipT: Local stiffness matrix could not be \
@@ -153,7 +154,8 @@ impl<T, V> Beam2n1ipT<T, V>
             local_stiffness_matrix, nodes_dof_parameters);
 
         Ok(Beam2n1ipT { node_1_number, node_2_number, young_modulus, poisson_ratio,
-            area, i11, i22, angle, shape_factor, it, local_axis_1_direction, state })
+            area, i11, i22, angle, shape_factor_11, shape_factor_22, it, local_axis_1_direction,
+            state })
     }
 
 
@@ -257,9 +259,11 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
 
         let it = properties[6];
 
-        let shape_factor = properties[7];
+        let shape_factor_11 = properties[7];
 
-        let local_axis_1_direction = [properties[8], properties[9], properties[10]];
+        let shape_factor_22 = properties[8];
+
+        let local_axis_1_direction = [properties[9], properties[10], properties[11]];
 
         let rotation_matrix =
             BeamAuxFunctions::rotation_matrix(node_1_number, node_2_number,
@@ -273,9 +277,9 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
         for integration_point in &self.state.integration_points
         {
             let matrix = BeamAuxFunctions::local_stiffness_matrix(
-                node_1_number, node_2_number, young_modulus, poisson_ratio, area, shape_factor,
-                it, i11, i22, integration_point.weight, integration_point.r, tolerance,
-                nodes)?;
+                node_1_number, node_2_number, young_modulus, poisson_ratio, area, shape_factor_11,
+                shape_factor_22, it, i11, i22, integration_point.weight, integration_point.r,
+                tolerance, nodes)?;
             local_stiffness_matrix = local_stiffness_matrix.add_matrix(&matrix)
                 .map_err(|e| format!("Beam2n2ipT: Local stiffness matrix could not be \
                     calculated! Reason: {}", e))?;
@@ -297,7 +301,8 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
         self.i11 = i11;
         self.i22 = i22;
         self.angle = angle;
-        self.shape_factor = shape_factor;
+        self.shape_factor_11 = shape_factor_11;
+        self.shape_factor_22 = shape_factor_22;
         self.it = it;
         self.local_axis_1_direction = local_axis_1_direction;
         self.state.rotation_matrix = rotation_matrix;
@@ -526,7 +531,7 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
         {
             let matrix = BeamAuxFunctions::local_stiffness_matrix(
                 self.node_1_number, self.node_2_number, self.young_modulus, self.poisson_ratio,
-                self.area, self.shape_factor, self.it, self.i11, self.i22,
+                self.area, self.shape_factor_11, self.shape_factor_22, self.it, self.i11, self.i22,
                 integration_point.weight, integration_point.r, tolerance, nodes)?;
             local_stiffness_matrix = local_stiffness_matrix.add_matrix(&matrix)
                 .map_err(|e| format!("Beam2n2ipT: Local stiffness matrix could not be \
@@ -574,7 +579,7 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
         let shear_modulus = self.young_modulus /
             (V::from(2f32) * (V::from(1f32) + self.poisson_ratio));
         let force_y = BeamAuxFunctions::extract_column_matrix_values(
-            &strains_matrix_v)[0] * shear_modulus * self.area * self.shape_factor;
+            &strains_matrix_v)[0] * shear_modulus * self.area * self.shape_factor_11;
         forces_components.push(ForceComponent::ForceY);
         forces_values.push(force_y);
 
@@ -584,7 +589,7 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
         let strains_matrix_w =
             strain_displacement_matrix_w.multiply_by_matrix(&element_local_displacements)?;
         let force_z = BeamAuxFunctions::extract_column_matrix_values(
-            &strains_matrix_w)[0] * shear_modulus * self.area * self.shape_factor;
+            &strains_matrix_w)[0] * shear_modulus * self.area * self.shape_factor_11;
         forces_components.push(ForceComponent::ForceZ);
         forces_values.push(force_z);
 
