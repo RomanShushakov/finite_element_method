@@ -1,12 +1,12 @@
 use std::any::Any;
+use std::collections::HashMap;
 
 use crate::fem::element_analysis::fe_stress_strain_components::StressStrainComponent;
 use crate::fem::element_analysis::fe_force_moment_components::ForceComponent;
-use std::collections::HashMap;
 use crate::fem::finite_elements::finite_element::FEType;
 
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub struct ElementStrains<V>
 {
     strains_values: Vec<V>,
@@ -35,7 +35,7 @@ impl<V> ElementStrains<V>
 }
 
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub struct ElementStresses<V>
 {
     stresses_values: Vec<V>,
@@ -64,7 +64,7 @@ impl<V> ElementStresses<V>
 }
 
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub struct ElementForces<V>
 {
     forces_values: Vec<V>,
@@ -93,7 +93,7 @@ impl<V> ElementForces<V>
 }
 
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub struct ElementAnalysisData<V>
 {
     strains: Option<ElementStrains<V>>,
@@ -112,16 +112,36 @@ impl<V> ElementAnalysisData<V>
     }
 
 
-    pub fn extract_and_drop(self)
-        -> (Option<ElementStrains<V>>, Option<ElementStresses<V>>, Option<ElementForces<V>>)
+    pub fn extract_and_drop(self) -> (Option<ElementStrains<V>>, Option<ElementStresses<V>>,
+        Option<ElementForces<V>>)
     {
         (self.strains, self.stresses, self.forces)
     }
 
 
-    pub fn extract_forces(&self) -> Option<ElementForces<V>>
+    pub fn forces_values(&self) -> Option<&[V]>
     {
-        self.forces.clone()
+        if let Some(element_forces) = &self.forces
+        {
+            Some(element_forces.forces_values())
+        }
+        else
+        {
+            None
+        }
+    }
+
+
+    pub fn forces_components(&self) -> Option<&[ForceComponent]>
+    {
+        if let Some(element_forces) = &self.forces
+        {
+            Some(element_forces.forces_components())
+        }
+        else
+        {
+            None
+        }
     }
 }
 

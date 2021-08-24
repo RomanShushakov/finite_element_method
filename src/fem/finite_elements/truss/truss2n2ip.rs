@@ -4,23 +4,20 @@ use std::ops::{Sub, Mul, Add, Div, Rem, SubAssign, AddAssign, MulAssign};
 
 use extended_matrix::basic_matrix::basic_matrix::MatrixElementPosition;
 use extended_matrix::extended_matrix::ExtendedMatrix;
-use extended_matrix::functions::extract_element_value;
 
 use crate::fem::finite_elements::finite_element::FiniteElementTrait;
 use crate::fem::finite_elements::fe_node::FENode;
 use crate::fem::finite_elements::truss::functions::TrussAuxFunctions;
-use crate::fem::finite_elements::functions::compare_with_tolerance;
 
 use crate::fem::global_analysis::fe_stiffness::{StiffnessGroup, StiffnessType};
-use crate::fem::global_analysis::fe_dof_parameter_data::{GlobalDOFParameter, DOFParameterData};
+use crate::fem::global_analysis::fe_dof_parameter_data::{DOFParameterData};
 use crate::fem::global_analysis::fe_global_analysis_result::Displacements;
 
 use crate::fem::element_analysis::fe_force_moment_components::ForceComponent;
 use crate::fem::element_analysis::fe_element_analysis_result::
 {
-    ElementAnalysisData, ElementStrains, ElementStresses, ElementForces
+    ElementAnalysisData, ElementForces
 };
-use crate::fem::element_analysis::fe_stress_strain_components::StressStrainComponent;
 
 use crate::my_float::MyFloatTrait;
 
@@ -284,7 +281,7 @@ impl<T, V> FiniteElementTrait<T, V> for Truss2n2ip<T, V>
     }
 
 
-    fn node_belong_element(&self, node_number: T) -> bool
+    fn is_node_belongs_to_element(&self, node_number: T) -> bool
     {
         self.node_1_number == node_number || self.node_2_number == node_number
     }
@@ -315,7 +312,7 @@ impl<T, V> FiniteElementTrait<T, V> for Truss2n2ip<T, V>
     }
 
 
-    fn nodes_numbers_same(&self, nodes_numbers: Vec<T>) -> bool
+    fn is_nodes_numbers_same(&self, nodes_numbers: Vec<T>) -> bool
     {
         (nodes_numbers[0] == self.node_1_number && nodes_numbers[1] == self.node_2_number) ||
         (nodes_numbers[0] == self.node_2_number && nodes_numbers[1] == self.node_1_number)

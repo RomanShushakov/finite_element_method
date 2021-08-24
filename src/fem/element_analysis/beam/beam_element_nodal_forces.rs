@@ -2,7 +2,7 @@ use crate::fem::element_analysis::fe_force_moment_components::ForceComponent;
 use std::collections::HashMap;
 
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub struct NodalForces<V>
 {
     forces_values: Vec<V>,

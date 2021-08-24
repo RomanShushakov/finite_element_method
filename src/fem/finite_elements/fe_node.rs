@@ -24,7 +24,7 @@ impl<V> FENode<V>
     }
 
 
-    pub fn coordinates_same(&self, x: V, y: V, z: V) -> bool
+    pub fn is_coordinates_same(&self, x: V, y: V, z: V) -> bool
     {
         (x, y, z) == (self.x, self.y, self.z)
     }

@@ -89,32 +89,14 @@ impl<T, V> GlobalAnalysisResult<T, V>
     }
 
 
-    pub fn extract_reactions(&self) -> Reactions<T, V>
+    pub fn reactions(&self) -> &Reactions<T, V>
     {
-        let mut reactions_values = Vec::new();
-        let mut dof_parameters_data = Vec::new();
-        for (reaction_value, dof_parameter_data) in
-            self.reactions.reactions_values().iter()
-                .zip(self.reactions.dof_parameters_data())
-        {
-            reactions_values.push(*reaction_value);
-            dof_parameters_data.push(*dof_parameter_data);
-        }
-        Reactions { reactions_values, dof_parameters_data }
+        &self.reactions
     }
 
 
-    pub fn extract_displacements(&self) -> Displacements<T, V>
+    pub fn displacements(&self) -> &Displacements<T, V>
     {
-        let mut displacements_values = Vec::new();
-        let mut dof_parameters_data = Vec::new();
-        for (displacement_value, dof_parameter_data) in
-            self.displacements.displacements_values()
-                .iter().zip(self.displacements.dof_parameters_data())
-        {
-            displacements_values.push(*displacement_value);
-            dof_parameters_data.push(*dof_parameter_data);
-        }
-        Displacements { displacements_values, dof_parameters_data }
+        &self.displacements
     }
 }

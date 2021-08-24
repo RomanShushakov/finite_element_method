@@ -59,9 +59,9 @@ pub trait FiniteElementTrait<T, V>
         nodes: &HashMap<T, FENode<V>>) -> Result<(), String>;
     fn extract_stiffness_matrix(&self) -> Result<ExtendedMatrix<T, V>, &str>;
     fn extract_stiffness_groups(&self) -> Vec<StiffnessGroup<T>>;
-    fn node_belong_element(&self, node_number: T) -> bool;
+    fn is_node_belongs_to_element(&self, node_number: T) -> bool;
     fn refresh(&mut self, tolerance: V, nodes: &HashMap<T, FENode<V>>) -> Result<(), String>;
-    fn nodes_numbers_same(&self, nodes_numbers: Vec<T>) -> bool;
+    fn is_nodes_numbers_same(&self, nodes_numbers: Vec<T>) -> bool;
     fn extract_element_analysis_data(&self, global_displacements: &Displacements<T, V>,
         tolerance: V, nodes: &HashMap<T, FENode<V>>) -> Result<ElementAnalysisData<V>, String>;
     fn extract_nodes_numbers(&self) -> Vec<T>;
@@ -226,9 +226,9 @@ impl<T, V> FiniteElement<T, V>
     }
 
 
-    pub fn node_belong_element(&self, node_number: T) -> bool
+    pub fn is_node_belong_element(&self, node_number: T) -> bool
     {
-        self.element.node_belong_element(node_number)
+        self.element.is_node_belongs_to_element(node_number)
     }
 
 
@@ -239,15 +239,15 @@ impl<T, V> FiniteElement<T, V>
     }
 
 
-    pub fn type_same(&self, element_type: &FEType) -> bool
+    pub fn is_type_same(&self, element_type: &FEType) -> bool
     {
         self.element_type == *element_type
     }
 
 
-    pub fn nodes_numbers_same(&self, nodes_numbers: Vec<T>) -> bool
+    pub fn is_nodes_numbers_same(&self, nodes_numbers: Vec<T>) -> bool
     {
-        self.element.nodes_numbers_same(nodes_numbers)
+        self.element.is_nodes_numbers_same(nodes_numbers)
     }
 
 

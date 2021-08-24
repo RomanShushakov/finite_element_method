@@ -13,7 +13,7 @@ use crate::fem::finite_elements::fe_node::FENode;
 use crate::fem::finite_elements::finite_element::{FiniteElement, FEType};
 use crate::fem::global_analysis::fe_stiffness::StiffnessGroup;
 use crate::fem::global_analysis::fe_boundary_condition::{BoundaryCondition, BCType};
-use crate::fem::global_analysis::fe_global_analysis_result::{GlobalAnalysisResult, Displacements, Reactions};
+use crate::fem::global_analysis::fe_global_analysis_result::{GlobalAnalysisResult, Displacements};
 use crate::fem::global_analysis::fe_dof_parameter_data::
 {
     global_dof, DOFParameterData, GLOBAL_DOF, GlobalDOFParameter
@@ -168,7 +168,7 @@ impl<T, V> FEModel<T, V>
                 does already exist!", number));
         }
 
-        if self.nodes.values().position(|node| node.coordinates_same(x, y, z)).is_some()
+        if self.nodes.values().position(|node| node.is_coordinates_same(x, y, z)).is_some()
         {
             return Err(format!("FEModel: Node {:?} could not be added because node with the same \
                 coordinates does already exist!", number));
@@ -185,7 +185,7 @@ impl<T, V> FEModel<T, V>
     pub fn update_node(&mut self, number: T, x: V, y: V, z: V) -> Result<(), String>
     {
         if self.nodes.iter().position(|(node_number, node)|
-            *node_number != number && node.coordinates_same(x, y, z)).is_some()
+            *node_number != number && node.is_coordinates_same(x, y, z)).is_some()
         {
             return Err(format!("FEModel: Node {:?} could not be updated because the node with the \
                 same coordinates does already exist!", number))
@@ -195,7 +195,7 @@ impl<T, V> FEModel<T, V>
         {
             node.update(x, y, z);
             for element in self.elements.values_mut()
-                .filter(|element| element.node_belong_element(number))
+                .filter(|element| element.is_node_belong_element(number))
             {
                 element.refresh(self.state.tolerance, &self.nodes)?;
             }
@@ -220,7 +220,7 @@ impl<T, V> FEModel<T, V>
         let mut elements_numbers_for_delete = Vec::new();
         for (element_number, element) in self.elements.iter()
         {
-            if element.node_belong_element(number)
+            if element.is_node_belong_element(number)
             {
                 elements_numbers_for_delete.push(*element_number);
             }
@@ -276,8 +276,8 @@ impl<T, V> FEModel<T, V>
         }
 
         if self.elements.values().position(|element|
-            element.type_same(&element_type) &&
-            element.nodes_numbers_same(nodes_numbers.clone())).is_some()
+            element.is_type_same(&element_type) &&
+            element.is_nodes_numbers_same(nodes_numbers.clone())).is_some()
         {
             return Err(format!("FEModel: Element {:?} could not be added! The element with the same \
                 type and with same nodes numbers does already exist!", element_number));
@@ -331,7 +331,7 @@ impl<T, V> FEModel<T, V>
 
         if let Some(element) = self.elements.get_mut(&element_number)
         {
-            if element.nodes_numbers_same(nodes_numbers.clone())
+            if element.is_nodes_numbers_same(nodes_numbers.clone())
             {
                 return Err(format!("FEModel: Element {:?} could not be added! The element with \
                     the same nodes numbers does already exist!", element_number));
@@ -371,7 +371,7 @@ impl<T, V> FEModel<T, V>
 
         if self.nodes.keys().any(|node_number|
             self.elements.values().position(|element|
-                element.node_belong_element(*node_number)).is_none())
+                element.is_node_belong_element(*node_number)).is_none())
         {
             return Err("FEModel: Global stiffness matrix could not be composed because there are \
                 free nodes exist!");
@@ -776,9 +776,7 @@ impl<T, V> FEModel<T, V>
         {
             let forces = elements_analysis_data
                 .get(beam_element_number).unwrap()
-                .extract_forces().unwrap()
-                .forces_values()
-                .to_vec();
+                .forces_values().unwrap().to_vec();
 
             let moment_y_average = forces[4];
             let moment_y_min = forces[5];
@@ -801,19 +799,27 @@ impl<T, V> FEModel<T, V>
             let mut node_1_forces_values = Vec::new();
             let mut node_2_forces_values = Vec::new();
 
-            if let Some(position) = beam_element_numbers.iter()
+            let mut adjacent_elements_numbers = Vec::new();
+            let mut beam_elements_numbers_for_search = beam_element_numbers.to_vec();
+            while let Some(position) = beam_elements_numbers_for_search.iter()
                 .position(|number| number != beam_element_number &&
                     self.elements.get(number).unwrap()
-                        .node_belong_element(node_1_number))
+                        .is_node_belong_element(node_1_number))
             {
-                let neighbour_forces = elements_analysis_data
-                    .get(&beam_element_numbers[position]).unwrap()
-                    .extract_forces().unwrap()
-                    .forces_values().to_vec();
-                let neighbour_moment_y_average = neighbour_forces[4];
-                let neighbour_moment_z_average = neighbour_forces[7];
+                adjacent_elements_numbers.push(
+                    beam_elements_numbers_for_search.remove(position));
+            }
 
-                if moment_y_average > neighbour_moment_y_average
+            if adjacent_elements_numbers.len() == 1
+            {
+                let adjacent_element_number = adjacent_elements_numbers[0];
+                let adjacent_forces = elements_analysis_data
+                    .get(&adjacent_element_number).unwrap()
+                    .forces_values().unwrap().to_vec();
+                let adjacent_moment_y_average = adjacent_forces[4];
+                let adjacent_moment_z_average = adjacent_forces[7];
+
+                if moment_y_average > adjacent_moment_y_average
                 {
                     node_1_forces_values.push(moment_y_min);
                     node_2_forces_values.push(moment_y_max);
@@ -824,7 +830,7 @@ impl<T, V> FEModel<T, V>
                     node_2_forces_values.push(moment_y_min);
                 }
 
-                if moment_z_average > neighbour_moment_z_average
+                if moment_z_average > adjacent_moment_z_average
                 {
                     node_1_forces_values.push(moment_z_min);
                     node_2_forces_values.push(moment_z_max);
@@ -848,19 +854,26 @@ impl<T, V> FEModel<T, V>
                 continue;
             }
 
-            if let Some(position) = beam_element_numbers.iter()
+            let mut adjacent_elements_numbers = Vec::new();
+            let mut beam_elements_numbers_for_search = beam_element_numbers.to_vec();
+            while let Some(position) = beam_elements_numbers_for_search.iter()
                 .position(|number| number != beam_element_number &&
                     self.elements.get(number).unwrap()
-                        .node_belong_element(node_2_number))
+                        .is_node_belong_element(node_2_number))
             {
-                let neighbour_forces = elements_analysis_data
-                    .get(&beam_element_numbers[position]).unwrap()
-                    .extract_forces().unwrap()
-                    .forces_values().to_vec();
-                let neighbour_moment_y_average = neighbour_forces[4];
-                let neighbour_moment_z_average = neighbour_forces[7];
+                adjacent_elements_numbers.push(
+                    beam_elements_numbers_for_search.remove(position));
+            }
+            if adjacent_elements_numbers.len() == 1
+            {
+                let adjacent_element_number = adjacent_elements_numbers[0];
+                let adjacent_forces = elements_analysis_data
+                    .get(&adjacent_element_number).unwrap()
+                    .forces_values().unwrap().to_vec();
+                let adjacent_moment_y_average = adjacent_forces[4];
+                let adjacent_moment_z_average = adjacent_forces[7];
 
-                if moment_y_average > neighbour_moment_y_average
+                if moment_y_average > adjacent_moment_y_average
                 {
                     node_2_forces_values.push(moment_y_min);
                     node_1_forces_values.push(moment_y_max);
@@ -871,7 +884,7 @@ impl<T, V> FEModel<T, V>
                     node_1_forces_values.push(moment_y_min);
                 }
 
-                if moment_z_average > neighbour_moment_z_average
+                if moment_z_average > adjacent_moment_z_average
                 {
                     node_2_forces_values.push(moment_z_min);
                     node_1_forces_values.push(moment_z_max);

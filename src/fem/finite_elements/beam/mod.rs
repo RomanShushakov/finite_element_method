@@ -1,2 +1,3 @@
 pub mod beam2n1ipt;
-pub mod consts;
+pub(super) mod consts;
+pub(super) mod functions;
