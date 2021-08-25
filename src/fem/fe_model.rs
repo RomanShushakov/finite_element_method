@@ -19,8 +19,7 @@ use crate::fem::global_analysis::fe_dof_parameter_data::
     global_dof, DOFParameterData, GLOBAL_DOF, GlobalDOFParameter
 };
 
-use crate::fem::element_analysis::fe_element_analysis_result::{ElementAnalysisData, ElementsAnalysisResult, EARType};
-use crate::fem::element_analysis::fe_force_moment_components::ForceComponent;
+use crate::fem::element_analysis::fe_element_analysis_result::{ElementsAnalysisResult, EARType};
 
 use crate::fem::functions::{separate, compose_stiffness_sub_groups};
 
@@ -745,38 +744,10 @@ impl<T, V> FEModel<T, V>
         {
             let fe_type = element.extract_fe_type();
             let element_analysis_data = element.extract_element_analysis_data(
-                fe_type, global_displacements, self.state.tolerance, &self.nodes)?;
-            if let Some(strains_components) =
-                element_analysis_data.strains_components()
-            {
-                for strain_component in strains_components.iter()
-                {
-                    elements_analysis_result.add_to_stresses_strains_components(
-                        EARType::Strain, *strain_component,
-                        *element_number)?;
-                }
-            }
-            if let Some(stresses_components) =
-                element_analysis_data.stresses_components()
-            {
-                for stress_component in stresses_components.iter()
-                {
-                    elements_analysis_result.add_to_stresses_strains_components(
-                        EARType::Force, *stress_component,
-                        *element_number)?;
-                }
-            }
-            if let Some(forces_components) =
-                element_analysis_data.forces_components()
-            {
-                for force_component in forces_components.iter()
-                {
-                    elements_analysis_result.add_to_forces_components(
-                        *force_component,
-                        *element_number)?;
-                }
-            }
+                global_displacements, self.state.tolerance, &self.nodes)?;
+
             elements_analysis_result.add_to_analysis_data(*element_number, element_analysis_data);
+            elements_analysis_result.add_to_types(fe_type, *element_number)?;
         }
 
         Ok(elements_analysis_result)

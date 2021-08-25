@@ -20,7 +20,7 @@ use crate::fem::global_analysis::fe_global_analysis_result::Displacements;
 use self::FEType::*;
 
 
-#[derive(Clone, PartialEq, Debug, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Debug, Eq, Hash)]
 pub enum FEType
 {
     Truss2n1ip,
@@ -62,9 +62,8 @@ pub(super) trait FiniteElementTrait<T, V>
     fn is_node_belongs_to_element(&self, node_number: T) -> bool;
     fn refresh(&mut self, tolerance: V, nodes: &HashMap<T, FENode<V>>) -> Result<(), String>;
     fn is_nodes_numbers_same(&self, nodes_numbers: Vec<T>) -> bool;
-    fn extract_element_analysis_data(&self, fe_type: FEType,
-        global_displacements: &Displacements<T, V>, tolerance: V, nodes: &HashMap<T, FENode<V>>)
-        -> Result<ElementAnalysisData<T, V>, String>;
+    fn extract_element_analysis_data(&self, global_displacements: &Displacements<T, V>,
+        tolerance: V, nodes: &HashMap<T, FENode<V>>) -> Result<ElementAnalysisData<T, V>, String>;
     fn extract_nodes_numbers(&self) -> Vec<T>;
     fn extract_fe_properties(&self) -> Vec<V>;
 }
@@ -252,19 +251,18 @@ impl<T, V> FiniteElement<T, V>
     }
 
 
-    pub fn extract_element_analysis_data(&self, fe_type: FEType,
-        global_displacements: &Displacements<T, V>, tolerance: V, nodes: &HashMap<T, FENode<V>>)
-        -> Result<ElementAnalysisData<T, V>, String>
+    pub fn extract_element_analysis_data(&self, global_displacements: &Displacements<T, V>,
+        tolerance: V, nodes: &HashMap<T, FENode<V>>) -> Result<ElementAnalysisData<T, V>, String>
     {
         let element_analysis_data = self.element.extract_element_analysis_data(
-            fe_type, global_displacements, tolerance, nodes)?;
+            global_displacements, tolerance, nodes)?;
         Ok(element_analysis_data)
     }
 
 
     pub fn extract_fe_type(&self) -> FEType
     {
-        self.element_type.clone()
+        self.element_type
     }
 
 

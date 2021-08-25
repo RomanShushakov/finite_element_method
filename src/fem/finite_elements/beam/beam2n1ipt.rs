@@ -22,7 +22,6 @@ use crate::fem::finite_elements::beam::beam_aux_functions::BeamAuxFunctions;
 use crate::my_float::MyFloatTrait;
 
 use crate::fem::finite_elements::beam::consts::{ BEAM_NODE_DOF, BEAM2N1IPT_NODES_NUMBER };
-use extended_matrix::functions::extract_element_value;
 
 
 struct IntegrationPoint<V>
@@ -546,9 +545,8 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
     }
 
 
-    fn extract_element_analysis_data(&self, fe_type: FEType,
-        global_displacements: &Displacements<T, V>, tolerance: V, nodes: &HashMap<T, FENode<V>>)
-        -> Result<ElementAnalysisData<T, V>, String>
+    fn extract_element_analysis_data(&self, global_displacements: &Displacements<T, V>,
+        tolerance: V, nodes: &HashMap<T, FENode<V>>) -> Result<ElementAnalysisData<T, V>, String>
     {
         let element_local_displacements =
             self.extract_local_displacements(global_displacements, tolerance)?;
@@ -651,8 +649,7 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
         nodal_forces.insert(self.node_2_number, nodal_forces_for_node_2);
 
         let element_analysis_data = ElementAnalysisData::create(
-            fe_type, None, None, Some(element_forces),
-            Some(nodal_forces));
+            None, None, Some(element_forces), Some(nodal_forces));
         Ok(element_analysis_data)
 
     }
