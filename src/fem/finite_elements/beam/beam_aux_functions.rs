@@ -13,7 +13,6 @@ use crate::fem::global_analysis::fe_dof_parameter_data::{DOFParameterData, Globa
 use crate::fem::finite_elements::fe_node::FENode;
 use crate::fem::finite_elements::beam::consts::{BEAM2N1IPT_NODES_NUMBER, BEAM_NODE_DOF};
 use crate::fem::finite_elements::functions::compare_with_tolerance;
-use std::f32::consts::PI;
 
 
 pub struct BeamAuxFunctions<T, V>(T, V);
@@ -169,21 +168,16 @@ impl<T, V> BeamAuxFunctions<T, V>
         let transformed_projection_of_beam_section_orientation_z = extract_element_value(2,
             0, &all_values_of_transformed_projection_of_beam_section_orientation);
 
-        let angle_between_beam_section_local_axis_1_direction_and_horizon =
-            (V::from(-1f32) * transformed_projection_of_beam_section_orientation_z /
+        let angle_between_beam_section_local_axis_1_direction_and_axis_t =
+            (transformed_projection_of_beam_section_orientation_z /
             (transformed_projection_of_beam_section_orientation_x.my_powi(2) +
             transformed_projection_of_beam_section_orientation_y.my_powi(2) +
             transformed_projection_of_beam_section_orientation_z.my_powi(2))
                 .my_sqrt()
             ).my_acos();
 
-        let mut total_angle = angle +
-            angle_between_beam_section_local_axis_1_direction_and_horizon;
-
-        while total_angle >= V::from(PI)
-        {
-            total_angle -= V::from(PI);
-        }
+        let total_angle = angle +
+            angle_between_beam_section_local_axis_1_direction_and_axis_t;
 
         let c_x = compare_with_tolerance(x /length, tolerance);
         let c_y = compare_with_tolerance(y / length, tolerance);
@@ -472,7 +466,7 @@ impl<T, V> BeamAuxFunctions<T, V>
 
 
     pub fn local_stiffness_matrix(node_1_number: T, node_2_number: T, young_modulus: V,
-        poisson_ratio: V, area: V, shape_factor_11: V, shape_factor_22: V, it: V, i11: V, i22: V,
+        poisson_ratio: V, area: V, shear_factor: V, it: V, i11: V, i22: V,
         alpha: V, r: V, tolerance: V, nodes: &HashMap<T, FENode<V>>)
         -> Result<ExtendedMatrix<T, V>, String>
     {
@@ -503,7 +497,7 @@ impl<T, V> BeamAuxFunctions<T, V>
             .map_err(|e| format!("Beam2n2ipT: Local stiffness matrix could not be calculated! \
                 Reason: {}", e))?;
         let shear_modulus = young_modulus / (V::from(2f32) * (V::from(1f32) + poisson_ratio));
-        let coeff_v = shear_modulus * area * shape_factor_11;
+        let coeff_v = shear_modulus * area * shear_factor;
         matrix_v.multiply_by_number(coeff_v);
         matrix_v.multiply_by_number(BeamAuxFunctions::determinant_of_jacobian(
             node_1_number, node_2_number, r, nodes) * alpha);
@@ -520,7 +514,7 @@ impl<T, V> BeamAuxFunctions<T, V>
         let mut matrix_w = lhs_matrix_w.multiply_by_matrix(&rhs_matrix_w)
             .map_err(|e| format!("Beam2n2ipT: Local stiffness matrix could not be calculated! \
                 Reason: {}", e))?;
-        let coeff_w = shear_modulus * area * shape_factor_22;
+        let coeff_w = shear_modulus * area * shear_factor;
         matrix_w.multiply_by_number(coeff_w);
         matrix_w.multiply_by_number(BeamAuxFunctions::determinant_of_jacobian(
             node_1_number, node_2_number, r, nodes) * alpha);

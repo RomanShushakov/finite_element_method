@@ -19,9 +19,8 @@ use crate::fem::global_analysis::fe_dof_parameter_data::
     global_dof, DOFParameterData, GLOBAL_DOF, GlobalDOFParameter
 };
 
-use crate::fem::element_analysis::fe_element_analysis_result::{ElementAnalysisData, ElementsAnalysisResult};
+use crate::fem::element_analysis::fe_element_analysis_result::ElementAnalysisData;
 use crate::fem::element_analysis::fe_force_moment_components::ForceComponent;
-use crate::fem::element_analysis::beam::beam_element_nodal_forces::{NodalForces, BeamElementNodalForces};
 
 use crate::fem::functions::{separate, compose_stiffness_sub_groups};
 
@@ -253,7 +252,7 @@ impl<T, V> FEModel<T, V>
             }
             else
             {
-                if *value <= V::from(0f32) && [i != 5, i < 9].iter().all(|condition|
+                if *value <= V::from(0f32) && [i != 5, i < 8].iter().all(|condition|
                     *condition == true)
                 {
                     return Err(format!("FEData: All properties values for element {:?} should be \
@@ -739,7 +738,7 @@ impl<T, V> FEModel<T, V>
 
 
     pub fn elements_analysis(&self, global_displacements: &Displacements<T, V>)
-        -> Result<ElementsAnalysisResult<T, V>, String>
+        -> Result<HashMap<T, ElementAnalysisData<T, V>>, String>
     {
         let mut elements_analysis_result = HashMap::new();
         let mut analyzed_elements_types: HashMap<FEType, Vec<T>> = HashMap::new();
@@ -760,156 +759,6 @@ impl<T, V> FEModel<T, V>
             elements_analysis_result.insert(*element_number, element_analysis_data);
         }
 
-        let elements_analysis_result = ElementsAnalysisResult::create(
-            elements_analysis_result, analyzed_elements_types);
-
         Ok(elements_analysis_result)
-    }
-
-
-    pub fn beam_elements_nodal_forces(&self, beam_element_numbers: &[T],
-        elements_analysis_data: &HashMap<T, ElementAnalysisData<V>>)
-        -> HashMap<T, BeamElementNodalForces<T, V>>
-    {
-        let mut beam_elements_nodal_forces: HashMap<T, BeamElementNodalForces<T, V>> = HashMap::new();
-
-        for beam_element_number in beam_element_numbers
-        {
-            let forces = elements_analysis_data
-                .get(beam_element_number).unwrap()
-                .forces_values().unwrap().to_vec();
-
-            let moment_y_average = forces[4];
-            let moment_y_min = forces[5];
-            let moment_y_max = forces[6];
-            let moment_z_average = forces[7];
-            let moment_z_min = forces[8];
-            let moment_z_max = forces[9];
-
-            let nodes_numbers = self.elements
-                .get(beam_element_number).unwrap()
-                .extract_nodes_numbers();
-
-            let node_1_number = nodes_numbers[0];
-            let node_2_number = nodes_numbers[1];
-
-            let node_1_forces_components =
-                vec![ForceComponent::MomentY, ForceComponent::MomentZ];
-            let node_2_forces_components =
-                vec![ForceComponent::MomentY, ForceComponent::MomentZ];
-            let mut node_1_forces_values = Vec::new();
-            let mut node_2_forces_values = Vec::new();
-
-            let mut adjacent_elements_numbers = Vec::new();
-            let mut beam_elements_numbers_for_search = beam_element_numbers.to_vec();
-            while let Some(position) = beam_elements_numbers_for_search.iter()
-                .position(|number| number != beam_element_number &&
-                    self.elements.get(number).unwrap()
-                        .is_node_belong_element(node_1_number))
-            {
-                adjacent_elements_numbers.push(
-                    beam_elements_numbers_for_search.remove(position));
-            }
-
-            if adjacent_elements_numbers.len() == 1
-            {
-                let adjacent_element_number = adjacent_elements_numbers[0];
-                let adjacent_forces = elements_analysis_data
-                    .get(&adjacent_element_number).unwrap()
-                    .forces_values().unwrap().to_vec();
-                let adjacent_moment_y_average = adjacent_forces[4];
-                let adjacent_moment_z_average = adjacent_forces[7];
-
-                if moment_y_average > adjacent_moment_y_average
-                {
-                    node_1_forces_values.push(moment_y_min);
-                    node_2_forces_values.push(moment_y_max);
-                }
-                else
-                {
-                    node_1_forces_values.push(moment_y_max);
-                    node_2_forces_values.push(moment_y_min);
-                }
-
-                if moment_z_average > adjacent_moment_z_average
-                {
-                    node_1_forces_values.push(moment_z_min);
-                    node_2_forces_values.push(moment_z_max);
-                }
-                else
-                {
-                    node_1_forces_values.push(moment_z_max);
-                    node_2_forces_values.push(moment_z_min);
-                }
-
-                let mut beam_element_nodal_forces = HashMap::new();
-
-                beam_element_nodal_forces.insert(node_1_number, NodalForces::create(
-                    node_1_forces_values, node_1_forces_components));
-                beam_element_nodal_forces.insert(node_2_number, NodalForces::create(
-                    node_2_forces_values, node_2_forces_components));
-
-                beam_elements_nodal_forces.insert(*beam_element_number,
-                    BeamElementNodalForces::create(beam_element_nodal_forces));
-
-                continue;
-            }
-
-            let mut adjacent_elements_numbers = Vec::new();
-            let mut beam_elements_numbers_for_search = beam_element_numbers.to_vec();
-            while let Some(position) = beam_elements_numbers_for_search.iter()
-                .position(|number| number != beam_element_number &&
-                    self.elements.get(number).unwrap()
-                        .is_node_belong_element(node_2_number))
-            {
-                adjacent_elements_numbers.push(
-                    beam_elements_numbers_for_search.remove(position));
-            }
-            if adjacent_elements_numbers.len() == 1
-            {
-                let adjacent_element_number = adjacent_elements_numbers[0];
-                let adjacent_forces = elements_analysis_data
-                    .get(&adjacent_element_number).unwrap()
-                    .forces_values().unwrap().to_vec();
-                let adjacent_moment_y_average = adjacent_forces[4];
-                let adjacent_moment_z_average = adjacent_forces[7];
-
-                if moment_y_average > adjacent_moment_y_average
-                {
-                    node_2_forces_values.push(moment_y_min);
-                    node_1_forces_values.push(moment_y_max);
-                }
-                else
-                {
-                    node_2_forces_values.push(moment_y_max);
-                    node_1_forces_values.push(moment_y_min);
-                }
-
-                if moment_z_average > adjacent_moment_z_average
-                {
-                    node_2_forces_values.push(moment_z_min);
-                    node_1_forces_values.push(moment_z_max);
-                }
-                else
-                {
-                    node_2_forces_values.push(moment_z_max);
-                    node_1_forces_values.push(moment_z_min);
-                }
-
-                let mut beam_element_nodal_forces = HashMap::new();
-
-                beam_element_nodal_forces.insert(node_1_number, NodalForces::create(
-                    node_1_forces_values, node_1_forces_components));
-                beam_element_nodal_forces.insert(node_2_number, NodalForces::create(
-                    node_2_forces_values, node_2_forces_components));
-
-                beam_elements_nodal_forces.insert(*beam_element_number,
-                    BeamElementNodalForces::create(beam_element_nodal_forces));
-
-                continue;
-            }
-        }
-
-        beam_elements_nodal_forces
     }
 }

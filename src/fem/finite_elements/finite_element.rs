@@ -63,7 +63,7 @@ pub trait FiniteElementTrait<T, V>
     fn refresh(&mut self, tolerance: V, nodes: &HashMap<T, FENode<V>>) -> Result<(), String>;
     fn is_nodes_numbers_same(&self, nodes_numbers: Vec<T>) -> bool;
     fn extract_element_analysis_data(&self, global_displacements: &Displacements<T, V>,
-        tolerance: V, nodes: &HashMap<T, FENode<V>>) -> Result<ElementAnalysisData<V>, String>;
+        tolerance: V, nodes: &HashMap<T, FENode<V>>) -> Result<ElementAnalysisData<T, V>, String>;
     fn extract_nodes_numbers(&self) -> Vec<T>;
     fn extract_fe_properties(&self) -> Vec<V>;
 }
@@ -156,7 +156,7 @@ impl<T, V> FECreator<T, V>
                         return Err("FECreator: Incorrect number of nodes!".to_string());
                     }
 
-                    if properties.len() == 12
+                    if properties.len() == 11
                     {
                         let beam_element = Beam2n1ipT::create(
                         nodes_numbers[0],
@@ -166,8 +166,7 @@ impl<T, V> FECreator<T, V>
                         properties[4], properties[5],
                         properties[6],
                         properties[7],
-                        properties[8],
-                        [properties[9], properties[10], properties[11]],
+                        [properties[8], properties[9], properties[10]],
                         tolerance, nodes)?;
 
                         Ok(Box::new(beam_element))
@@ -253,7 +252,7 @@ impl<T, V> FiniteElement<T, V>
 
 
     pub fn extract_element_analysis_data(&self, global_displacements: &Displacements<T, V>,
-        tolerance: V, nodes: &HashMap<T, FENode<V>>) -> Result<ElementAnalysisData<V>, String>
+        tolerance: V, nodes: &HashMap<T, FENode<V>>) -> Result<ElementAnalysisData<T, V>, String>
     {
         let element_analysis_data = self.element.extract_element_analysis_data(
             global_displacements, tolerance, nodes)?;

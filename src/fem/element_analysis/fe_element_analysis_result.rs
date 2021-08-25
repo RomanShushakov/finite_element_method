@@ -6,7 +6,6 @@ use crate::fem::element_analysis::fe_force_moment_components::ForceComponent;
 use crate::fem::finite_elements::finite_element::FEType;
 
 
-#[derive(Debug, PartialEq)]
 pub struct ElementStrains<V>
 {
     strains_values: Vec<V>,
@@ -35,7 +34,6 @@ impl<V> ElementStrains<V>
 }
 
 
-#[derive(Debug, PartialEq)]
 pub struct ElementStresses<V>
 {
     stresses_values: Vec<V>,
@@ -64,7 +62,6 @@ impl<V> ElementStresses<V>
 }
 
 
-#[derive(Debug, PartialEq)]
 pub struct ElementForces<V>
 {
     forces_values: Vec<V>,
@@ -93,22 +90,51 @@ impl<V> ElementForces<V>
 }
 
 
-#[derive(Debug, PartialEq)]
-pub struct ElementAnalysisData<V>
+pub struct NodalForces<V>
+{
+    forces_values: Vec<V>,
+    forces_components: Vec<ForceComponent>,
+}
+
+
+impl<V> NodalForces<V>
+{
+    pub fn create(forces_values: Vec<V>, forces_components: Vec<ForceComponent>) -> Self
+    {
+        NodalForces { forces_values, forces_components }
+    }
+
+
+    pub fn forces_values(&self) -> &[V]
+    {
+        self.forces_values.as_slice()
+    }
+
+
+    pub fn forces_components(&self) -> &[ForceComponent]
+    {
+        self.forces_components.as_slice()
+    }
+}
+
+
+pub struct ElementAnalysisData<T, V>
 {
     strains: Option<ElementStrains<V>>,
     stresses: Option<ElementStresses<V>>,
     forces: Option<ElementForces<V>>,
+    nodal_forces: Option<HashMap<T, NodalForces<V>>>,
 }
 
 
-impl<V> ElementAnalysisData<V>
-    where V: Copy + PartialEq,
+impl<T, V> ElementAnalysisData<T, V>
+    where T: Copy + PartialEq,
+          V: Copy + PartialEq,
 {
     pub fn create(strains: Option<ElementStrains<V>>, stresses: Option<ElementStresses<V>>,
-        forces: Option<ElementForces<V>>) -> Self
+        forces: Option<ElementForces<V>>, nodal_forces: Option<HashMap<T, NodalForces<V>>>) -> Self
     {
-        ElementAnalysisData { strains, stresses, forces }
+        ElementAnalysisData { strains, stresses, forces, nodal_forces }
     }
 
 
@@ -143,34 +169,11 @@ impl<V> ElementAnalysisData<V>
             None
         }
     }
-}
 
 
-pub struct ElementsAnalysisResult<T, V>
-{
-    elements_analysis_data: HashMap<T, ElementAnalysisData<V>>,     // Hashmap { element_number: ElementAnalysisData }
-    analyzed_elements_types: HashMap<FEType, Vec<T>>,               // Hashmap { FEType: Vec<element_number, ...> }
-}
-
-
-impl<T, V> ElementsAnalysisResult<T, V>
-{
-    pub fn create(elements_analysis_data: HashMap<T, ElementAnalysisData<V>>,
-        analyzed_elements_types: HashMap<FEType, Vec<T>>) -> Self
+    pub fn nodal_forces(&self) -> &Option<HashMap<T, NodalForces<V>>>
     {
-        ElementsAnalysisResult { elements_analysis_data, analyzed_elements_types }
-    }
-
-
-    pub fn analyzed_elements_types(&self) -> &HashMap<FEType, Vec<T>>
-    {
-        &self.analyzed_elements_types
-    }
-
-
-    pub fn elements_analysis_data(&self) -> &HashMap<T, ElementAnalysisData<V>>
-    {
-        &self.elements_analysis_data
+        &self.nodal_forces
     }
 }
 
