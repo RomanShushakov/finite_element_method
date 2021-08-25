@@ -743,8 +743,9 @@ impl<T, V> FEModel<T, V>
         let mut elements_analysis_result = ElementsAnalysisResult::create();
         for (element_number, element) in self.elements.iter()
         {
+            let fe_type = element.extract_fe_type();
             let element_analysis_data = element.extract_element_analysis_data(
-                global_displacements, self.state.tolerance, &self.nodes)?;
+                fe_type, global_displacements, self.state.tolerance, &self.nodes)?;
             if let Some(strains_components) =
                 element_analysis_data.strains_components()
             {

@@ -122,6 +122,7 @@ impl<V> NodalForces<V>
 
 pub struct ElementAnalysisData<T, V>
 {
+    fe_type: FEType,
     strains: Option<ElementStrains<V>>,
     stresses: Option<ElementStresses<V>>,
     forces: Option<ElementForces<V>>,
@@ -133,10 +134,11 @@ impl<T, V> ElementAnalysisData<T, V>
     where T: Copy + PartialEq,
           V: Copy + PartialEq,
 {
-    pub(crate) fn create(strains: Option<ElementStrains<V>>, stresses: Option<ElementStresses<V>>,
-        forces: Option<ElementForces<V>>, nodal_forces: Option<HashMap<T, NodalForces<V>>>) -> Self
+    pub(crate) fn create(fe_type: FEType, strains: Option<ElementStrains<V>>,
+        stresses: Option<ElementStresses<V>>, forces: Option<ElementForces<V>>,
+        nodal_forces: Option<HashMap<T, NodalForces<V>>>) -> Self
     {
-        ElementAnalysisData { strains, stresses, forces, nodal_forces }
+        ElementAnalysisData { fe_type, strains, stresses, forces, nodal_forces }
     }
 
 
@@ -227,6 +229,12 @@ impl<T, V> ElementAnalysisData<T, V>
         {
             None
         }
+    }
+
+
+    pub fn fe_type(&self) -> &FEType
+    {
+        &self.fe_type
     }
 }
 

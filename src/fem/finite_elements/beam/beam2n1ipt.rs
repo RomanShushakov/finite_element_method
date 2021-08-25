@@ -7,7 +7,7 @@ use std::f32::consts::PI;
 use extended_matrix::basic_matrix::basic_matrix::MatrixElementPosition;
 use extended_matrix::extended_matrix::ExtendedMatrix;
 
-use crate::fem::finite_elements::finite_element::FiniteElementTrait;
+use crate::fem::finite_elements::finite_element::{FiniteElementTrait, FEType};
 use crate::fem::finite_elements::fe_node::FENode;
 
 use crate::fem::global_analysis::fe_stiffness::{StiffnessGroup, StiffnessType};
@@ -546,8 +546,9 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
     }
 
 
-    fn extract_element_analysis_data(&self, global_displacements: &Displacements<T, V>,
-        tolerance: V, nodes: &HashMap<T, FENode<V>>) -> Result<ElementAnalysisData<T, V>, String>
+    fn extract_element_analysis_data(&self, fe_type: FEType,
+        global_displacements: &Displacements<T, V>, tolerance: V, nodes: &HashMap<T, FENode<V>>)
+        -> Result<ElementAnalysisData<T, V>, String>
     {
         let element_local_displacements =
             self.extract_local_displacements(global_displacements, tolerance)?;
@@ -650,7 +651,8 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
         nodal_forces.insert(self.node_2_number, nodal_forces_for_node_2);
 
         let element_analysis_data = ElementAnalysisData::create(
-            None, None, Some(element_forces), Some(nodal_forces));
+            fe_type, None, None, Some(element_forces),
+            Some(nodal_forces));
         Ok(element_analysis_data)
 
     }
@@ -671,7 +673,16 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
     {
         let mut properties = Vec::new();
         properties.push(self.young_modulus);
+        properties.push(self.poisson_ratio);
         properties.push(self.area);
+        properties.push(self.i11);
+        properties.push(self.i22);
+        properties.push(self.angle);
+        properties.push(self.it);
+        properties.push(self.shear_factor);
+        properties.push(self.local_axis_1_direction[0]);
+        properties.push(self.local_axis_1_direction[1]);
+        properties.push(self.local_axis_1_direction[2]);
         properties
     }
 }
