@@ -3,7 +3,7 @@ use std::any::Any;
 use crate::fem::element_analysis::fe_element_analysis_result::EARComponentTrait;
 
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub enum ForceComponent
 {
     ForceX,

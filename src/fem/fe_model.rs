@@ -19,7 +19,7 @@ use crate::fem::global_analysis::fe_dof_parameter_data::
     global_dof, DOFParameterData, GLOBAL_DOF, GlobalDOFParameter
 };
 
-use crate::fem::element_analysis::fe_element_analysis_result::ElementAnalysisData;
+use crate::fem::element_analysis::fe_element_analysis_result::{ElementAnalysisData, ElementsAnalysisResult, EARType};
 use crate::fem::element_analysis::fe_force_moment_components::ForceComponent;
 
 use crate::fem::functions::{separate, compose_stiffness_sub_groups};
@@ -47,9 +47,9 @@ impl<T, V> State<T, V>
 
 pub struct FEModel<T, V>
 {
-    pub nodes: HashMap<T, FENode<V>>,                           // Hashmap { node_number: Node }
-    pub elements: HashMap<T, FiniteElement<T, V>>,              // Hashmap { element_number: FiniteElement }
-    pub boundary_conditions: Vec<BoundaryCondition<T, V>>,
+    nodes: HashMap<T, FENode<V>>,                           // Hashmap { node_number: Node }
+    elements: HashMap<T, FiniteElement<T, V>>,              // Hashmap { element_number: FiniteElement }
+    boundary_conditions: Vec<BoundaryCondition<T, V>>,
     state: State<T, V>,
 }
 
@@ -738,25 +738,44 @@ impl<T, V> FEModel<T, V>
 
 
     pub fn elements_analysis(&self, global_displacements: &Displacements<T, V>)
-        -> Result<HashMap<T, ElementAnalysisData<T, V>>, String>
+        -> Result<ElementsAnalysisResult<T, V>, String>
     {
-        let mut elements_analysis_result = HashMap::new();
-        let mut analyzed_elements_types: HashMap<FEType, Vec<T>> = HashMap::new();
+        let mut elements_analysis_result = ElementsAnalysisResult::create();
         for (element_number, element) in self.elements.iter()
         {
-            let element_type = element.extract_fe_type();
-            if let Some(element_numbers) = analyzed_elements_types
-                .get_mut(&element_type)
-            {
-                element_numbers.push(*element_number);
-            }
-            else
-            {
-                analyzed_elements_types.insert(element_type, vec![*element_number]);
-            }
             let element_analysis_data = element.extract_element_analysis_data(
                 global_displacements, self.state.tolerance, &self.nodes)?;
-            elements_analysis_result.insert(*element_number, element_analysis_data);
+            if let Some(strains_components) =
+                element_analysis_data.strains_components()
+            {
+                for strain_component in strains_components.iter()
+                {
+                    elements_analysis_result.add_to_stresses_strains_components(
+                        EARType::Strain, *strain_component,
+                        *element_number)?;
+                }
+            }
+            if let Some(stresses_components) =
+                element_analysis_data.stresses_components()
+            {
+                for stress_component in stresses_components.iter()
+                {
+                    elements_analysis_result.add_to_stresses_strains_components(
+                        EARType::Force, *stress_component,
+                        *element_number)?;
+                }
+            }
+            if let Some(forces_components) =
+                element_analysis_data.forces_components()
+            {
+                for force_component in forces_components.iter()
+                {
+                    elements_analysis_result.add_to_forces_components(
+                        *force_component,
+                        *element_number)?;
+                }
+            }
+            elements_analysis_result.add_to_analysis_data(*element_number, element_analysis_data);
         }
 
         Ok(elements_analysis_result)

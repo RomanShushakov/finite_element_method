@@ -20,20 +20,20 @@ impl<T, V> Displacements<T, V>
     }
 
 
-    pub fn displacements_values(&self) -> &[V]
+    pub(crate) fn displacements_values(&self) -> &[V]
     {
         self.displacements_values.as_slice()
     }
 
 
-    pub fn dof_parameters_data(&self) -> &[DOFParameterData<T>]
+    pub(crate) fn dof_parameters_data(&self) -> &[DOFParameterData<T>]
     {
         self.dof_parameters_data.as_slice()
     }
 }
 
 
-pub struct Reactions<T, V>
+struct Reactions<T, V>
 {
     reactions_values: Vec<V>,
     dof_parameters_data: Vec<DOFParameterData<T>>,
@@ -47,13 +47,13 @@ impl<T, V> Reactions<T, V>
         Reactions { reactions_values, dof_parameters_data }
     }
 
-    pub fn reactions_values(&self) -> &[V]
+    fn reactions_values(&self) -> &[V]
     {
         self.reactions_values.as_slice()
     }
 
 
-    pub fn dof_parameters_data(&self) -> &[DOFParameterData<T>]
+    fn dof_parameters_data(&self) -> &[DOFParameterData<T>]
     {
         self.dof_parameters_data.as_slice()
     }
@@ -75,7 +75,7 @@ impl<T, V> GlobalAnalysisResult<T, V>
              Add<Output = V> + Debug + PartialEq + AddAssign + MulAssign +
              SubAssign + Into<f64> + 'static,
 {
-    pub fn create(
+    pub(crate) fn create(
         reactions_values: Vec<V>,
         reactions_dof_parameters_data: Vec<DOFParameterData<T>>,
         displacements_values: Vec<V>,
@@ -89,14 +89,32 @@ impl<T, V> GlobalAnalysisResult<T, V>
     }
 
 
-    pub fn reactions(&self) -> &Reactions<T, V>
+    pub fn reactions_values(&self) -> &[V]
     {
-        &self.reactions
+        self.reactions.reactions_values()
+    }
+
+
+    pub fn reactions_dof_parameters_data(&self) -> &[DOFParameterData<T>]
+    {
+        self.reactions.dof_parameters_data()
     }
 
 
     pub fn displacements(&self) -> &Displacements<T, V>
     {
         &self.displacements
+    }
+
+
+    pub fn displacements_values(&self) -> &[V]
+    {
+        self.displacements.displacements_values()
+    }
+
+
+    pub fn displacements_dof_parameters_data(&self) -> &[DOFParameterData<T>]
+    {
+        self.displacements.dof_parameters_data()
     }
 }

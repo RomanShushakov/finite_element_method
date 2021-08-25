@@ -206,7 +206,7 @@ impl<T, V> BCCreator<T, V>
 }
 
 
-pub struct BoundaryCondition<T, V>
+pub(crate) struct BoundaryCondition<T, V>
 {
     bc_type: BCType,
     boundary_condition: Box<dyn BCTrait<T, V>>

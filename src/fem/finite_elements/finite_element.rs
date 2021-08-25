@@ -42,7 +42,7 @@ impl FEType
     }
 
 
-    pub fn iterator() -> Iter<'static, FEType>
+    pub(super) fn iterator() -> Iter<'static, FEType>
     {
         const TYPES: [FEType; 3] =
             [
@@ -53,7 +53,7 @@ impl FEType
 }
 
 
-pub trait FiniteElementTrait<T, V>
+pub(super) trait FiniteElementTrait<T, V>
 {
     fn update(&mut self, nodes_numbers: Vec<T>, properties: Vec<V>, tolerance: V,
         nodes: &HashMap<T, FENode<V>>) -> Result<(), String>;
@@ -181,7 +181,7 @@ impl<T, V> FECreator<T, V>
 }
 
 
-pub struct FiniteElement<T, V>
+pub(crate) struct FiniteElement<T, V>
 {
     element_type: FEType,
     element: Box<dyn FiniteElementTrait<T, V>>,
@@ -260,19 +260,19 @@ impl<T, V> FiniteElement<T, V>
     }
 
 
-    pub fn extract_fe_type(&self) -> FEType
+    fn extract_fe_type(&self) -> FEType
     {
         self.element_type.clone()
     }
 
 
-    pub fn extract_nodes_numbers(&self) -> Vec<T>
+    fn extract_nodes_numbers(&self) -> Vec<T>
     {
         self.element.extract_nodes_numbers()
     }
 
 
-    pub fn extract_fe_properties(&self) -> Vec<V>
+    fn extract_fe_properties(&self) -> Vec<V>
     {
         self.element.extract_fe_properties()
     }

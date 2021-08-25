@@ -6,10 +6,10 @@ use crate::fem::element_analysis::fe_element_analysis_result::EARComponentTrait;
 use self::StressStrainComponent::*;
 
 
-pub const STRESS_STRAIN_COMPONENTS_NUMBER: usize = 9;
+pub(super) const STRESS_STRAIN_COMPONENTS_NUMBER: usize = 9;
 
 
-#[derive(PartialEq, Debug, Copy, Clone)]
+#[derive(PartialEq, Debug, Copy, Clone, Eq, Hash)]
 pub enum StressStrainComponent
 {
     XX, XY, XZ,
@@ -20,7 +20,7 @@ pub enum StressStrainComponent
 
 impl StressStrainComponent
 {
-    pub fn iterator() -> Iter<'static, StressStrainComponent>
+    pub(super) fn iterator() -> Iter<'static, StressStrainComponent>
      {
         const COMPONENTS: [StressStrainComponent; STRESS_STRAIN_COMPONENTS_NUMBER] =
             [

@@ -1,5 +1,5 @@
 pub(super) mod fe_node;
-pub mod truss;
+pub(super) mod truss;
 pub(super) mod functions;
 pub mod finite_element;
-pub mod beam;
+pub(super) mod beam;
