@@ -1,5 +1,5 @@
 use std::any::Any;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 use std::hash::Hash;
 
@@ -122,7 +122,6 @@ impl<V> NodalForces<V>
 
 pub struct ElementAnalysisData<T, V>
 {
-    fe_type: FEType,
     strains: Option<ElementStrains<V>>,
     stresses: Option<ElementStresses<V>>,
     forces: Option<ElementForces<V>>,
@@ -134,11 +133,10 @@ impl<T, V> ElementAnalysisData<T, V>
     where T: Copy + PartialEq,
           V: Copy + PartialEq,
 {
-    pub(crate) fn create(fe_type: FEType, strains: Option<ElementStrains<V>>,
-        stresses: Option<ElementStresses<V>>, forces: Option<ElementForces<V>>,
-        nodal_forces: Option<HashMap<T, NodalForces<V>>>) -> Self
+    pub(crate) fn create(strains: Option<ElementStrains<V>>, stresses: Option<ElementStresses<V>>,
+        forces: Option<ElementForces<V>>, nodal_forces: Option<HashMap<T, NodalForces<V>>>) -> Self
     {
-        ElementAnalysisData { fe_type, strains, stresses, forces, nodal_forces }
+        ElementAnalysisData { strains, stresses, forces, nodal_forces }
     }
 
 
@@ -230,21 +228,13 @@ impl<T, V> ElementAnalysisData<T, V>
             None
         }
     }
-
-
-    pub fn fe_type(&self) -> &FEType
-    {
-        &self.fe_type
-    }
 }
 
 
 pub struct ElementsAnalysisResult<T, V>
 {
+    elements_by_types: HashMap<FEType, Vec<T>>,
     elements_analysis_data: HashMap<T, ElementAnalysisData<T, V>>,
-    elements_with_strains_components: Option<HashMap<StressStrainComponent, Vec<T>>>,
-    elements_with_stresses_components: Option<HashMap<StressStrainComponent, Vec<T>>>,
-    elements_with_forces_components: Option<HashMap<ForceComponent, Vec<T>>>,
 }
 
 
@@ -254,9 +244,29 @@ impl<T, V> ElementsAnalysisResult<T, V>
     pub(crate) fn create() -> Self
     {
 
-        ElementsAnalysisResult { elements_analysis_data: HashMap::new(),
-            elements_with_strains_components: None, elements_with_stresses_components: None,
-            elements_with_forces_components: None }
+        ElementsAnalysisResult { elements_by_types: HashMap::new(),
+            elements_analysis_data: HashMap::new() }
+    }
+
+
+    pub(crate) fn add_to_types(&mut self, fe_type: FEType, number: T) -> Result<(), String>
+    {
+        if let Some(elements_numbers) = self.elements_by_types.get_mut(&fe_type)
+        {
+            if elements_numbers.iter().position(|element_number| *element_number == number)
+                .is_some()
+            {
+                return Err(format!("ElementsAnalysisResult: Elements set {} does already contain \
+                    number {:?}!", fe_type.as_str(), number));
+            }
+            elements_numbers.push(number);
+        }
+        else
+        {
+            self.elements_by_types.insert(fe_type, vec![number]);
+        }
+
+        Ok(())
     }
 
 
@@ -267,126 +277,15 @@ impl<T, V> ElementsAnalysisResult<T, V>
     }
 
 
-    pub(crate) fn add_to_stresses_strains_components(&mut self, ear_type: EARType,
-        stress_strain_component: StressStrainComponent, element_number: T) -> Result<(), String>
-    {
-        let elements_with_stresses_strains_components = match ear_type
-            {
-                EARType::Strain => Ok(self.elements_with_strains_components.as_mut()),
-                EARType::Stress => Ok(self.elements_with_stresses_components.as_mut()),
-                EARType::Force => Err("ElementsAnalysisResult: Incorrect element analysis result \
-                    type!"),
-            }?;
-
-        if let Some(stresses_strains_components) =
-        elements_with_stresses_strains_components
-        {
-            if let Some(element_numbers) = stresses_strains_components
-                .get_mut(&stress_strain_component)
-            {
-                if element_numbers.iter().position(|number| *number == element_number)
-                    .is_some()
-                {
-                    return Err(format!("ElementsAnalysisResult: {} component {} does already \
-                        contain element with number {:?}", ear_type.as_str(),
-                        stress_strain_component.as_str(), element_number));
-                }
-                else
-                {
-                    element_numbers.push(element_number);
-                }
-            }
-            else
-            {
-                stresses_strains_components.insert(stress_strain_component,
-                    vec![element_number]);
-            }
-        }
-        else
-        {
-            let mut elements_with_stresses_strains_components =
-                HashMap::new();
-            elements_with_stresses_strains_components.insert(stress_strain_component,
-                vec![element_number]);
-
-            match ear_type
-            {
-                EARType::Strain =>
-                    {
-                        self.elements_with_strains_components =
-                            Some(elements_with_stresses_strains_components)
-                    },
-                EARType::Stress =>
-                    {
-                        self.elements_with_stresses_components =
-                            Some(elements_with_stresses_strains_components)
-                    }
-                _ => ()
-            }
-        }
-        Ok(())
-    }
-
-
-    pub(crate) fn add_to_forces_components(&mut self, force_component: ForceComponent,
-        element_number: T) -> Result<(), String>
-    {
-        if let Some(elements_with_forces_components) =
-            self.elements_with_forces_components.as_mut()
-        {
-            if let Some(element_numbers) = elements_with_forces_components
-                .get_mut(&force_component)
-            {
-                if element_numbers.iter().position(|number| *number == element_number)
-                    .is_some()
-                {
-                    return Err(format!("ElementsAnalysisResult: Force component {} does already \
-                        contain element with number {:?}", force_component.as_str(),
-                        element_number));
-                }
-                else
-                {
-                    element_numbers.push(element_number);
-                }
-            }
-            else
-            {
-                elements_with_forces_components.insert(force_component, vec![element_number]);
-            }
-        }
-        else
-        {
-            let mut elements_with_forces_components = HashMap::new();
-            elements_with_forces_components.insert(force_component, vec![element_number]);
-            self.elements_with_forces_components = Some(elements_with_forces_components);
-        }
-        Ok(())
-    }
-
-
     pub fn elements_analysis_data(&self) -> &HashMap<T, ElementAnalysisData<T, V>>
     {
         &self.elements_analysis_data
     }
 
 
-    pub fn elements_with_strains_components(&self)
-        -> &Option<HashMap<StressStrainComponent, Vec<T>>>
+    pub fn elements_by_types(&self) -> &HashMap<FEType, Vec<T>>
     {
-        &self.elements_with_strains_components
-    }
-
-
-    pub fn elements_with_stresses_components(&self)
-        -> &Option<HashMap<StressStrainComponent, Vec<T>>>
-    {
-        &self.elements_with_stresses_components
-    }
-
-
-    pub fn elements_with_forces_components(&self) -> &Option<HashMap<ForceComponent, Vec<T>>>
-    {
-        &self.elements_with_forces_components
+        &self.elements_by_types
     }
 }
 

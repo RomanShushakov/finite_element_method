@@ -319,9 +319,8 @@ impl<T, V> FiniteElementTrait<T, V> for Truss2n2ip<T, V>
     }
 
 
-    fn extract_element_analysis_data(&self, fe_type: FEType,
-        global_displacements: &Displacements<T, V>, tolerance: V, nodes: &HashMap<T, FENode<V>>)
-        -> Result<ElementAnalysisData<T, V>, String>
+    fn extract_element_analysis_data(&self, global_displacements: &Displacements<T, V>,
+        tolerance: V, nodes: &HashMap<T, FENode<V>>) -> Result<ElementAnalysisData<T, V>, String>
     {
         let element_local_displacements =
             self.extract_local_displacements(global_displacements, tolerance)?;
@@ -359,7 +358,7 @@ impl<T, V> FiniteElementTrait<T, V> for Truss2n2ip<T, V>
                 forces_components);
 
             let element_analysis_data = ElementAnalysisData::create(
-                fe_type, None, None, Some(element_forces), None);
+                None, None, Some(element_forces), None);
             Ok(element_analysis_data)
         }
         else
@@ -382,7 +381,7 @@ impl<T, V> FiniteElementTrait<T, V> for Truss2n2ip<T, V>
                 forces_components);
 
             let element_analysis_data = ElementAnalysisData::create(
-                fe_type, None, None, Some(element_forces), None);
+                None, None, Some(element_forces), None);
             Ok(element_analysis_data)
         }
     }
