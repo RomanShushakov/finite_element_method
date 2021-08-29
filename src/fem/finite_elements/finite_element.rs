@@ -266,7 +266,7 @@ impl<T, V> FiniteElement<T, V>
     }
 
 
-    fn extract_nodes_numbers(&self) -> Vec<T>
+    pub fn extract_nodes_numbers(&self) -> Vec<T>
     {
         self.element.extract_nodes_numbers()
     }

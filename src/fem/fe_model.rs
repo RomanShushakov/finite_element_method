@@ -752,4 +752,30 @@ impl<T, V> FEModel<T, V>
 
         Ok(elements_analysis_result)
     }
+
+
+    pub fn extract_element_nodes_numbers(&self, element_number: &T) -> Result<Vec<T>, String>
+    {
+        if let Some(element) = self.elements.get(element_number)
+        {
+            Ok(element.extract_nodes_numbers())
+        }
+        else
+        {
+            Err(format!("FEModel: Element with number {:?} does not exist!", element_number))
+        }
+    }
+
+
+    pub fn extract_node_coordinates(&self, node_number: &T) -> Result<(V, V, V), String>
+    {
+        if let Some(node) = self.nodes.get(node_number)
+        {
+            Ok(node.extract_coordinates())
+        }
+        else
+        {
+            Err(format!("FEModel: Node with number {:?} does not exist!", node_number))
+        }
+    }
 }
