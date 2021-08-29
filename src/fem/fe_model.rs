@@ -50,8 +50,6 @@ pub struct FEModel<T, V>
     elements: HashMap<T, FiniteElement<T, V>>,              // Hashmap { element_number: FiniteElement }
     boundary_conditions: Vec<BoundaryCondition<T, V>>,
     state: State<T, V>,
-    elements_deletion_callback: fn(deleted_elements_data: Vec<DeletedFEData<T, V>>),
-    bcs_deletion_callback: fn(deleted_bcs_data: Vec<DeletedBCData<T, V>>),
 }
 
 
@@ -63,16 +61,13 @@ impl<T, V> FEModel<T, V>
              PartialEq + Debug + AddAssign + MulAssign + SubAssign + Into<f64> + PartialOrd +
              MyFloatTrait + From<f32> + MyFloatTrait<Other = V> + DivAssign + 'static,
 {
-    pub fn create(tolerance: V, elements_deletion_callback:
-        fn(deleted_elements_data: Vec<DeletedFEData<T, V>>),
-        bcs_deletion_callback: fn(deleted_bcs_data: Vec<DeletedBCData<T, V>>)) -> Self
+    pub fn create(tolerance: V) -> Self
     {
         let state = State::create(Vec::new(),
             Vec::new(), tolerance);
 
         FEModel { nodes: HashMap::new(), elements: HashMap::new(),
-            boundary_conditions: Vec::new(), state, elements_deletion_callback,
-            bcs_deletion_callback }
+            boundary_conditions: Vec::new(), state }
     }
 
 
@@ -212,7 +207,8 @@ impl<T, V> FEModel<T, V>
     }
 
 
-    pub fn delete_node(&mut self, number: T) -> Result<DeletedFENodeData<T, V>, String>
+    pub fn delete_node(&mut self, number: T) -> Result<(DeletedFENodeData<T, V>,
+        Option<Vec<DeletedFEData<T, V>>>, Option<Vec<DeletedBCData<T, V>>>), String>
     {
         if !self.nodes.contains_key(&number)
         {
@@ -238,7 +234,6 @@ impl<T, V> FEModel<T, V>
                 DeletedFEData::create(deleted_element_number, deleted_element);
             deleted_finite_elements_data.push(deleted_finite_element_data);
         }
-        (self.elements_deletion_callback)(deleted_finite_elements_data);
 
         let mut deleted_bcs_data = Vec::new();
         while let Some(position) = self.boundary_conditions.iter().position(|bc|
@@ -248,11 +243,38 @@ impl<T, V> FEModel<T, V>
             let deleted_bc_data = DeletedBCData::create(deleted_bc);
             deleted_bcs_data.push(deleted_bc_data);
         }
-        (self.bcs_deletion_callback)(deleted_bcs_data);
 
         let deleted_node = self.nodes.remove(&number).unwrap();
         self.update_stiffness_groups()?;
-        Ok(DeletedFENodeData::create(number, deleted_node))
+
+        let deleted_fe_node_data =
+            DeletedFENodeData::create(number, deleted_node);
+
+        let optional_deleted_finite_elements_data =
+            {
+                if deleted_finite_elements_data.is_empty()
+                {
+                    None
+                }
+                else
+                {
+                    Some(deleted_finite_elements_data)
+                }
+            };
+
+        let optional_deleted_bcs_data =
+            {
+                if deleted_bcs_data.is_empty()
+                {
+                    None
+                }
+                else
+                {
+                    Some(deleted_bcs_data)
+                }
+            };
+
+        Ok((deleted_fe_node_data, optional_deleted_finite_elements_data, optional_deleted_bcs_data))
     }
 
 
@@ -805,7 +827,7 @@ impl<T, V> FEModel<T, V>
     }
 
 
-    pub fn extract_elements_unique_elements_of_rotation_matrix(&self, element_number: &T)
+    pub fn extract_unique_elements_of_rotation_matrix(&self, element_number: &T)
         -> Result<Vec<V>, String>
     {
         if let Some(element) = self.elements.get(element_number)
