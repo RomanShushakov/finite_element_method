@@ -10,13 +10,13 @@ pub struct FENode<V>
 impl<V> FENode<V>
     where V: PartialEq + Copy,
 {
-    pub fn create(x: V, y: V, z: V) -> Self
+    pub(crate) fn create(x: V, y: V, z: V) -> Self
     {
         FENode { x, y, z }
     }
 
 
-    pub fn update(&mut self, x: V, y: V, z: V)
+    pub(crate) fn update(&mut self, x: V, y: V, z: V)
     {
         self.x = x;
         self.y = y;
@@ -24,32 +24,65 @@ impl<V> FENode<V>
     }
 
 
-    pub fn is_coordinates_same(&self, x: V, y: V, z: V) -> bool
+    pub(crate) fn is_coordinates_same(&self, x: V, y: V, z: V) -> bool
     {
         (x, y, z) == (self.x, self.y, self.z)
     }
 
     
-    pub fn extract_coordinates(&self) -> (V, V, V)
+    pub(crate) fn extract_coordinates(&self) -> (V, V, V)
     {
         (self.x, self.y, self.z)
     }
 
 
-    pub fn x(&self) -> V
+    pub(crate) fn x(&self) -> V
     {
         self.x
     }
 
 
-    pub fn y(&self) -> V
+    pub(crate) fn y(&self) -> V
     {
         self.y
     }
 
 
-    pub fn z(&self) -> V
+    pub(crate) fn z(&self) -> V
     {
         self.z
+    }
+}
+
+
+pub struct DeletedFENodeData<T, V>
+{
+    number: T,
+    x: V,
+    y: V,
+    z: V,
+}
+
+
+impl<T, V> DeletedFENodeData<T, V>
+    where T: Copy,
+          V: Copy + PartialEq,
+{
+    pub(crate) fn create(number: T, deleted_node: FENode<V>) -> Self
+    {
+        let (x, y, z) = deleted_node.extract_coordinates();
+        DeletedFENodeData { number, x, y, z }
+    }
+
+
+    pub fn extract_number(&self) -> T
+    {
+        self.number
+    }
+
+
+    pub fn extract_coordinates(&self) -> (V, V, V)
+    {
+        (self.x, self.y, self.z)
     }
 }

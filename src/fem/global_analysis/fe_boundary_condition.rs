@@ -286,3 +286,59 @@ impl<T, V> BoundaryCondition<T, V>
         self.boundary_condition.extract_dof_parameter()
     }
 }
+
+
+pub struct DeletedBCData<T, V>
+{
+    bc_type: BCType,
+    number: T,
+    node_number: T,
+    dof_parameter: GlobalDOFParameter,
+    value: V
+}
+
+
+impl<T, V> DeletedBCData<T, V>
+    where T: Copy + PartialEq + Debug + 'static,
+          V: Copy + Debug + 'static,
+{
+    pub(crate) fn create(deleted_bc: BoundaryCondition<T, V>) -> Self
+    {
+        let bc_type = deleted_bc.extract_bc_type();
+        let number = deleted_bc.extract_number();
+        let node_number = deleted_bc.extract_node_number();
+        let dof_parameter = deleted_bc.extract_dof_parameter();
+        let value = deleted_bc.extract_value();
+        DeletedBCData { bc_type, number, node_number, dof_parameter, value }
+    }
+
+
+    pub fn extract_bc_type(&self) -> BCType
+    {
+        self.bc_type
+    }
+
+
+    pub fn extract_number(&self) -> T
+    {
+        self.number
+    }
+
+
+    pub fn extract_node_number(&self) -> T
+    {
+        self.node_number
+    }
+
+
+    pub fn extract_dof_parameter(&self) -> GlobalDOFParameter
+    {
+        self.dof_parameter
+    }
+
+
+    pub fn extract_value(&self) -> V
+    {
+        self.value
+    }
+}

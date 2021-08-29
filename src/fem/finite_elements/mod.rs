@@ -1,4 +1,4 @@
-pub(super) mod fe_node;
+pub mod fe_node;
 pub(super) mod truss;
 pub(super) mod functions;
 pub mod finite_element;

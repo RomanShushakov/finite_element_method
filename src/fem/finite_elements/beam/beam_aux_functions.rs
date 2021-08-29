@@ -2,6 +2,7 @@ use std::ops::{Add, Sub, Div, Rem, SubAssign, Mul, AddAssign, MulAssign};
 use std::hash::Hash;
 use std::fmt::Debug;
 use std::collections::HashMap;
+use std::f32::consts::PI;
 
 use extended_matrix::extended_matrix::ExtendedMatrix;
 use extended_matrix::functions::extract_element_value;
@@ -613,5 +614,43 @@ impl<T, V> BeamAuxFunctions<T, V>
             row += T::from(1u8);
         }
         values
+    }
+
+
+    pub fn find_principal_moments_of_inertia(i11_init: V, i22_init: V, i12_init: V) -> (V, V, V)
+    {
+        let mut angle = if i11_init == i22_init
+            {
+                V::from(0f32)
+            }
+            else
+            {
+                (V::from(2f32) * i12_init / (i22_init - i11_init)).my_atan() /
+                V::from(2f32)
+            };
+
+        let mut i11 = i11_init * (angle.my_cos()).my_powi(2) +
+            i22_init * (angle.my_sin()).my_powi(2) -
+            i12_init * (V::from(2f32) * angle).my_sin();
+
+        let mut i22 = i11_init * (angle.my_sin()).my_powi(2) +
+            i22_init * (angle.my_cos()).my_powi(2) +
+            i12_init * (V::from(2f32) * angle).my_sin();
+
+        let mut i = 1;
+        while i11 < i22
+        {
+            angle = ((V::from(2f32) * i12_init / (i22_init - i11_init)).my_atan() +
+                V::from(PI) * V::from(i as f32)) / V::from(2f32);
+            i11 = i11_init * (angle.my_cos()).my_powi(2) +
+                i22_init * (angle.my_sin()).my_powi(2) -
+                i12_init * (V::from(2f32) * angle).my_sin();
+            i22 = i11_init * (angle.my_sin()).my_powi(2) +
+                i22_init * (angle.my_cos()).my_powi(2) +
+                i12_init * (V::from(2f32) * angle).my_sin();
+            i += 1;
+        }
+
+        (i11, i22, angle)
     }
 }

@@ -9,10 +9,10 @@ use extended_matrix::extended_matrix::ExtendedMatrix;
 use extended_matrix::extended_matrix::Operation;
 use extended_matrix::functions::{extract_element_value, conversion_uint_into_usize};
 
-use crate::fem::finite_elements::fe_node::FENode;
-use crate::fem::finite_elements::finite_element::{FiniteElement, FEType};
+use crate::fem::finite_elements::fe_node::{FENode, DeletedFENodeData};
+use crate::fem::finite_elements::finite_element::{FiniteElement, FEType, DeletedFEData};
 use crate::fem::global_analysis::fe_stiffness::StiffnessGroup;
-use crate::fem::global_analysis::fe_boundary_condition::{BoundaryCondition, BCType};
+use crate::fem::global_analysis::fe_boundary_condition::{BoundaryCondition, BCType, DeletedBCData};
 use crate::fem::global_analysis::fe_global_analysis_result::{GlobalAnalysisResult, Displacements};
 use crate::fem::global_analysis::fe_dof_parameter_data::
 {
@@ -50,7 +50,8 @@ pub struct FEModel<T, V>
     elements: HashMap<T, FiniteElement<T, V>>,              // Hashmap { element_number: FiniteElement }
     boundary_conditions: Vec<BoundaryCondition<T, V>>,
     state: State<T, V>,
-    element_deletion_callback: fn(element_number: T),
+    elements_deletion_callback: fn(deleted_elements_data: Vec<DeletedFEData<T, V>>),
+    bcs_deletion_callback: fn(deleted_bcs_data: Vec<DeletedBCData<T, V>>),
 }
 
 
@@ -62,13 +63,16 @@ impl<T, V> FEModel<T, V>
              PartialEq + Debug + AddAssign + MulAssign + SubAssign + Into<f64> + PartialOrd +
              MyFloatTrait + From<f32> + MyFloatTrait<Other = V> + DivAssign + 'static,
 {
-    pub fn create(tolerance: V, element_deletion_callback: fn(element_number: T)) -> Self
+    pub fn create(tolerance: V, elements_deletion_callback:
+        fn(deleted_elements_data: Vec<DeletedFEData<T, V>>),
+        bcs_deletion_callback: fn(deleted_bcs_data: Vec<DeletedBCData<T, V>>)) -> Self
     {
         let state = State::create(Vec::new(),
             Vec::new(), tolerance);
 
         FEModel { nodes: HashMap::new(), elements: HashMap::new(),
-            boundary_conditions: Vec::new(), state, element_deletion_callback }
+            boundary_conditions: Vec::new(), state, elements_deletion_callback,
+            bcs_deletion_callback }
     }
 
 
@@ -208,7 +212,7 @@ impl<T, V> FEModel<T, V>
     }
 
 
-    pub fn delete_node(&mut self, number: T) -> Result<(), String>
+    pub fn delete_node(&mut self, number: T) -> Result<DeletedFENodeData<T, V>, String>
     {
         if !self.nodes.contains_key(&number)
         {
@@ -225,16 +229,30 @@ impl<T, V> FEModel<T, V>
             }
         }
 
+        let mut deleted_finite_elements_data = Vec::new();
         for element_number in elements_numbers_for_delete
         {
-            let _ = self.elements.remove(&element_number);
-            (self.element_deletion_callback)(element_number);
+            let deleted_element = self.elements.remove(&element_number).unwrap();
+            let deleted_element_number = element_number;
+            let deleted_finite_element_data =
+                DeletedFEData::create(deleted_element_number, deleted_element);
+            deleted_finite_elements_data.push(deleted_finite_element_data);
         }
+        (self.elements_deletion_callback)(deleted_finite_elements_data);
 
-        let _ = self.nodes.remove(&number);
+        let mut deleted_bcs_data = Vec::new();
+        while let Some(position) = self.boundary_conditions.iter().position(|bc|
+            bc.is_node_number_same(number))
+        {
+            let deleted_bc = self.boundary_conditions.remove(position);
+            let deleted_bc_data = DeletedBCData::create(deleted_bc);
+            deleted_bcs_data.push(deleted_bc_data);
+        }
+        (self.bcs_deletion_callback)(deleted_bcs_data);
 
+        let deleted_node = self.nodes.remove(&number).unwrap();
         self.update_stiffness_groups()?;
-        Ok(())
+        Ok(DeletedFENodeData::create(number, deleted_node))
     }
 
 
@@ -351,14 +369,19 @@ impl<T, V> FEModel<T, V>
     }
 
 
-    pub fn delete_element(&mut self, number: T) -> Result<(), String>
+    pub fn delete_element(&mut self, number: T) -> Result<DeletedFEData<T, V>, String>
     {
-        if self.elements.remove(&number).is_none()
+
+        if let Some(deleted_element) = self.elements.remove(&number)
         {
-            return Err(format!("FEModel: Element {:?} could not be deleted because it does not \
+            let deleted_element_number = number;
+            Ok(DeletedFEData::create(deleted_element_number, deleted_element))
+        }
+        else
+        {
+            Err(format!("FEModel: Element {:?} could not be deleted because it does not \
                 exist!", number))
         }
-        Ok(())
     }
 
 
@@ -478,13 +501,13 @@ impl<T, V> FEModel<T, V>
     }
 
 
-    pub fn delete_bc(&mut self, bc_type: BCType, number: T) -> Result<(), String>
+    pub fn delete_bc(&mut self, bc_type: BCType, number: T) -> Result<DeletedBCData<T, V>, String>
     {
         if let Some(position) =  self.boundary_conditions.iter().position(|bc|
             bc.is_number_same(number) && bc.is_type_same(bc_type))
         {
-            self.boundary_conditions.remove(position);
-            Ok(())
+            let deleted_bc = self.boundary_conditions.remove(position);
+            Ok(DeletedBCData::create(deleted_bc))
         }
         else
         {

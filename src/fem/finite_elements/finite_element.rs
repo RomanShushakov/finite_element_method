@@ -66,6 +66,7 @@ pub(super) trait FiniteElementTrait<T, V>
         tolerance: V, nodes: &HashMap<T, FENode<V>>) -> Result<ElementAnalysisData<T, V>, String>;
     fn extract_nodes_numbers(&self) -> Vec<T>;
     fn extract_unique_elements_of_rotation_matrix(&self) -> Vec<V>;
+    fn extract_properties(&self) -> Vec<V>;
 }
 
 
@@ -275,5 +276,62 @@ impl<T, V> FiniteElement<T, V>
     pub fn extract_unique_elements_of_rotation_matrix(&self) -> Vec<V>
     {
         self.element.extract_unique_elements_of_rotation_matrix()
+    }
+
+
+    pub fn extract_properties(&self) -> Vec<V>
+    {
+        self.element.extract_properties()
+    }
+}
+
+
+pub struct DeletedFEData<T, V>
+{
+    element_number: T,
+    element_type: FEType,
+    nodes_numbers: Vec<T>,
+    properties: Vec<V>
+}
+
+
+impl<T, V> DeletedFEData<T, V>
+    where T: Copy + Sub<Output = T> + Div<Output = T> + Rem<Output = T> + Eq + Hash + SubAssign +
+             Debug + Mul<Output = T> + PartialOrd + Add<Output = T> + AddAssign + From<u8> +
+             'static,
+          V: Copy + Sub<Output = V> + Mul<Output = V> + Add<Output = V> + Div<Output = V> +
+             PartialEq + Debug + AddAssign + MulAssign + SubAssign + MyFloatTrait + PartialOrd +
+             Into<f64> + From<f32> + MyFloatTrait<Other = V> + 'static,
+{
+    pub(crate) fn create(element_number: T, deleted_element: FiniteElement<T, V>) -> Self
+    {
+        let element_type = deleted_element.extract_fe_type();
+        let nodes_numbers = deleted_element.extract_nodes_numbers();
+        let properties = deleted_element.extract_properties();
+        DeletedFEData { element_number, element_type, nodes_numbers, properties }
+    }
+
+
+    pub fn extract_number(&self) -> T
+    {
+        self.element_number
+    }
+
+
+    pub fn extract_fe_type(&self) -> FEType
+    {
+        self.element_type
+    }
+
+
+    pub fn extract_nodes_numbers(&self) -> Vec<T>
+    {
+        self.nodes_numbers.clone()
+    }
+
+
+    pub fn extract_properties(&self) -> Vec<V>
+    {
+        self.properties.clone()
     }
 }

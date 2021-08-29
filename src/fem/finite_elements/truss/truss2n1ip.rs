@@ -401,4 +401,17 @@ impl<T, V> FiniteElementTrait<T, V> for Truss2n1ip<T, V>
     {
         extract_unique_elements_of_rotation_matrix(&self.state.rotation_matrix)
     }
+
+
+    fn extract_properties(&self) -> Vec<V>
+    {
+        if let Some(area_2) = self.area_2
+        {
+            vec![self.young_modulus, self.area, area_2]
+        }
+        else
+        {
+            vec![self.young_modulus, self.area]
+        }
+    }
 }

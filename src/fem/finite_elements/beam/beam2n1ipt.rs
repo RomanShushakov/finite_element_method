@@ -60,9 +60,9 @@ pub struct Beam2n1ipT<T, V>
     young_modulus: V,
     poisson_ratio: V,
     area: V,
-    i11: V,
-    i22: V,
-    angle: V,
+    i11_init: V,
+    i22_init: V,
+    i12_init: V,
     shear_factor: V,
     it: V,
     local_axis_1_direction: [V; 3],
@@ -83,37 +83,9 @@ impl<T, V> Beam2n1ipT<T, V>
     local_axis_1_direction: [V; 3], tolerance: V, nodes: &HashMap<T, FENode<V>>)
     -> Result<Self, String>
     {
-        let mut angle = if i11_init == i22_init
-            {
-                V::from(0f32)
-            }
-            else
-            {
-                (V::from(2f32) * i12_init / (i22_init - i11_init)).my_atan() /
-                V::from(2f32)
-            };
-
-        let mut i11 = i11_init * (angle.my_cos()).my_powi(2) +
-            i22_init * (angle.my_sin()).my_powi(2) -
-            i12_init * (V::from(2f32) * angle).my_sin();
-
-        let mut i22 = i11_init * (angle.my_sin()).my_powi(2) +
-            i22_init * (angle.my_cos()).my_powi(2) +
-            i12_init * (V::from(2f32) * angle).my_sin();
-
-        let mut i = 1;
-        while i11 < i22
-        {
-            angle = ((V::from(2f32) * i12_init / (i22_init - i11_init)).my_atan() +
-                V::from(PI) * V::from(i as f32)) / V::from(2f32);
-            i11 = i11_init * (angle.my_cos()).my_powi(2) +
-                i22_init * (angle.my_sin()).my_powi(2) -
-                i12_init * (V::from(2f32) * angle).my_sin();
-            i22 = i11_init * (angle.my_sin()).my_powi(2) +
-                i22_init * (angle.my_cos()).my_powi(2) +
-                i12_init * (V::from(2f32) * angle).my_sin();
-            i += 1;
-        }
+        let (i11, i22, angle) =
+            BeamAuxFunctions::<T, V>::find_principal_moments_of_inertia(i11_init, i22_init,
+                i12_init);
 
         let integration_point_1 = IntegrationPoint {
             r: V::from(0f32), weight: V::from(2f32) };
@@ -153,7 +125,7 @@ impl<T, V> Beam2n1ipT<T, V>
             local_stiffness_matrix, nodes_dof_parameters);
 
         Ok(Beam2n1ipT { node_1_number, node_2_number, young_modulus, poisson_ratio,
-            area, i11, i22, angle, shear_factor, it, local_axis_1_direction, state })
+            area, i11_init, i22_init, i12_init, shear_factor, it, local_axis_1_direction, state })
     }
 
 
@@ -223,37 +195,9 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
 
         let i12_init = properties[5];
 
-        let mut angle = if i11_init == i22_init
-            {
-                V::from(0f32)
-            }
-            else
-            {
-                (V::from(2f32) * i12_init / (i22_init - i11_init)).my_atan() /
-                V::from(2f32)
-            };
-
-        let mut i11 = i11_init * (angle.my_cos()).my_powi(2) +
-            i22_init * (angle.my_sin()).my_powi(2) -
-            i12_init * (V::from(2f32) * angle).my_sin();
-
-        let mut i22 = i11_init * (angle.my_sin()).my_powi(2) +
-            i22_init * (angle.my_cos()).my_powi(2) +
-            i12_init * (V::from(2f32) * angle).my_sin();
-
-        let mut i = 1;
-        while i11 < i22
-        {
-            angle = ((V::from(2f32) * i12_init / (i22_init - i11_init)).my_atan() +
-                V::from(PI) * V::from(i as f32)) / V::from(2f32);
-            i11 = i11_init * (angle.my_cos()).my_powi(2) +
-                i22_init * (angle.my_sin()).my_powi(2) -
-                i12_init * (V::from(2f32) * angle).my_sin();
-            i22 = i11_init * (angle.my_sin()).my_powi(2) +
-                i22_init * (angle.my_cos()).my_powi(2) +
-                i12_init * (V::from(2f32) * angle).my_sin();
-            i += 1;
-        }
+        let (i11, i22, angle) =
+            BeamAuxFunctions::<T, V>::find_principal_moments_of_inertia(i11_init, i22_init,
+                i12_init);
 
         let it = properties[6];
 
@@ -294,9 +238,9 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
         self.young_modulus = young_modulus;
         self.poisson_ratio = poisson_ratio;
         self.area = area;
-        self.i11 = i11;
-        self.i22 = i22;
-        self.angle = angle;
+        self.i11_init = i11_init;
+        self.i22_init = i22_init;
+        self.i12_init = i12_init;
         self.shear_factor = shear_factor;
         self.it = it;
         self.local_axis_1_direction = local_axis_1_direction;
@@ -513,9 +457,13 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
 
     fn refresh(&mut self, tolerance: V, nodes: &HashMap<T, FENode<V>>) -> Result<(), String>
     {
+        let (i11, i22, angle) =
+            BeamAuxFunctions::<T, V>::find_principal_moments_of_inertia(self.i11_init,
+                self.i22_init, self.i12_init);
+
         let rotation_matrix =
             BeamAuxFunctions::rotation_matrix(self.node_1_number, self.node_2_number,
-                &self.local_axis_1_direction, self.angle, tolerance, nodes)?;
+                &self.local_axis_1_direction, angle, tolerance, nodes)?;
 
         let mut local_stiffness_matrix = ExtendedMatrix::create(
             BeamAuxFunctions::<T, V>::nodes_number() * BeamAuxFunctions::<T, V>::node_dof(),
@@ -526,7 +474,7 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
         {
             let matrix = BeamAuxFunctions::local_stiffness_matrix(
                 self.node_1_number, self.node_2_number, self.young_modulus, self.poisson_ratio,
-                self.area, self.shear_factor, self.it, self.i11, self.i22,
+                self.area, self.shear_factor, self.it, i11, i22,
                 integration_point.weight, integration_point.r, tolerance, nodes)?;
             local_stiffness_matrix = local_stiffness_matrix.add_matrix(&matrix)
                 .map_err(|e| format!("Beam2n2ipT: Local stiffness matrix could not be \
@@ -605,13 +553,17 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
         let mut forces_values_for_node_2 = Vec::new();
         let mut forces_components_for_node_2 = Vec::new();
 
+        let (i11, i22, _angle) =
+            BeamAuxFunctions::<T, V>::find_principal_moments_of_inertia(self.i11_init,
+                self.i22_init, self.i12_init);
+
         let strain_displacement_matrix_thv =
             BeamAuxFunctions::strain_displacement_matrix_thv(
                 self.node_1_number, self.node_2_number, r, tolerance, nodes);
         let strains_matrix_thv =
             strain_displacement_matrix_thv.multiply_by_matrix(&element_local_displacements)?;
         let moment_y_average = BeamAuxFunctions::extract_column_matrix_values(
-            &strains_matrix_thv)[0] * self.young_modulus * self.i22;
+            &strains_matrix_thv)[0] * self.young_modulus * i22;
         forces_components.push(ForceComponent::MomentY);
         forces_values.push(moment_y_average);
         let moment_y_at_node_1 = moment_y_average + length * force_z / V::from(2f32);
@@ -627,7 +579,7 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
         let strains_matrix_thw =
             strain_displacement_matrix_thw.multiply_by_matrix(&element_local_displacements)?;
         let moment_z_average = BeamAuxFunctions::extract_column_matrix_values(
-            &strains_matrix_thw)[0] * self.young_modulus * self.i11;
+            &strains_matrix_thw)[0] * self.young_modulus * i11;
         forces_components.push(ForceComponent::MomentZ);
         forces_values.push(moment_z_average);
         let moment_z_at_node_1 = moment_z_average + length * force_y / V::from(2f32);
@@ -670,5 +622,14 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
     fn extract_unique_elements_of_rotation_matrix(&self) -> Vec<V>
     {
         extract_unique_elements_of_rotation_matrix(&self.state.rotation_matrix)
+    }
+
+
+    fn extract_properties(&self) -> Vec<V>
+    {
+        vec![self.young_modulus, self.poisson_ratio, self.area, self.i11_init, self.i22_init,
+            self.i12_init, self.it, self.shear_factor, self.local_axis_1_direction[0],
+            self.local_axis_1_direction[1], self.local_axis_1_direction[2]
+        ]
     }
 }
