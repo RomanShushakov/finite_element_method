@@ -50,6 +50,7 @@ pub struct FEModel<T, V>
     elements: HashMap<T, FiniteElement<T, V>>,              // Hashmap { element_number: FiniteElement }
     boundary_conditions: Vec<BoundaryCondition<T, V>>,
     state: State<T, V>,
+    element_deletion_callback: fn(element_number: T),
 }
 
 
@@ -61,13 +62,13 @@ impl<T, V> FEModel<T, V>
              PartialEq + Debug + AddAssign + MulAssign + SubAssign + Into<f64> + PartialOrd +
              MyFloatTrait + From<f32> + MyFloatTrait<Other = V> + DivAssign + 'static,
 {
-    pub fn create(tolerance: V) -> Self
+    pub fn create(tolerance: V, element_deletion_callback: fn(element_number: T)) -> Self
     {
         let state = State::create(Vec::new(),
             Vec::new(), tolerance);
 
         FEModel { nodes: HashMap::new(), elements: HashMap::new(),
-            boundary_conditions: Vec::new(), state }
+            boundary_conditions: Vec::new(), state, element_deletion_callback }
     }
 
 
@@ -227,6 +228,7 @@ impl<T, V> FEModel<T, V>
         for element_number in elements_numbers_for_delete
         {
             let _ = self.elements.remove(&element_number);
+            (self.element_deletion_callback)(element_number);
         }
 
         let _ = self.nodes.remove(&number);
@@ -781,13 +783,11 @@ impl<T, V> FEModel<T, V>
 
 
     pub fn extract_elements_unique_elements_of_rotation_matrix(&self, element_number: &T)
-        -> Result<ExtendedMatrix<T, V>, String>
+        -> Result<Vec<V>, String>
     {
         if let Some(element) = self.elements.get(element_number)
         {
-            let all_elements = element.extract_unique_elements_of_rotation_matrix();
-            Ok(ExtendedMatrix::create(T::from(3u8), T::from(3u8),
-                all_elements, self.state.tolerance))
+            Ok(element.extract_unique_elements_of_rotation_matrix())
         }
         else
         {
