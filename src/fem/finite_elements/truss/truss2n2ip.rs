@@ -1,9 +1,11 @@
 use std::hash::Hash;
 use std::fmt::Debug;
 use std::ops::{Sub, Mul, Add, Div, Rem, SubAssign, AddAssign, MulAssign};
+use std::collections::HashMap;
 
 use extended_matrix::basic_matrix::basic_matrix::MatrixElementPosition;
 use extended_matrix::extended_matrix::ExtendedMatrix;
+use extended_matrix::functions::extract_element_value;
 
 use crate::fem::finite_elements::finite_element::{FiniteElementTrait, FEType};
 use crate::fem::finite_elements::fe_node::FENode;
@@ -22,8 +24,7 @@ use crate::fem::element_analysis::fe_element_analysis_result::
 use crate::my_float::MyFloatTrait;
 
 use crate::fem::finite_elements::truss::consts::{TRUSS_NODE_DOF, TRUSS2N2IP_NODES_NUMBER};
-use std::collections::HashMap;
-
+use crate::fem::finite_elements::functions::extract_unique_elements_of_rotation_matrix;
 
 struct IntegrationPoint<V>
 {
@@ -398,15 +399,8 @@ impl<T, V> FiniteElementTrait<T, V> for Truss2n2ip<T, V>
     }
 
 
-    fn extract_fe_properties(&self) -> Vec<V>
+    fn extract_unique_elements_of_rotation_matrix(&self) -> Vec<V>
     {
-        let mut properties = Vec::new();
-        properties.push(self.young_modulus);
-        properties.push(self.area);
-        if let Some(area) = self.area_2
-        {
-            properties.push(area);
-        }
-        properties
+        extract_unique_elements_of_rotation_matrix(&self.state.rotation_matrix)
     }
 }

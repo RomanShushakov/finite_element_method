@@ -22,6 +22,7 @@ use crate::fem::finite_elements::beam::beam_aux_functions::BeamAuxFunctions;
 use crate::my_float::MyFloatTrait;
 
 use crate::fem::finite_elements::beam::consts::{ BEAM_NODE_DOF, BEAM2N1IPT_NODES_NUMBER };
+use crate::fem::finite_elements::functions::extract_unique_elements_of_rotation_matrix;
 
 
 struct IntegrationPoint<V>
@@ -666,20 +667,8 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
     }
 
 
-    fn extract_fe_properties(&self) -> Vec<V>
+    fn extract_unique_elements_of_rotation_matrix(&self) -> Vec<V>
     {
-        let mut properties = Vec::new();
-        properties.push(self.young_modulus);
-        properties.push(self.poisson_ratio);
-        properties.push(self.area);
-        properties.push(self.i11);
-        properties.push(self.i22);
-        properties.push(self.angle);
-        properties.push(self.it);
-        properties.push(self.shear_factor);
-        properties.push(self.local_axis_1_direction[0]);
-        properties.push(self.local_axis_1_direction[1]);
-        properties.push(self.local_axis_1_direction[2]);
-        properties
+        extract_unique_elements_of_rotation_matrix(&self.state.rotation_matrix)
     }
 }

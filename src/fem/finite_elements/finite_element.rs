@@ -65,7 +65,7 @@ pub(super) trait FiniteElementTrait<T, V>
     fn extract_element_analysis_data(&self, global_displacements: &Displacements<T, V>,
         tolerance: V, nodes: &HashMap<T, FENode<V>>) -> Result<ElementAnalysisData<T, V>, String>;
     fn extract_nodes_numbers(&self) -> Vec<T>;
-    fn extract_fe_properties(&self) -> Vec<V>;
+    fn extract_unique_elements_of_rotation_matrix(&self) -> Vec<V>;
 }
 
 
@@ -272,8 +272,8 @@ impl<T, V> FiniteElement<T, V>
     }
 
 
-    fn extract_fe_properties(&self) -> Vec<V>
+    pub fn extract_unique_elements_of_rotation_matrix(&self) -> Vec<V>
     {
-        self.element.extract_fe_properties()
+        self.element.extract_unique_elements_of_rotation_matrix()
     }
 }

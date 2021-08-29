@@ -778,4 +778,20 @@ impl<T, V> FEModel<T, V>
             Err(format!("FEModel: Node with number {:?} does not exist!", node_number))
         }
     }
+
+
+    pub fn extract_elements_unique_elements_of_rotation_matrix(&self, element_number: &T)
+        -> Result<ExtendedMatrix<T, V>, String>
+    {
+        if let Some(element) = self.elements.get(element_number)
+        {
+            let all_elements = element.extract_unique_elements_of_rotation_matrix();
+            Ok(ExtendedMatrix::create(T::from(3u8), T::from(3u8),
+                all_elements, self.state.tolerance))
+        }
+        else
+        {
+            Err(format!("FEModel: Element with number {:?} does not exist!", element_number))
+        }
+    }
 }
