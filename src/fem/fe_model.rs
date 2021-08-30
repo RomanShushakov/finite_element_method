@@ -801,6 +801,32 @@ impl<T, V> FEModel<T, V>
     }
 
 
+    pub fn extract_node_coordinates(&self, node_number: &T) -> Result<(V, V, V), String>
+    {
+        if let Some(node) = self.nodes.get(node_number)
+        {
+            Ok(node.extract_coordinates())
+        }
+        else
+        {
+            Err(format!("FEModel: Node with number {:?} does not exist!", node_number))
+        }
+    }
+
+
+    pub fn extract_element_type(&self, element_number: &T) -> Result<FEType, String>
+    {
+        if let Some(element) = self.elements.get(element_number)
+        {
+            Ok(element.extract_fe_type())
+        }
+        else
+        {
+            Err(format!("FEModel: Element with number {:?} does not exist!", element_number))
+        }
+    }
+
+
     pub fn extract_element_nodes_numbers(&self, element_number: &T) -> Result<Vec<T>, String>
     {
         if let Some(element) = self.elements.get(element_number)
@@ -814,15 +840,15 @@ impl<T, V> FEModel<T, V>
     }
 
 
-    pub fn extract_node_coordinates(&self, node_number: &T) -> Result<(V, V, V), String>
+    pub fn extract_element_properties(&self, element_number: &T) -> Result<Vec<V>, String>
     {
-        if let Some(node) = self.nodes.get(node_number)
+        if let Some(element) = self.elements.get(element_number)
         {
-            Ok(node.extract_coordinates())
+            Ok(element.extract_properties())
         }
         else
         {
-            Err(format!("FEModel: Node with number {:?} does not exist!", node_number))
+            Err(format!("FEModel: Element with number {:?} does not exist!", element_number))
         }
     }
 
@@ -838,5 +864,86 @@ impl<T, V> FEModel<T, V>
         {
             Err(format!("FEModel: Element with number {:?} does not exist!", element_number))
         }
+    }
+
+
+    pub fn extract_bc_node_number(&self, bc_type: BCType, number: T) -> Result<T, String>
+    {
+        if let Some(position) = self.boundary_conditions.iter()
+            .position(|bc| bc.is_type_same(bc_type) && bc.is_number_same(number))
+        {
+            Ok(self.boundary_conditions[position].extract_node_number())
+        }
+        else
+        {
+            Err(format!("FEModel: {:?} boundary condition with number {:?} does not exist!",
+                bc_type.as_str(), number))
+        }
+    }
+
+
+    pub fn extract_bc_dof_parameter(&self, bc_type: BCType, number: T)
+        -> Result<GlobalDOFParameter, String>
+    {
+        if let Some(position) = self.boundary_conditions.iter()
+            .position(|bc| bc.is_type_same(bc_type) && bc.is_number_same(number))
+        {
+            Ok(self.boundary_conditions[position].extract_dof_parameter())
+        }
+        else
+        {
+            Err(format!("FEModel: {:?} boundary condition with number {:?} does not exist!",
+                bc_type.as_str(), number))
+        }
+    }
+
+
+    pub fn extract_bc_value(&self, bc_type: BCType, number: T) -> Result<V, String>
+    {
+        if let Some(position) = self.boundary_conditions.iter()
+            .position(|bc| bc.is_type_same(bc_type) && bc.is_number_same(number))
+        {
+            Ok(self.boundary_conditions[position].extract_value())
+        }
+        else
+        {
+            Err(format!("FEModel: {:?} boundary condition with number {:?} does not exist!",
+                bc_type.as_str(), number))
+        }
+    }
+
+
+    pub fn extract_all_nodes_numbers(&self) -> Vec<T>
+    {
+        let mut nodes_numbers = Vec::new();
+        for node_number in self.nodes.keys()
+        {
+            nodes_numbers.push(*node_number);
+        }
+        nodes_numbers
+    }
+
+
+    pub fn extract_all_elements_numbers(&self) -> Vec<T>
+    {
+        let mut elements_numbers = Vec::new();
+        for element_number in self.elements.keys()
+        {
+            elements_numbers.push(*element_number);
+        }
+        elements_numbers
+    }
+
+
+    pub fn extract_all_bc_types_numbers(&self) -> Vec<(BCType, T)>
+    {
+        let mut bc_types_numbers = Vec::new();
+        for bc in self.boundary_conditions.iter()
+        {
+            let bc_type = bc.extract_bc_type();
+            let bc_number = bc.extract_number();
+            bc_types_numbers.push((bc_type, bc_number));
+        }
+        bc_types_numbers
     }
 }
