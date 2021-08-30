@@ -286,6 +286,7 @@ impl<T, V> FiniteElement<T, V>
 }
 
 
+#[derive(Debug, Clone)]
 pub struct DeletedFEData<T, V>
 {
     element_number: T,

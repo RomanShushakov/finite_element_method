@@ -55,6 +55,7 @@ impl<V> FENode<V>
 }
 
 
+#[derive(Debug, Clone)]
 pub struct DeletedFENodeData<T, V>
 {
     number: T,

@@ -5,6 +5,7 @@ use std::fmt::Debug;
 use crate::fem::global_analysis::fe_dof_parameter_data::DOFParameterData;
 
 
+#[derive(Debug, Clone)]
 pub struct Displacements<T, V>
 {
     displacements_values: Vec<V>,
@@ -33,6 +34,7 @@ impl<T, V> Displacements<T, V>
 }
 
 
+#[derive(Debug, Clone)]
 struct Reactions<T, V>
 {
     reactions_values: Vec<V>,
@@ -60,6 +62,7 @@ impl<T, V> Reactions<T, V>
 }
 
 
+#[derive(Debug, Clone)]
 pub struct GlobalAnalysisResult<T, V>
 {
     displacements: Displacements<T, V>,

@@ -288,6 +288,7 @@ impl<T, V> BoundaryCondition<T, V>
 }
 
 
+#[derive(Debug, Clone)]
 pub struct DeletedBCData<T, V>
 {
     bc_type: BCType,

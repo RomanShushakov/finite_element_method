@@ -8,6 +8,7 @@ use crate::fem::element_analysis::fe_force_moment_components::ForceComponent;
 use crate::fem::finite_elements::finite_element::FEType;
 
 
+#[derive(Debug, Clone)]
 pub(crate) struct ElementStrains<V>
 {
     strains_values: Vec<V>,
@@ -36,6 +37,7 @@ impl<V> ElementStrains<V>
 }
 
 
+#[derive(Debug, Clone)]
 pub(crate) struct ElementStresses<V>
 {
     stresses_values: Vec<V>,
@@ -64,6 +66,7 @@ impl<V> ElementStresses<V>
 }
 
 
+#[derive(Debug, Clone)]
 pub(crate) struct ElementForces<V>
 {
     forces_values: Vec<V>,
@@ -92,6 +95,7 @@ impl<V> ElementForces<V>
 }
 
 
+#[derive(Debug, Clone)]
 pub struct NodalForces<V>
 {
     forces_values: Vec<V>,
@@ -120,6 +124,7 @@ impl<V> NodalForces<V>
 }
 
 
+#[derive(Debug, Clone)]
 pub struct ElementAnalysisData<T, V>
 {
     strains: Option<ElementStrains<V>>,
@@ -231,6 +236,7 @@ impl<T, V> ElementAnalysisData<T, V>
 }
 
 
+#[derive(Debug, Clone)]
 pub struct ElementsAnalysisResult<T, V>
 {
     elements_by_types: HashMap<FEType, Vec<T>>,
