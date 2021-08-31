@@ -180,7 +180,8 @@ impl<T, V> FEModel<T, V>
     }
 
 
-    pub fn update_node(&mut self, number: T, x: V, y: V, z: V) -> Result<(), String>
+    pub fn update_node(&mut self, number: T, x: V, y: V, z: V, optional_properties: Option<Vec<V>>)
+        -> Result<(), String>
     {
         if self.nodes.iter().position(|(node_number, node)|
             *node_number != number && node.is_coordinates_same(x, y, z)).is_some()
@@ -193,9 +194,57 @@ impl<T, V> FEModel<T, V>
         {
             node.update(x, y, z);
             for element in self.elements.values_mut()
-                .filter(|element| element.is_node_belong_element(number))
+                .filter(|element|
+                    element.is_node_belong_element(number))
             {
-                element.refresh(self.state.tolerance, &self.nodes)?;
+                if let Some(properties) = optional_properties.as_ref()
+                {
+                    match element.extract_fe_type()
+                    {
+                        FEType::Beam2n1ipT =>
+                            {
+                                if properties.len() != 11
+                                {
+                                    return Err("FEModel: Update node action: Incorrect length of \
+                                        properties data!".into());
+                                }
+                                for (i, value) in properties.iter().enumerate()
+                                {
+                                    if *value <= V::from(0f32) && [i != 5, i < 8].iter()
+                                        .all(|condition| *condition == true)
+                                    {
+                                        return Err("FEModel: Update node action: All properties \
+                                            values should be greater than zero!".into());
+                                    }
+                                }
+                            },
+                        _ =>
+                            {
+                                if properties.len() < 2 || properties.len() > 3
+                                {
+                                    return Err("FEModel: Update node action: Incorrect \
+                                        length of properties data!".into());
+                                }
+
+                                for value in properties.iter()
+                                {
+                                    if *value <= V::from(0f32)
+                                    {
+                                        return Err("FEModel: Update node action: All properties \
+                                            values should be greater than zero!".into());
+                                    }
+                                }
+                            },
+                    }
+
+                    let element_nodes_numbers = element.extract_nodes_numbers();
+                    element.update(element_nodes_numbers, properties.clone(),
+                        self.state.tolerance, &self.nodes)?;
+                }
+                else
+                {
+                    element.refresh(self.state.tolerance, &self.nodes)?;
+                }
             }
             Ok(())
         }
@@ -281,31 +330,10 @@ impl<T, V> FEModel<T, V>
     pub fn add_element(&mut self, element_number: T, element_type: FEType, nodes_numbers: Vec<T>,
         properties: Vec<V>) -> Result<(), String>
     {
-        for (i, value) in properties.iter().enumerate()
-        {
-            if element_type != FEType::Beam2n1ipT
-            {
-                if *value <= V::from(0f32)
-                {
-                    return Err(format!("FEData: All properties values for element {:?} should be \
-                        greater than zero!", element_number));
-                }
-            }
-            else
-            {
-                if *value <= V::from(0f32) && [i != 5, i < 8].iter().all(|condition|
-                    *condition == true)
-                {
-                    return Err(format!("FEData: All properties values for element {:?} should be \
-                        greater than zero!", element_number));
-                }
-            }
-        }
-
         if self.elements.contains_key(&element_number)
         {
-            return Err(format!("FEModel: Element {:?} could not be added! The element with the same \
-             number does already exist!", element_number));
+            return Err(format!("FEModel: Element {:?} could not be added! The element with the \
+                same number does already exist!", element_number));
         }
 
         let nodes_numbers_set = HashSet::<T>::from_iter(
@@ -314,6 +342,56 @@ impl<T, V> FEModel<T, V>
         {
             return Err(format!("FEModel: Element {:?} could not be added! All nodes numbers \
                 should be unique!", element_number));
+        }
+
+        match element_type
+        {
+            FEType::Beam2n1ipT =>
+                {
+                    if nodes_numbers.len() != 2
+                    {
+                        return Err(format!("FEModel: Element {:?} could not be added! \
+                            Incorrect number of nodes!", element_number));
+                    }
+
+                    if properties.len() != 11
+                    {
+                        return Err(format!("FEModel: Element {:?} could not be added! \
+                            Incorrect length of properties data!", element_number));
+                    }
+                    for (i, value) in properties.iter().enumerate()
+                    {
+                        if *value <= V::from(0f32) && [i != 5, i < 8].iter()
+                            .all(|condition| *condition == true)
+                        {
+                            return Err(format!("FEModel: All properties values for element {:?} \
+                                should be greater than zero!", element_number));
+                        }
+                    }
+                },
+            _ =>
+                {
+                    if nodes_numbers.len() != 2
+                    {
+                        return Err(format!("FEModel: Element {:?} could not be added! \
+                            Incorrect number of nodes!", element_number));
+                    }
+
+                    if properties.len() < 2 || properties.len() > 3
+                    {
+                        return Err(format!("FEModel: Element {:?} could not be added! \
+                            Incorrect length of properties data!", element_number));
+                    }
+
+                    for value in properties.iter()
+                    {
+                        if *value <= V::from(0f32)
+                        {
+                            return Err(format!("FEModel: All properties values for element {:?} \
+                                should be greater than zero!", element_number));
+                        }
+                    }
+                }
         }
 
         if self.elements.values().position(|element|
@@ -344,15 +422,6 @@ impl<T, V> FEModel<T, V>
     pub fn update_element(&mut self, element_number: T, nodes_numbers: Vec<T>,
         properties: Vec<V>) -> Result<(), String>
     {
-        for value in properties.iter()
-        {
-            if *value <= V::from(0f32)
-            {
-                return Err(format!("FEData: All properties values for element {:?} should be \
-                    greater than zero!", element_number));
-            }
-        }
-
         let nodes_numbers_set = HashSet::<T>::from_iter(
             nodes_numbers.iter().cloned());
         if nodes_numbers.len() != nodes_numbers_set.len()
@@ -370,18 +439,69 @@ impl<T, V> FEModel<T, V>
             }
         }
 
+        if self.elements.iter().position(|(number, element)|
+            element.is_nodes_numbers_same(nodes_numbers.clone()) &&
+                *number != element_number).is_some()
+        {
+            return Err(format!("FEModel: Element {:?} could not be updated! The element with \
+                    the same nodes numbers does already exist!", element_number));
+        }
+
         if let Some(element) = self.elements.get_mut(&element_number)
         {
-            if element.is_nodes_numbers_same(nodes_numbers.clone())
+            match element.extract_fe_type()
             {
-                return Err(format!("FEModel: Element {:?} could not be added! The element with \
-                    the same nodes numbers does already exist!", element_number));
+                FEType::Beam2n1ipT =>
+                    {
+                        if nodes_numbers.len() != 2
+                        {
+                            return Err(format!("FEModel: Element {:?} could not be updated! \
+                                Incorrect number of nodes!", element_number));
+                        }
+
+                        if properties.len() != 11
+                        {
+                            return Err(format!("FEModel: Element {:?} could not be updated! \
+                                Incorrect length of properties data!", element_number));
+                        }
+
+                        for (i, value) in properties.iter().enumerate()
+                        {
+                            if *value <= V::from(0f32) && [i != 5, i < 8]
+                                .iter()
+                                .all(|condition| *condition == true)
+                            {
+                                return Err(format!("FEModel: All properties values for element {:?} \
+                                    should be greater than zero!", element_number));
+                            }
+                        }
+                    },
+                _ =>
+                    {
+                        if nodes_numbers.len() != 2
+                        {
+                            return Err(format!("FEModel: Element {:?} could not be updated! \
+                                Incorrect number of nodes!", element_number));
+                        }
+
+                        if properties.len() < 2 || properties.len() > 3
+                        {
+                             return Err(format!("FEModel: Element {:?} could not be updated! \
+                                Incorrect length of properties data!", element_number));
+                        }
+
+                        for value in properties.iter()
+                        {
+                            if *value <= V::from(0f32)
+                            {
+                                return Err(format!("FEModel: All properties values for element {:?} \
+                                    should be greater than zero!", element_number));
+                            }
+                        }
+                    }
             }
-            else
-            {
-                element.update(nodes_numbers, properties, self.state.tolerance, &self.nodes)?;
-                Ok(())
-            }
+            element.update(nodes_numbers, properties, self.state.tolerance, &self.nodes)?;
+            Ok(())
         }
         else
         {
@@ -910,6 +1030,29 @@ impl<T, V> FEModel<T, V>
             Err(format!("FEModel: {:?} boundary condition with number {:?} does not exist!",
                 bc_type.as_str(), number))
         }
+    }
+
+
+    pub fn is_node_number_exist(&self, number: T) -> bool
+    {
+        self.nodes.contains_key(&number)
+    }
+
+
+    pub fn is_element_number_exist(&self, number: T) -> bool
+    {
+        self.elements.contains_key(&number)
+    }
+
+
+    pub fn is_bc_key_exist(&self, number: T, bc_type: BCType) -> bool
+    {
+        if self.boundary_conditions.iter().position(|bc|
+            bc.is_number_same(number) && bc.is_type_same(bc_type)).is_some()
+        {
+            return true;
+        }
+        false
     }
 
 

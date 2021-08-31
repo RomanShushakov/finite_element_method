@@ -88,11 +88,6 @@ impl<T, V> FECreator<T, V>
         {
             FEType::Truss2n1ip =>
                 {
-                    if nodes_numbers.len() != 2
-                    {
-                        return Err("FECreator: Incorrect number of nodes!".to_string());
-                    }
-
                     if properties.len() == 3
                     {
                         let truss_element = Truss2n1ip::create(
@@ -103,7 +98,7 @@ impl<T, V> FECreator<T, V>
 
                         Ok(Box::new(truss_element))
                     }
-                    else if properties.len() == 2
+                    else
                     {
                         let truss_element = Truss2n1ip::create(
                             nodes_numbers[0],
@@ -112,19 +107,10 @@ impl<T, V> FECreator<T, V>
                             None, tolerance, nodes)?;
 
                         Ok(Box::new(truss_element))
-                    }
-                    else
-                    {
-                        Err("FECreator: Incorrect length of properties data!".to_string())
                     }
                 },
             FEType::Truss2n2ip =>
                 {
-                    if nodes_numbers.len() != 2
-                    {
-                        return Err("FECreator: Incorrect number of nodes!".to_string());
-                    }
-
                     if properties.len() == 3
                     {
                         let truss_element = Truss2n2ip::create(
@@ -135,7 +121,7 @@ impl<T, V> FECreator<T, V>
 
                         Ok(Box::new(truss_element))
                     }
-                    else if properties.len() == 2
+                    else
                     {
                         let truss_element = Truss2n2ip::create(
                             nodes_numbers[0],
@@ -145,37 +131,21 @@ impl<T, V> FECreator<T, V>
 
                         Ok(Box::new(truss_element))
                     }
-                    else
-                    {
-                        Err("FECreator: Incorrect length of properties data!".to_string())
-                    }
                 },
             FEType::Beam2n1ipT =>
                 {
-                    if nodes_numbers.len() != 2
-                    {
-                        return Err("FECreator: Incorrect number of nodes!".to_string());
-                    }
+                    let beam_element = Beam2n1ipT::create(
+                    nodes_numbers[0],
+                    nodes_numbers[1],
+                    properties[0], properties[1],
+                    properties[2], properties[3],
+                    properties[4], properties[5],
+                    properties[6],
+                    properties[7],
+                    [properties[8], properties[9], properties[10]],
+                    tolerance, nodes)?;
 
-                    if properties.len() == 11
-                    {
-                        let beam_element = Beam2n1ipT::create(
-                        nodes_numbers[0],
-                        nodes_numbers[1],
-                        properties[0], properties[1],
-                        properties[2], properties[3],
-                        properties[4], properties[5],
-                        properties[6],
-                        properties[7],
-                        [properties[8], properties[9], properties[10]],
-                        tolerance, nodes)?;
-
-                        Ok(Box::new(beam_element))
-                    }
-                    else
-                    {
-                        Err("FECreator: Incorrect length of properties data!".to_string())
-                    }
+                    Ok(Box::new(beam_element))
                 },
         }
     }
@@ -200,7 +170,7 @@ impl<T, V> FiniteElement<T, V>
     pub fn create(fe_type: FEType, nodes_numbers: Vec<T>, properties: Vec<V>, tolerance: V,
         nodes: &HashMap<T, FENode<V>>) -> Result<Self, String>
     {
-        let element = FECreator::create(fe_type.clone(),
+        let element = FECreator::create(fe_type,
             nodes_numbers, properties, tolerance, nodes)?;
         Ok(FiniteElement { element_type: fe_type, element })
     }
