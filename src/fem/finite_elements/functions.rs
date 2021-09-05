@@ -4,7 +4,7 @@ use std::hash::Hash;
 
 use crate::my_float::MyFloatTrait;
 use extended_matrix::extended_matrix::ExtendedMatrix;
-use extended_matrix::functions::extract_element_value;
+use extended_matrix::functions::copy_element_value;
 
 
 pub fn compare_with_tolerance<V>(value: V, tolerance: V) -> V
@@ -31,24 +31,24 @@ pub fn extract_unique_elements_of_rotation_matrix<T, V>(rotation_matrix: &Extend
              'static
 {
     let all_elements_values_of_rotation_matrix =
-        rotation_matrix.extract_all_elements_values();
-    let r11 = extract_element_value(T::from(0u8), T::from(0u8),
+        rotation_matrix.copy_all_elements_values();
+    let r11 = copy_element_value(T::from(0u8), T::from(0u8),
         &all_elements_values_of_rotation_matrix);
-    let r12 = extract_element_value(T::from(0u8), T::from(1u8),
+    let r12 = copy_element_value(T::from(0u8), T::from(1u8),
         &all_elements_values_of_rotation_matrix);
-    let r13 = extract_element_value(T::from(0u8), T::from(2u8),
+    let r13 = copy_element_value(T::from(0u8), T::from(2u8),
         &all_elements_values_of_rotation_matrix);
-    let r21 = extract_element_value(T::from(1u8), T::from(0u8),
+    let r21 = copy_element_value(T::from(1u8), T::from(0u8),
         &all_elements_values_of_rotation_matrix);
-    let r22 = extract_element_value(T::from(1u8), T::from(1u8),
+    let r22 = copy_element_value(T::from(1u8), T::from(1u8),
         &all_elements_values_of_rotation_matrix);
-    let r23 = extract_element_value(T::from(1u8), T::from(2u8),
+    let r23 = copy_element_value(T::from(1u8), T::from(2u8),
         &all_elements_values_of_rotation_matrix);
-    let r31 = extract_element_value(T::from(2u8), T::from(0u8),
+    let r31 = copy_element_value(T::from(2u8), T::from(0u8),
         &all_elements_values_of_rotation_matrix);
-    let r32 = extract_element_value(T::from(2u8), T::from(1u8),
+    let r32 = copy_element_value(T::from(2u8), T::from(1u8),
         &all_elements_values_of_rotation_matrix);
-    let r33 = extract_element_value(T::from(2u8), T::from(2u8),
+    let r33 = copy_element_value(T::from(2u8), T::from(2u8),
         &all_elements_values_of_rotation_matrix);
     vec![r11, r12, r13, r21, r22, r23, r31, r32, r33]
 }

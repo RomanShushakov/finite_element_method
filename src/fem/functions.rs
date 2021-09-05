@@ -4,7 +4,7 @@ use std::hash::Hash;
 
 use extended_matrix::basic_matrix::basic_matrix::MatrixElementPosition;
 use extended_matrix::extended_matrix::ExtendedMatrix;
-use extended_matrix::functions::{extract_element_value, conversion_uint_into_usize};
+use extended_matrix::functions::{copy_element_value, conversion_uint_into_usize};
 
 
 use crate::fem::global_analysis::fe_stiffness::
@@ -80,10 +80,10 @@ pub fn separate<'a, T, V>(matrix: ExtendedMatrix<T, V>, positions: Vec<MatrixEle
           V: Add<Output = V> + Mul<Output = V> + Sub<Output = V> + Div<Output = V> + Copy + Debug +
              PartialEq + AddAssign + MulAssign + SubAssign + Into<f64> + From<f32> + 'static
 {
-    let shape = matrix.get_shape();
+    let shape = matrix.copy_shape();
 
     let all_elements_values =
-        matrix.extract_all_elements_values();
+        matrix.copy_all_elements_values();
 
     let mut converted_positions_length = T::from(0u8);
     (0..positions.len()).for_each(|_| converted_positions_length += T::from(1u8));
@@ -103,7 +103,7 @@ pub fn separate<'a, T, V>(matrix: ExtendedMatrix<T, V>, positions: Vec<MatrixEle
             if positions.iter().position(|p| p.row() == i).is_none() &&
                 positions.iter().position(|p| p.column() == j).is_none()
             {
-                let value = extract_element_value(i, j, &all_elements_values);
+                let value = copy_element_value(i, j, &all_elements_values);
                 k_aa_elements.push(value);
             }
             j += T::from(1u8);
@@ -134,7 +134,7 @@ pub fn separate<'a, T, V>(matrix: ExtendedMatrix<T, V>, positions: Vec<MatrixEle
                     return Err("Extended matrix: Matrix could not be separated! Matrix Kab \
                         could not be composed!");
                 }
-                let value = extract_element_value(row, column, &all_elements_values);
+                let value = copy_element_value(row, column, &all_elements_values);
                 k_ab_elements.push(value);
             }
         }
@@ -165,7 +165,7 @@ pub fn separate<'a, T, V>(matrix: ExtendedMatrix<T, V>, positions: Vec<MatrixEle
                     return Err("Extended matrix: Matrix could not be separated! Matrix Kba \
                         could not be composed!");
                 }
-                let value = extract_element_value(row, column, &all_elements_values);
+                let value = copy_element_value(row, column, &all_elements_values);
                 k_ba_elements.push(value);
             }
             j += T::from(1u8);
@@ -192,7 +192,7 @@ pub fn separate<'a, T, V>(matrix: ExtendedMatrix<T, V>, positions: Vec<MatrixEle
                 return Err("Extended matrix: Matrix could not be separated! Matrix Kbb could \
                     not be composed!");
             }
-            let value = extract_element_value(row, column, &all_elements_values);
+            let value = copy_element_value(row, column, &all_elements_values);
             k_bb_elements.push(value);
         }
     }

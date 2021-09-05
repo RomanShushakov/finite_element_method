@@ -7,7 +7,7 @@ use std::iter::FromIterator;
 use extended_matrix::basic_matrix::basic_matrix::{MatrixElementPosition, ZerosRowColumn};
 use extended_matrix::extended_matrix::ExtendedMatrix;
 use extended_matrix::extended_matrix::Operation;
-use extended_matrix::functions::{extract_element_value, conversion_uint_into_usize};
+use extended_matrix::functions::{copy_element_value, conversion_uint_into_usize};
 
 use crate::fem::finite_elements::fe_node::{FENode, DeletedFENodeData};
 use crate::fem::finite_elements::finite_element::{FiniteElement, FEType, DeletedFEData};
@@ -775,15 +775,15 @@ impl<T, V> FEModel<T, V>
         ub_matrix: ExtendedMatrix<T, V>, ua_ra_rows_numbers: &Vec<T>,
         ub_rb_rows_numbers: &Vec<T>) -> ExtendedMatrix<T, V>
     {
-        let ua_values = ua_matrix.extract_all_elements_values();
-        let ub_values = ub_matrix.extract_all_elements_values();
+        let ua_values = ua_matrix.copy_all_elements_values();
+        let ub_values = ub_matrix.copy_all_elements_values();
         let mut all_displacements_values =
             vec![V::from(0f32); self.state.nodes_dof_parameters_global.len()];
 
         let mut i = T::from(0u8);
         (0..ua_ra_rows_numbers.len()).for_each(|index|
             {
-                let displacement_value = extract_element_value(
+                let displacement_value = copy_element_value(
                     i, T::from(0u8), &ua_values);
                 let converted_index = conversion_uint_into_usize(ua_ra_rows_numbers[index]);
                 all_displacements_values[converted_index] = displacement_value;
@@ -793,7 +793,7 @@ impl<T, V> FEModel<T, V>
         let mut j = T::from(0u8);
         (0..ub_rb_rows_numbers.len()).for_each(|index|
             {
-                let displacement_value = extract_element_value(
+                let displacement_value = copy_element_value(
                     j, T::from(0u8), &ub_values);
                 let converted_index = conversion_uint_into_usize(ub_rb_rows_numbers[index]);
                 all_displacements_values[converted_index] = displacement_value;
@@ -847,8 +847,8 @@ impl<T, V> FEModel<T, V>
                     .multiply_by_matrix(&ub_matrix)?,
                         Operation::Addition)?;
         let all_reactions =
-            reactions_values_matrix.extract_all_elements_values();
-        let reactions_values_matrix_shape = reactions_values_matrix.get_shape();
+            reactions_values_matrix.copy_all_elements_values();
+        let reactions_values_matrix_shape = reactions_values_matrix.copy_shape();
         let mut reactions_values = Vec::new();
 
         let mut row = T::from(0u8);
@@ -857,7 +857,7 @@ impl<T, V> FEModel<T, V>
             let mut column = T::from(0u8);
             while column < reactions_values_matrix_shape.1
             {
-                let reaction_value = extract_element_value(row, column,
+                let reaction_value = copy_element_value(row, column,
                     &all_reactions);
                 reactions_values.push(reaction_value);
                 column += T::from(1u8);
@@ -877,8 +877,8 @@ impl<T, V> FEModel<T, V>
         let displacements_values_matrix = self.compose_displacements_matrix(
             ua_matrix, ub_matrix, &ua_ra_rows_numbers, &ub_rb_rows_numbers);
         let all_displacements =
-            displacements_values_matrix.extract_all_elements_values();
-        let displacements_values_matrix_shape = displacements_values_matrix.get_shape();
+            displacements_values_matrix.copy_all_elements_values();
+        let displacements_values_matrix_shape = displacements_values_matrix.copy_shape();
         let mut displacements_values = Vec::new();
 
         let mut row = T::from(0u8);
@@ -887,7 +887,7 @@ impl<T, V> FEModel<T, V>
             let mut column = T::from(0u8);
             while column < displacements_values_matrix_shape.1
             {
-                let displacement_value = extract_element_value(row, column,
+                let displacement_value = copy_element_value(row, column,
                     &all_displacements);
                 displacements_values.push(displacement_value);
                 column += T::from(1u8);

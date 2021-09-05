@@ -5,7 +5,6 @@ use std::collections::HashMap;
 
 use extended_matrix::basic_matrix::basic_matrix::MatrixElementPosition;
 use extended_matrix::extended_matrix::ExtendedMatrix;
-use extended_matrix::functions::extract_element_value;
 
 use crate::fem::finite_elements::finite_element::{FiniteElementTrait, FEType};
 use crate::fem::finite_elements::fe_node::FENode;

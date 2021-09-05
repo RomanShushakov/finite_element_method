@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::f32::consts::PI;
 
 use extended_matrix::extended_matrix::ExtendedMatrix;
-use extended_matrix::functions::extract_element_value;
+use extended_matrix::functions::copy_element_value;
 
 use crate::my_float::MyFloatTrait;
 
@@ -82,15 +82,15 @@ impl<T, V> BeamAuxFunctions<T, V>
             .multiply_by_matrix(&a)?;
 
         let components_of_line_a_perpendicular_to_line_b_all_values =
-            components_of_line_a_perpendicular_to_line_b_matrix.extract_all_elements_values();
+            components_of_line_a_perpendicular_to_line_b_matrix.copy_all_elements_values();
 
-        let a_perpendicular_to_b_x = extract_element_value(T::from(0u8), T::from(0u8),
+        let a_perpendicular_to_b_x = copy_element_value(T::from(0u8), T::from(0u8),
             &components_of_line_a_perpendicular_to_line_b_all_values);
 
-        let a_perpendicular_to_b_y = extract_element_value(T::from(1u8), T::from(0u8),
+        let a_perpendicular_to_b_y = copy_element_value(T::from(1u8), T::from(0u8),
             &components_of_line_a_perpendicular_to_line_b_all_values);
 
-        let a_perpendicular_to_b_z = extract_element_value(T::from(2u8), T::from(0u8),
+        let a_perpendicular_to_b_z = copy_element_value(T::from(2u8), T::from(0u8),
             &components_of_line_a_perpendicular_to_line_b_all_values);
 
         Ok([a_perpendicular_to_b_x, a_perpendicular_to_b_y, a_perpendicular_to_b_z])
@@ -158,15 +158,15 @@ impl<T, V> BeamAuxFunctions<T, V>
             interim_rotation_matrix.multiply_by_matrix(&projection_of_beam_section_orientation)?;
 
         let all_values_of_transformed_projection_of_beam_section_orientation =
-            transformed_projection_of_beam_section_orientation.extract_all_elements_values();
+            transformed_projection_of_beam_section_orientation.copy_all_elements_values();
 
-        let transformed_projection_of_beam_section_orientation_x = extract_element_value(0,
+        let transformed_projection_of_beam_section_orientation_x = copy_element_value(0,
             0, &all_values_of_transformed_projection_of_beam_section_orientation);
 
-        let transformed_projection_of_beam_section_orientation_y = extract_element_value(1,
+        let transformed_projection_of_beam_section_orientation_y = copy_element_value(1,
             0, &all_values_of_transformed_projection_of_beam_section_orientation);
 
-        let transformed_projection_of_beam_section_orientation_z = extract_element_value(2,
+        let transformed_projection_of_beam_section_orientation_z = copy_element_value(2,
             0, &all_values_of_transformed_projection_of_beam_section_orientation);
 
         let angle_between_beam_section_local_axis_1_direction_and_axis_t =
@@ -598,8 +598,8 @@ impl<T, V> BeamAuxFunctions<T, V>
     pub fn extract_column_matrix_values(column_matrix: &ExtendedMatrix<T, V>) -> Vec<V>
     {
         let mut values = Vec::new();
-        let shape = column_matrix.get_shape();
-        let all_values = column_matrix.extract_all_elements_values();
+        let shape = column_matrix.copy_shape();
+        let all_values = column_matrix.copy_all_elements_values();
 
         let mut row = T::from(0u8);
         while row < shape.0
@@ -607,7 +607,7 @@ impl<T, V> BeamAuxFunctions<T, V>
             let mut column = T::from(0u8);
             while column < shape.1
             {
-                let value = extract_element_value(row, column, &all_values);
+                let value = copy_element_value(row, column, &all_values);
                 values.push(value);
                 column += T::from(1u8);
             }
