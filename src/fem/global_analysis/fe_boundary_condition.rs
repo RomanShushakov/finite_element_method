@@ -49,10 +49,10 @@ trait BCTrait<T, V>
     fn is_number_same(&self, number: T) -> bool;
     fn is_node_number_same(&self, node_number: T) -> bool;
     fn is_dof_parameter_data_same(&self, dof_parameter: GlobalDOFParameter, node_number: T) -> bool;
-    fn extract_node_number(&self) -> T;
-    fn extract_value(&self) -> V;
-    fn extract_dof_parameter(&self) -> GlobalDOFParameter;
-    fn extract_number(&self) -> T;
+    fn copy_node_number(&self) -> T;
+    fn copy_value(&self) -> V;
+    fn copy_dof_parameter(&self) -> GlobalDOFParameter;
+    fn copy_number(&self) -> T;
 }
 
 
@@ -85,25 +85,25 @@ impl<T, V> BCTrait<T, V> for Force<T, V>
     }
 
 
-    fn extract_node_number(&self) -> T
+    fn copy_node_number(&self) -> T
     {
-        self.dof_parameter_data.node_number()
+        self.dof_parameter_data.copy_node_number()
     }
 
 
-    fn extract_value(&self) -> V
+    fn copy_value(&self) -> V
     {
         self.value
     }
 
 
-    fn extract_dof_parameter(&self) -> GlobalDOFParameter
+    fn copy_dof_parameter(&self) -> GlobalDOFParameter
     {
-        self.dof_parameter_data.dof_parameter()
+        self.dof_parameter_data.copy_dof_parameter()
     }
 
 
-    fn extract_number(&self) -> T
+    fn copy_number(&self) -> T
     {
         self.number
     }
@@ -140,25 +140,25 @@ impl<T, V> BCTrait<T, V> for Displacement<T, V>
     }
 
 
-    fn extract_node_number(&self) -> T
+    fn copy_node_number(&self) -> T
     {
-        self.dof_parameter_data.node_number()
+        self.dof_parameter_data.copy_node_number()
     }
 
 
-    fn extract_value(&self) -> V
+    fn copy_value(&self) -> V
     {
         self.value
     }
 
 
-    fn extract_dof_parameter(&self) -> GlobalDOFParameter
+    fn copy_dof_parameter(&self) -> GlobalDOFParameter
     {
-        self.dof_parameter_data.dof_parameter()
+        self.dof_parameter_data.copy_dof_parameter()
     }
 
 
-    fn extract_number(&self) -> T
+    fn copy_number(&self) -> T
     {
         self.number
     }
@@ -257,33 +257,33 @@ impl<T, V> BoundaryCondition<T, V>
     }
 
 
-    pub fn extract_bc_type(&self) -> BCType
+    pub fn copy_bc_type(&self) -> BCType
     {
         self.bc_type
     }
 
 
-    pub fn extract_value(&self) -> V
+    pub fn copy_value(&self) -> V
     {
-        self.boundary_condition.extract_value()
+        self.boundary_condition.copy_value()
     }
 
 
-    pub fn extract_number(&self) -> T
+    pub fn copy_number(&self) -> T
     {
-        self.boundary_condition.extract_number()
+        self.boundary_condition.copy_number()
     }
 
 
-    pub fn extract_node_number(&self) -> T
+    pub fn copy_node_number(&self) -> T
     {
-        self.boundary_condition.extract_node_number()
+        self.boundary_condition.copy_node_number()
     }
 
 
-    pub fn extract_dof_parameter(&self) -> GlobalDOFParameter
+    pub fn copy_dof_parameter(&self) -> GlobalDOFParameter
     {
-        self.boundary_condition.extract_dof_parameter()
+        self.boundary_condition.copy_dof_parameter()
     }
 }
 
@@ -305,40 +305,40 @@ impl<T, V> DeletedBCData<T, V>
 {
     pub(crate) fn create(deleted_bc: BoundaryCondition<T, V>) -> Self
     {
-        let bc_type = deleted_bc.extract_bc_type();
-        let number = deleted_bc.extract_number();
-        let node_number = deleted_bc.extract_node_number();
-        let dof_parameter = deleted_bc.extract_dof_parameter();
-        let value = deleted_bc.extract_value();
+        let bc_type = deleted_bc.copy_bc_type();
+        let number = deleted_bc.copy_number();
+        let node_number = deleted_bc.copy_node_number();
+        let dof_parameter = deleted_bc.copy_dof_parameter();
+        let value = deleted_bc.copy_value();
         DeletedBCData { bc_type, number, node_number, dof_parameter, value }
     }
 
 
-    pub fn extract_bc_type(&self) -> BCType
+    pub fn copy_bc_type(&self) -> BCType
     {
         self.bc_type
     }
 
 
-    pub fn extract_number(&self) -> T
+    pub fn copy_number(&self) -> T
     {
         self.number
     }
 
 
-    pub fn extract_node_number(&self) -> T
+    pub fn copy_node_number(&self) -> T
     {
         self.node_number
     }
 
 
-    pub fn extract_dof_parameter(&self) -> GlobalDOFParameter
+    pub fn copy_dof_parameter(&self) -> GlobalDOFParameter
     {
         self.dof_parameter
     }
 
 
-    pub fn extract_value(&self) -> V
+    pub fn copy_value(&self) -> V
     {
         self.value
     }

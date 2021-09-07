@@ -608,14 +608,9 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
     }
 
 
-    fn extract_nodes_numbers(&self) -> Vec<T>
+    fn copy_nodes_numbers(&self) -> Vec<T>
     {
-        let mut numbers = Vec::new();
-        let node_1_number = self.node_1_number;
-        let node_2_number = self.node_2_number;
-        numbers.push(node_1_number);
-        numbers.push(node_2_number);
-        numbers
+        vec![self.node_1_number, self.node_2_number]
     }
 
 
@@ -625,7 +620,7 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
     }
 
 
-    fn extract_properties(&self) -> Vec<V>
+    fn copy_properties(&self) -> Vec<V>
     {
         vec![self.young_modulus, self.poisson_ratio, self.area, self.i11_init, self.i22_init,
             self.i12_init, self.it, self.shear_factor, self.local_axis_1_direction[0],

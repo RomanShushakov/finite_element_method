@@ -199,7 +199,7 @@ impl<T, V> FEModel<T, V>
             {
                 if let Some(properties) = optional_properties.as_ref()
                 {
-                    match element.extract_fe_type()
+                    match element.copy_fe_type()
                     {
                         FEType::Beam2n1ipT =>
                             {
@@ -237,7 +237,7 @@ impl<T, V> FEModel<T, V>
                             },
                     }
 
-                    let element_nodes_numbers = element.extract_nodes_numbers();
+                    let element_nodes_numbers = element.copy_nodes_numbers();
                     element.update(element_nodes_numbers, properties.clone(),
                         self.state.tolerance, &self.nodes)?;
                 }
@@ -449,7 +449,7 @@ impl<T, V> FEModel<T, V>
 
         if let Some(element) = self.elements.get_mut(&element_number)
         {
-            match element.extract_fe_type()
+            match element.copy_fe_type()
             {
                 FEType::Beam2n1ipT =>
                     {
@@ -587,14 +587,6 @@ impl<T, V> FEModel<T, V>
                 already exist!", bc_type.as_str(), bc_type.as_str().to_lowercase()));
         }
 
-        if self.boundary_conditions.iter().position(|bc|
-            bc.is_dof_parameter_data_same(dof_parameter, node_number)).is_some()
-        {
-            return Err(format!("FEModel: {} could not be added because the the force or \
-                displacement with the same dof parameter data does already exist!",
-                bc_type.as_str()));
-        }
-
         if !self.nodes.contains_key(&node_number)
         {
             return Err(format!("FEModel: {} could not be added because the current node number \
@@ -616,17 +608,6 @@ impl<T, V> FEModel<T, V>
         {
             return Err(format!("FEModel: {} could not be updated because the current node number \
                 does not exist!", bc_type.as_str()));
-        }
-
-        if self.boundary_conditions.iter().position(|bc|
-            (bc.is_dof_parameter_data_same(dof_parameter, node_number) &&
-            !bc.is_number_same(number)) ||
-            (bc.is_dof_parameter_data_same(dof_parameter, node_number) &&
-            bc.is_number_same(number) && !bc.is_type_same(bc_type))).is_some()
-        {
-            return Err(format!("FEModel: {} could not be updated because the the force or \
-                displacement with the same dof parameter data does already exist!",
-                bc_type.as_str()));
         }
 
         if let Some(position) =  self.boundary_conditions.iter().position(|bc|
@@ -679,12 +660,12 @@ impl<T, V> FEModel<T, V>
                 .iter()
                 .position(|bc|
                     bc.is_dof_parameter_data_same(
-                        dof_parameter_data.dof_parameter(),
-                        dof_parameter_data.node_number()))
+                        dof_parameter_data.copy_dof_parameter(),
+                        dof_parameter_data.copy_node_number()))
             {
-                let bc_type = self.boundary_conditions[position].extract_bc_type();
-                let dof_parameter = dof_parameter_data.dof_parameter();
-                let node_number = dof_parameter_data.node_number();
+                let bc_type = self.boundary_conditions[position].copy_bc_type();
+                let dof_parameter = dof_parameter_data.copy_dof_parameter();
+                let node_number = dof_parameter_data.copy_node_number();
                 return Err(format!("FEModel: Model could not be analyzed because where are \
                     no stiffness to withstand {}::{:?} applied at node {:?}!", bc_type.as_str(),
                     dof_parameter, node_number))
@@ -706,8 +687,8 @@ impl<T, V> FEModel<T, V>
                     &self.state.nodes_dof_parameters_global
                 {
                     if bc.is_dof_parameter_data_same(
-                        dof_parameter_data.dof_parameter(),
-                        dof_parameter_data.node_number())
+                        dof_parameter_data.copy_dof_parameter(),
+                        dof_parameter_data.copy_node_number())
                     {
                         separation_positions.push(
                             MatrixElementPosition::create(row, row));
@@ -720,7 +701,7 @@ impl<T, V> FEModel<T, V>
     }
 
 
-    fn compose_ua_ra_rows_numbers(&self, ub_rb_rows_numbers: &Vec<T>,
+    fn compose_ua_ra_rows_numbers(&self, ub_rb_rows_numbers: &[T],
         ua_ra_rows_numbers: &mut Vec<T>)
     {
         let mut i = T::from(0u8);
@@ -735,7 +716,8 @@ impl<T, V> FEModel<T, V>
     }
 
 
-    fn compose_matrix_by_rows_numbers(&self, rows_numbers: &Vec<T>) -> ExtendedMatrix<T, V>
+    fn compose_matrix_by_rows_numbers(&self, rows_numbers: &[T], bc_type: BCType)
+        -> ExtendedMatrix<T, V>
     {
         let mut all_elements = Vec::new();
         for row_number in rows_numbers
@@ -748,10 +730,12 @@ impl<T, V> FEModel<T, V>
                 .iter()
                 .position(|bc|
                     bc.is_dof_parameter_data_same(
-                        node_dof_parameter.dof_parameter(),
-                        node_dof_parameter.node_number()))
+                        node_dof_parameter.copy_dof_parameter(),
+                        node_dof_parameter.copy_node_number()) &&
+                        bc.is_type_same(bc_type)
+                )
             {
-                let value = self.boundary_conditions[position].extract_value();
+                let value = self.boundary_conditions[position].copy_value();
                 all_elements.push(value);
             }
             else
@@ -772,7 +756,7 @@ impl<T, V> FEModel<T, V>
 
 
     fn compose_displacements_matrix(&self, ua_matrix: ExtendedMatrix<T, V>,
-        ub_matrix: ExtendedMatrix<T, V>, ua_ra_rows_numbers: &Vec<T>,
+        ub_matrix: ExtendedMatrix<T, V>, ua_ra_rows_numbers: &[T],
         ub_rb_rows_numbers: &Vec<T>) -> ExtendedMatrix<T, V>
     {
         let ua_values = ua_matrix.copy_all_elements_values();
@@ -830,22 +814,30 @@ impl<T, V> FEModel<T, V>
         let mut ub_rb_rows_numbers = Vec::new();
         let mut separation_positions = Vec::new();
         self.compose_separation_positions(&mut ub_rb_rows_numbers, &mut separation_positions);
+
         let mut ua_ra_rows_numbers = Vec::new();
         self.compose_ua_ra_rows_numbers(&ub_rb_rows_numbers, &mut ua_ra_rows_numbers);
-        let ra_matrix = self.compose_matrix_by_rows_numbers(&ua_ra_rows_numbers);
-        let ub_matrix = self.compose_matrix_by_rows_numbers(&ub_rb_rows_numbers);
+
+        let ra_matrix = self.compose_matrix_by_rows_numbers(
+            &ua_ra_rows_numbers, BCType::Force);
+        let ub_matrix = self.compose_matrix_by_rows_numbers(
+            &ub_rb_rows_numbers, BCType::Displacement);
+        let rc_b_matrix = self.compose_matrix_by_rows_numbers(
+            &ub_rb_rows_numbers, BCType::Force);
+
         let separated_matrix =
             separate(global_stiffness_matrix, separation_positions, self.state.tolerance)?;
-        let ua_matrix = separated_matrix.k_aa()
+        let ua_matrix = separated_matrix.ref_k_aa()
             .naive_gauss_elimination(&ra_matrix.add_subtract_matrix(
-            &separated_matrix.k_ab().multiply_by_matrix(&ub_matrix)?,
-            Operation::Subtraction)?)?;
-        let reactions_values_matrix = separated_matrix.k_ba()
+                &separated_matrix.ref_k_ab().multiply_by_matrix(&ub_matrix)?,
+                Operation::Subtraction)?)?;
+        let reactions_values_matrix = separated_matrix.ref_k_ba()
             .multiply_by_matrix(&ua_matrix)?
             .add_subtract_matrix(
-                &separated_matrix.k_bb()
+                &separated_matrix.ref_k_bb()
                     .multiply_by_matrix(&ub_matrix)?,
-                        Operation::Addition)?;
+                        Operation::Addition)?
+            .add_subtract_matrix(&rc_b_matrix, Operation::Subtraction)?;
         let all_reactions =
             reactions_values_matrix.copy_all_elements_values();
         let reactions_values_matrix_shape = reactions_values_matrix.copy_shape();
@@ -909,7 +901,7 @@ impl<T, V> FEModel<T, V>
         let mut elements_analysis_result = ElementsAnalysisResult::create();
         for (element_number, element) in self.elements.iter()
         {
-            let fe_type = element.extract_fe_type();
+            let fe_type = element.copy_fe_type();
             let element_analysis_data = element.extract_element_analysis_data(
                 global_displacements, self.state.tolerance, &self.nodes)?;
 
@@ -921,11 +913,11 @@ impl<T, V> FEModel<T, V>
     }
 
 
-    pub fn extract_node_coordinates(&self, node_number: &T) -> Result<(V, V, V), String>
+    pub fn copy_node_coordinates(&self, node_number: &T) -> Result<(V, V, V), String>
     {
         if let Some(node) = self.nodes.get(node_number)
         {
-            Ok(node.extract_coordinates())
+            Ok(node.copy_coordinates())
         }
         else
         {
@@ -934,11 +926,11 @@ impl<T, V> FEModel<T, V>
     }
 
 
-    pub fn extract_element_type(&self, element_number: &T) -> Result<FEType, String>
+    pub fn copy_element_type(&self, element_number: &T) -> Result<FEType, String>
     {
         if let Some(element) = self.elements.get(element_number)
         {
-            Ok(element.extract_fe_type())
+            Ok(element.copy_fe_type())
         }
         else
         {
@@ -947,11 +939,11 @@ impl<T, V> FEModel<T, V>
     }
 
 
-    pub fn extract_element_nodes_numbers(&self, element_number: &T) -> Result<Vec<T>, String>
+    pub fn copy_element_nodes_numbers(&self, element_number: &T) -> Result<Vec<T>, String>
     {
         if let Some(element) = self.elements.get(element_number)
         {
-            Ok(element.extract_nodes_numbers())
+            Ok(element.copy_nodes_numbers())
         }
         else
         {
@@ -960,11 +952,11 @@ impl<T, V> FEModel<T, V>
     }
 
 
-    pub fn extract_element_properties(&self, element_number: &T) -> Result<Vec<V>, String>
+    pub fn copy_element_properties(&self, element_number: &T) -> Result<Vec<V>, String>
     {
         if let Some(element) = self.elements.get(element_number)
         {
-            Ok(element.extract_properties())
+            Ok(element.copy_properties())
         }
         else
         {
@@ -987,12 +979,13 @@ impl<T, V> FEModel<T, V>
     }
 
 
-    pub fn extract_bc_node_number(&self, bc_type: BCType, number: T) -> Result<T, String>
+    pub fn copy_bc_node_number(&self, bc_type: BCType, number: T) -> Result<T, String>
     {
         if let Some(position) = self.boundary_conditions.iter()
-            .position(|bc| bc.is_type_same(bc_type) && bc.is_number_same(number))
+            .position(|bc| bc.is_type_same(bc_type) && bc.
+                is_number_same(number))
         {
-            Ok(self.boundary_conditions[position].extract_node_number())
+            Ok(self.boundary_conditions[position].copy_node_number())
         }
         else
         {
@@ -1002,13 +995,14 @@ impl<T, V> FEModel<T, V>
     }
 
 
-    pub fn extract_bc_dof_parameter(&self, bc_type: BCType, number: T)
+    pub fn copy_bc_dof_parameter(&self, bc_type: BCType, number: T)
         -> Result<GlobalDOFParameter, String>
     {
         if let Some(position) = self.boundary_conditions.iter()
-            .position(|bc| bc.is_type_same(bc_type) && bc.is_number_same(number))
+            .position(|bc| bc.is_type_same(bc_type) &&
+                bc.is_number_same(number))
         {
-            Ok(self.boundary_conditions[position].extract_dof_parameter())
+            Ok(self.boundary_conditions[position].copy_dof_parameter())
         }
         else
         {
@@ -1018,12 +1012,12 @@ impl<T, V> FEModel<T, V>
     }
 
 
-    pub fn extract_bc_value(&self, bc_type: BCType, number: T) -> Result<V, String>
+    pub fn copy_bc_value(&self, bc_type: BCType, number: T) -> Result<V, String>
     {
         if let Some(position) = self.boundary_conditions.iter()
             .position(|bc| bc.is_type_same(bc_type) && bc.is_number_same(number))
         {
-            Ok(self.boundary_conditions[position].extract_value())
+            Ok(self.boundary_conditions[position].copy_value())
         }
         else
         {
@@ -1083,8 +1077,8 @@ impl<T, V> FEModel<T, V>
         let mut bc_types_numbers = Vec::new();
         for bc in self.boundary_conditions.iter()
         {
-            let bc_type = bc.extract_bc_type();
-            let bc_number = bc.extract_number();
+            let bc_type = bc.copy_bc_type();
+            let bc_number = bc.copy_number();
             bc_types_numbers.push((bc_type, bc_number));
         }
         bc_types_numbers

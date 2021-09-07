@@ -30,25 +30,25 @@ impl<V> FENode<V>
     }
 
     
-    pub(crate) fn extract_coordinates(&self) -> (V, V, V)
+    pub(crate) fn copy_coordinates(&self) -> (V, V, V)
     {
         (self.x, self.y, self.z)
     }
 
 
-    pub(crate) fn x(&self) -> V
+    pub(crate) fn copy_x(&self) -> V
     {
         self.x
     }
 
 
-    pub(crate) fn y(&self) -> V
+    pub(crate) fn copy_y(&self) -> V
     {
         self.y
     }
 
 
-    pub(crate) fn z(&self) -> V
+    pub(crate) fn copy_z(&self) -> V
     {
         self.z
     }
@@ -71,18 +71,18 @@ impl<T, V> DeletedFENodeData<T, V>
 {
     pub(crate) fn create(number: T, deleted_node: FENode<V>) -> Self
     {
-        let (x, y, z) = deleted_node.extract_coordinates();
+        let (x, y, z) = deleted_node.copy_coordinates();
         DeletedFENodeData { number, x, y, z }
     }
 
 
-    pub fn extract_number(&self) -> T
+    pub fn copy_number(&self) -> T
     {
         self.number
     }
 
 
-    pub fn extract_coordinates(&self) -> (V, V, V)
+    pub fn copy_coordinates(&self) -> (V, V, V)
     {
         (self.x, self.y, self.z)
     }

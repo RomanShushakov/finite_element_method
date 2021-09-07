@@ -386,14 +386,9 @@ impl<T, V> FiniteElementTrait<T, V> for Truss2n1ip<T, V>
     }
 
 
-    fn extract_nodes_numbers(&self) -> Vec<T>
+    fn copy_nodes_numbers(&self) -> Vec<T>
     {
-        let mut numbers = Vec::new();
-        let node_1_number = self.node_1_number;
-        let node_2_number = self.node_2_number;
-        numbers.push(node_1_number);
-        numbers.push(node_2_number);
-        numbers
+        vec![self.node_1_number, self.node_2_number]
     }
 
 
@@ -403,7 +398,7 @@ impl<T, V> FiniteElementTrait<T, V> for Truss2n1ip<T, V>
     }
 
 
-    fn extract_properties(&self) -> Vec<V>
+    fn copy_properties(&self) -> Vec<V>
     {
         if let Some(area_2) = self.area_2
         {

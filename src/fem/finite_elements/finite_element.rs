@@ -64,9 +64,9 @@ pub(super) trait FiniteElementTrait<T, V>
     fn is_nodes_numbers_same(&self, nodes_numbers: Vec<T>) -> bool;
     fn extract_element_analysis_data(&self, global_displacements: &Displacements<T, V>,
         tolerance: V, nodes: &HashMap<T, FENode<V>>) -> Result<ElementAnalysisData<T, V>, String>;
-    fn extract_nodes_numbers(&self) -> Vec<T>;
+    fn copy_nodes_numbers(&self) -> Vec<T>;
     fn extract_unique_elements_of_rotation_matrix(&self) -> Vec<V>;
-    fn extract_properties(&self) -> Vec<V>;
+    fn copy_properties(&self) -> Vec<V>;
 }
 
 
@@ -231,15 +231,15 @@ impl<T, V> FiniteElement<T, V>
     }
 
 
-    pub fn extract_fe_type(&self) -> FEType
+    pub fn copy_fe_type(&self) -> FEType
     {
         self.element_type
     }
 
 
-    pub fn extract_nodes_numbers(&self) -> Vec<T>
+    pub fn copy_nodes_numbers(&self) -> Vec<T>
     {
-        self.element.extract_nodes_numbers()
+        self.element.copy_nodes_numbers()
     }
 
 
@@ -249,9 +249,9 @@ impl<T, V> FiniteElement<T, V>
     }
 
 
-    pub fn extract_properties(&self) -> Vec<V>
+    pub fn copy_properties(&self) -> Vec<V>
     {
-        self.element.extract_properties()
+        self.element.copy_properties()
     }
 }
 
@@ -276,33 +276,33 @@ impl<T, V> DeletedFEData<T, V>
 {
     pub(crate) fn create(element_number: T, deleted_element: FiniteElement<T, V>) -> Self
     {
-        let element_type = deleted_element.extract_fe_type();
-        let nodes_numbers = deleted_element.extract_nodes_numbers();
-        let properties = deleted_element.extract_properties();
+        let element_type = deleted_element.copy_fe_type();
+        let nodes_numbers = deleted_element.copy_nodes_numbers();
+        let properties = deleted_element.copy_properties();
         DeletedFEData { element_number, element_type, nodes_numbers, properties }
     }
 
 
-    pub fn extract_number(&self) -> T
+    pub fn copy_number(&self) -> T
     {
         self.element_number
     }
 
 
-    pub fn extract_fe_type(&self) -> FEType
+    pub fn copy_fe_type(&self) -> FEType
     {
         self.element_type
     }
 
 
-    pub fn extract_nodes_numbers(&self) -> Vec<T>
+    pub fn ref_nodes_numbers(&self) -> &[T]
     {
-        self.nodes_numbers.clone()
+        self.nodes_numbers.as_slice()
     }
 
 
-    pub fn extract_properties(&self) -> Vec<V>
+    pub fn ref_properties(&self) -> &[V]
     {
-        self.properties.clone()
+        self.properties.as_slice()
     }
 }

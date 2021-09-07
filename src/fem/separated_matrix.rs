@@ -18,25 +18,25 @@ impl<T, V> SeparatedMatrix<T, V>
     }
 
 
-    pub fn k_aa(&self) -> &ExtendedMatrix<T, V>
+    pub fn ref_k_aa(&self) -> &ExtendedMatrix<T, V>
     {
         &self.k_aa
     }
 
 
-    pub fn k_ab(&self) -> &ExtendedMatrix<T, V>
+    pub fn ref_k_ab(&self) -> &ExtendedMatrix<T, V>
     {
         &self.k_ab
     }
 
 
-    pub fn k_ba(&self) -> &ExtendedMatrix<T, V>
+    pub fn ref_k_ba(&self) -> &ExtendedMatrix<T, V>
     {
         &self.k_ba
     }
 
 
-    pub fn k_bb(&self) -> &ExtendedMatrix<T, V>
+    pub fn ref_k_bb(&self) -> &ExtendedMatrix<T, V>
     {
         &self.k_bb
     }

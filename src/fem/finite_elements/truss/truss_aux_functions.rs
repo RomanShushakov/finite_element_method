@@ -32,8 +32,8 @@ impl<T, V> TrussAuxFunctions<T, V>
         let node_1 = nodes.get(&node_1_number).unwrap();
         let node_2 = nodes.get(&node_2_number).unwrap();
 
-        ((node_1.x() - node_2.x()).my_powi(2) + (node_1.y() - node_2.y()).my_powi(2) +
-        (node_1.z() - node_2.z()).my_powi(2)).my_sqrt()
+        ((node_1.copy_x() - node_2.copy_x()).my_powi(2) + (node_1.copy_y() - node_2.copy_y()).my_powi(2) +
+        (node_1.copy_z() - node_2.copy_z()).my_powi(2)).my_sqrt()
     }
 
 
@@ -59,9 +59,9 @@ impl<T, V> TrussAuxFunctions<T, V>
         let node_1 = nodes.get(&node_1_number).unwrap();
         let node_2 = nodes.get(&node_2_number).unwrap();
 
-        let x = node_2.x() - node_1.x();
-        let y = node_2.y() - node_1.y();
-        let z = node_2.z() - node_1.z();
+        let x = node_2.copy_x() - node_1.copy_x();
+        let y = node_2.copy_y() - node_1.copy_y();
+        let z = node_2.copy_z() - node_1.copy_z();
 
         let length = TrussAuxFunctions::<T, V>::length(node_1_number, node_2_number, nodes);
 
@@ -150,7 +150,8 @@ impl<T, V> TrussAuxFunctions<T, V>
     }
 
 
-    fn inverse_jacobian(node_1_number: T, node_2_number: T, r: V, nodes: &HashMap<T, FENode<V>>) -> V
+    fn inverse_jacobian(node_1_number: T, node_2_number: T, r: V, nodes: &HashMap<T, FENode<V>>)
+        -> V
     {
         V::from(1f32) / TrussAuxFunctions::jacobian(node_1_number, node_2_number, r, nodes)
     }

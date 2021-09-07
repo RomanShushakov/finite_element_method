@@ -24,13 +24,13 @@ impl<V> ElementStrains<V>
     }
 
 
-    pub fn strains_values(&self) -> &[V]
+    pub fn ref_strains_values(&self) -> &[V]
     {
         self.strains_values.as_slice()
     }
 
 
-    pub fn strains_components(&self) -> &[StressStrainComponent]
+    pub fn ref_strains_components(&self) -> &[StressStrainComponent]
     {
         self.strains_components.as_slice()
     }
@@ -53,13 +53,13 @@ impl<V> ElementStresses<V>
     }
 
 
-    pub fn stresses_values(&self) -> &[V]
+    pub fn ref_stresses_values(&self) -> &[V]
     {
         self.stresses_values.as_slice()
     }
 
 
-    pub fn stresses_components(&self) -> &[StressStrainComponent]
+    pub fn ref_stresses_components(&self) -> &[StressStrainComponent]
     {
         self.stresses_components.as_slice()
     }
@@ -82,13 +82,13 @@ impl<V> ElementForces<V>
     }
 
 
-    pub fn forces_values(&self) -> &[V]
+    pub fn ref_forces_values(&self) -> &[V]
     {
         self.forces_values.as_slice()
     }
 
 
-    pub fn forces_components(&self) -> &[ForceComponent]
+    pub fn ref_forces_components(&self) -> &[ForceComponent]
     {
         self.forces_components.as_slice()
     }
@@ -111,13 +111,13 @@ impl<V> NodalForces<V>
     }
 
 
-    pub fn forces_values(&self) -> &[V]
+    pub fn ref_forces_values(&self) -> &[V]
     {
         self.forces_values.as_slice()
     }
 
 
-    pub fn forces_components(&self) -> &[ForceComponent]
+    pub fn ref_forces_components(&self) -> &[ForceComponent]
     {
         self.forces_components.as_slice()
     }
@@ -127,10 +127,10 @@ impl<V> NodalForces<V>
 #[derive(Debug, Clone)]
 pub struct ElementAnalysisData<T, V>
 {
-    strains: Option<ElementStrains<V>>,
-    stresses: Option<ElementStresses<V>>,
-    forces: Option<ElementForces<V>>,
-    nodal_forces: Option<HashMap<T, NodalForces<V>>>,
+    optional_strains: Option<ElementStrains<V>>,
+    optional_stresses: Option<ElementStresses<V>>,
+    optional_forces: Option<ElementForces<V>>,
+    optional_nodal_forces: Option<HashMap<T, NodalForces<V>>>,
 }
 
 
@@ -138,25 +138,28 @@ impl<T, V> ElementAnalysisData<T, V>
     where T: Copy + PartialEq,
           V: Copy + PartialEq,
 {
-    pub(crate) fn create(strains: Option<ElementStrains<V>>, stresses: Option<ElementStresses<V>>,
-        forces: Option<ElementForces<V>>, nodal_forces: Option<HashMap<T, NodalForces<V>>>) -> Self
+    pub(crate) fn create(optional_strains: Option<ElementStrains<V>>,
+        optional_stresses: Option<ElementStresses<V>>, optional_forces: Option<ElementForces<V>>,
+        optional_nodal_forces: Option<HashMap<T, NodalForces<V>>>) -> Self
     {
-        ElementAnalysisData { strains, stresses, forces, nodal_forces }
+        ElementAnalysisData { optional_strains, optional_stresses, optional_forces,
+            optional_nodal_forces }
     }
 
 
     pub(crate) fn extract_and_drop(self) -> (Option<ElementStrains<V>>, Option<ElementStresses<V>>,
         Option<ElementForces<V>>)
     {
-        (self.strains, self.stresses, self.forces)
+        (self.optional_strains, self.optional_stresses,
+         self.optional_forces)
     }
 
 
-    pub fn forces_values(&self) -> Option<&[V]>
+    pub fn optional_ref_forces_values(&self) -> Option<&[V]>
     {
-        if let Some(element_forces) = &self.forces
+        if let Some(element_forces) = &self.optional_forces
         {
-            Some(element_forces.forces_values())
+            Some(element_forces.ref_forces_values())
         }
         else
         {
@@ -165,11 +168,11 @@ impl<T, V> ElementAnalysisData<T, V>
     }
 
 
-    pub fn forces_components(&self) -> Option<&[ForceComponent]>
+    pub fn optional_ref_forces_components(&self) -> Option<&[ForceComponent]>
     {
-        if let Some(element_forces) = &self.forces
+        if let Some(element_forces) = &self.optional_forces
         {
-            Some(element_forces.forces_components())
+            Some(element_forces.ref_forces_components())
         }
         else
         {
@@ -178,17 +181,17 @@ impl<T, V> ElementAnalysisData<T, V>
     }
 
 
-    pub fn nodal_forces(&self) -> &Option<HashMap<T, NodalForces<V>>>
+    pub fn ref_optional_nodal_forces(&self) -> &Option<HashMap<T, NodalForces<V>>>
     {
-        &self.nodal_forces
+        &self.optional_nodal_forces
     }
 
 
-    pub fn strains_values(&self) -> Option<&[V]>
+    pub fn optional_ref_strains_values(&self) -> Option<&[V]>
     {
-        if let Some(element_strains) = &self.strains
+        if let Some(element_strains) = &self.optional_strains
         {
-            Some(element_strains.strains_values())
+            Some(element_strains.ref_strains_values())
         }
         else
         {
@@ -197,11 +200,11 @@ impl<T, V> ElementAnalysisData<T, V>
     }
 
 
-    pub fn strains_components(&self) -> Option<&[StressStrainComponent]>
+    pub fn optional_ref_strains_components(&self) -> Option<&[StressStrainComponent]>
     {
-        if let Some(element_strains) = &self.strains
+        if let Some(element_strains) = &self.optional_strains
         {
-            Some(element_strains.strains_components())
+            Some(element_strains.ref_strains_components())
         }
         else
         {
@@ -209,11 +212,11 @@ impl<T, V> ElementAnalysisData<T, V>
         }
     }
 
-    pub fn stresses_values(&self) -> Option<&[V]>
+    pub fn optional_ref_stresses_values(&self) -> Option<&[V]>
     {
-        if let Some(element_stresses) = &self.stresses
+        if let Some(element_stresses) = &self.optional_stresses
         {
-            Some(element_stresses.stresses_values())
+            Some(element_stresses.ref_stresses_values())
         }
         else
         {
@@ -222,11 +225,11 @@ impl<T, V> ElementAnalysisData<T, V>
     }
 
 
-    pub fn stresses_components(&self) -> Option<&[StressStrainComponent]>
+    pub fn optional_ref_stresses_components(&self) -> Option<&[StressStrainComponent]>
     {
-        if let Some(element_stresses) = &self.stresses
+        if let Some(element_stresses) = &self.optional_stresses
         {
-            Some(element_stresses.stresses_components())
+            Some(element_stresses.ref_stresses_components())
         }
         else
         {
@@ -283,13 +286,13 @@ impl<T, V> ElementsAnalysisResult<T, V>
     }
 
 
-    pub fn elements_analysis_data(&self) -> &HashMap<T, ElementAnalysisData<T, V>>
+    pub fn ref_elements_analysis_data(&self) -> &HashMap<T, ElementAnalysisData<T, V>>
     {
         &self.elements_analysis_data
     }
 
 
-    pub fn elements_by_types(&self) -> &HashMap<FEType, Vec<T>>
+    pub fn ref_elements_by_types(&self) -> &HashMap<FEType, Vec<T>>
     {
         &self.elements_by_types
     }
