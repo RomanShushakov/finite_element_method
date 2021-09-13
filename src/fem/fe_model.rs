@@ -822,7 +822,7 @@ impl<T, V> FEModel<T, V>
             &ua_ra_rows_numbers, BCType::Force);
         let ub_matrix = self.compose_matrix_by_rows_numbers(
             &ub_rb_rows_numbers, BCType::Displacement);
-        let rc_b_matrix = self.compose_matrix_by_rows_numbers(
+        let rb_c_matrix = self.compose_matrix_by_rows_numbers(
             &ub_rb_rows_numbers, BCType::Force);
 
         let separated_matrix =
@@ -837,7 +837,7 @@ impl<T, V> FEModel<T, V>
                 &separated_matrix.ref_k_bb()
                     .multiply_by_matrix(&ub_matrix)?,
                         Operation::Addition)?
-            .add_subtract_matrix(&rc_b_matrix, Operation::Subtraction)?;
+            .add_subtract_matrix(&rb_c_matrix, Operation::Subtraction)?;
         let all_reactions =
             reactions_values_matrix.copy_all_elements_values();
         let reactions_values_matrix_shape = reactions_values_matrix.copy_shape();
