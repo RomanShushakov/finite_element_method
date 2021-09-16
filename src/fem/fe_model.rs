@@ -71,6 +71,16 @@ impl<T, V> FEModel<T, V>
     }
 
 
+    pub fn reset(&mut self)
+    {
+        self.nodes = HashMap::new();
+        self.elements = HashMap::new();
+        self.boundary_conditions = Vec::new();
+        self.state.stiffness_groups = Vec::new();
+        self.state.nodes_dof_parameters_global = Vec::new();
+    }
+
+
     fn update_stiffness_groups(&mut self) -> Result<(), &str>
     {
         let mut stiffness_groups = Vec::new();
