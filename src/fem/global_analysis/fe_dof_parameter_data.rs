@@ -16,7 +16,7 @@ pub(crate) fn global_dof<T>() -> T
 }
 
 
-#[derive(PartialEq, Debug, Copy, Clone, Hash)]
+#[derive(PartialEq, Debug, Copy, Clone, Hash, Eq)]
 pub enum GlobalDOFParameter
 {
     X,
