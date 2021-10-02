@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::f32::consts::PI;
 
 use extended_matrix::extended_matrix::ExtendedMatrix;
-use extended_matrix::functions::copy_element_value;
+use extended_matrix::matrix_element_position::MatrixElementPosition;
 
 use crate::my_float::MyFloatTrait;
 
@@ -22,7 +22,7 @@ pub struct BeamAuxFunctions<T, V>(T, V);
 impl<T, V> BeamAuxFunctions<T, V>
     where T: Copy + PartialOrd + Add<Output = T> + Sub<Output = T> + Div<Output = T> +
              Rem<Output = T> + Eq + Hash + SubAssign + Debug + Mul<Output = T> + AddAssign +
-             From<u8> + 'static,
+             From<u8> + Ord + 'static,
           V: Copy + Into<f64> + Sub<Output = V> + Mul<Output = V> + Add<Output = V> + From<f32> +
              Div<Output = V> + PartialEq + Debug + AddAssign + MulAssign + SubAssign +
              MyFloatTrait + PartialOrd + MyFloatTrait<Other = V> + 'static,
@@ -61,7 +61,7 @@ impl<T, V> BeamAuxFunctions<T, V>
         let a_z = V::from(-1f32) * line_a[2];
 
         let a = ExtendedMatrix::create(T::from(3u8),
-            T::from(1u8), vec![a_x, a_y, a_z], tolerance);
+            T::from(1u8), vec![a_x, a_y, a_z], tolerance)?;
 
         let b_x = line_b[0];
         let b_y = line_b[1];
@@ -74,24 +74,27 @@ impl<T, V> BeamAuxFunctions<T, V>
                 V::from(-1f32) * b_z * b_z - b_y * b_y, b_x * b_y, b_x * b_z,
                 b_y * b_x, V::from(-1f32) * b_x * b_x - b_z * b_z,	b_y * b_z,
                 b_z * b_x,	b_z * b_y, V::from(-1f32) * b_y * b_y - b_x * b_x,
-            ], tolerance);
+            ], tolerance)?;
 
         coeff_matrix.multiply_by_number(norm);
 
         let components_of_line_a_perpendicular_to_line_b_matrix = coeff_matrix
             .multiply_by_matrix(&a)?;
 
-        let components_of_line_a_perpendicular_to_line_b_all_values =
-            components_of_line_a_perpendicular_to_line_b_matrix.copy_all_elements_values();
+        let a_perpendicular_to_b_x =
+            components_of_line_a_perpendicular_to_line_b_matrix.copy_element_value_or_zero(
+                MatrixElementPosition::create(
+                    T::from(0u8), T::from(0u8)))?;
 
-        let a_perpendicular_to_b_x = copy_element_value(T::from(0u8), T::from(0u8),
-            &components_of_line_a_perpendicular_to_line_b_all_values);
+        let a_perpendicular_to_b_y =
+            components_of_line_a_perpendicular_to_line_b_matrix.copy_element_value_or_zero(
+                MatrixElementPosition::create(
+                    T::from(1u8), T::from(0u8)))?;
 
-        let a_perpendicular_to_b_y = copy_element_value(T::from(1u8), T::from(0u8),
-            &components_of_line_a_perpendicular_to_line_b_all_values);
-
-        let a_perpendicular_to_b_z = copy_element_value(T::from(2u8), T::from(0u8),
-            &components_of_line_a_perpendicular_to_line_b_all_values);
+        let a_perpendicular_to_b_z =
+            components_of_line_a_perpendicular_to_line_b_matrix.copy_element_value_or_zero(
+                MatrixElementPosition::create(
+                    T::from(2u8), T::from(0u8)))?;
 
         Ok([a_perpendicular_to_b_x, a_perpendicular_to_b_y, a_perpendicular_to_b_z])
     }
@@ -147,27 +150,27 @@ impl<T, V> BeamAuxFunctions<T, V>
 
         let interim_rotation_matrix = ExtendedMatrix::create(
             3, 3, vec![q_11, q_12, q_13, q_21, q_22, q_23, q_31,
-            q_32, q_33], tolerance);
+            q_32, q_33], tolerance)?;
 
         let projection_of_beam_section_orientation = ExtendedMatrix::create(
             3, 1,
             components_projection_of_beam_section_orientation_vector.to_vec(),
-            tolerance);
+            tolerance)?;
 
         let transformed_projection_of_beam_section_orientation =
             interim_rotation_matrix.multiply_by_matrix(&projection_of_beam_section_orientation)?;
 
-        let all_values_of_transformed_projection_of_beam_section_orientation =
-            transformed_projection_of_beam_section_orientation.copy_all_elements_values();
+        let transformed_projection_of_beam_section_orientation_x =
+            transformed_projection_of_beam_section_orientation.copy_element_value_or_zero(
+                MatrixElementPosition::create(0, 0))?;
 
-        let transformed_projection_of_beam_section_orientation_x = copy_element_value(0,
-            0, &all_values_of_transformed_projection_of_beam_section_orientation);
+        let transformed_projection_of_beam_section_orientation_y =
+            transformed_projection_of_beam_section_orientation.copy_element_value_or_zero(
+                MatrixElementPosition::create(1, 0))?;
 
-        let transformed_projection_of_beam_section_orientation_y = copy_element_value(1,
-            0, &all_values_of_transformed_projection_of_beam_section_orientation);
-
-        let transformed_projection_of_beam_section_orientation_z = copy_element_value(2,
-            0, &all_values_of_transformed_projection_of_beam_section_orientation);
+        let transformed_projection_of_beam_section_orientation_z =
+            transformed_projection_of_beam_section_orientation.copy_element_value_or_zero(
+                MatrixElementPosition::create(2, 0))?;
 
         let angle_between_beam_section_local_axis_1_direction_and_axis_t =
             (transformed_projection_of_beam_section_orientation_z /
@@ -237,7 +240,7 @@ impl<T, V> BeamAuxFunctions<T, V>
                 [V::from(0f32); BEAM_NODE_DOF / 2], [r_31, r_32, r_33],
             ].concat(),
             tolerance,
-        );
+        )?;
 
         Ok(rotation_matrix)
     }
@@ -327,7 +330,7 @@ impl<T, V> BeamAuxFunctions<T, V>
 
 
     pub fn strain_displacement_matrix_u(node_1_number: T, node_2_number: T, r: V, tolerance: V,
-        nodes: &HashMap<T, FENode<V>>) -> ExtendedMatrix<T, V>
+        nodes: &HashMap<T, FENode<V>>) -> Result<ExtendedMatrix<T, V>, String>
     {
         let elements = vec![
                 BeamAuxFunctions::<T, V>::dh1_dr(r), V::from(0f32), V::from(0f32),
@@ -337,11 +340,11 @@ impl<T, V> BeamAuxFunctions<T, V>
             ];
         let mut matrix = ExtendedMatrix::create(T::from(1u8),
             BeamAuxFunctions::<T, V>::nodes_number() * BeamAuxFunctions::<T, V>::node_dof(),
-            elements, tolerance);
+            elements, tolerance)?;
         let inverse_jacobian = BeamAuxFunctions::inverse_jacobian(node_1_number, node_2_number,
             r, nodes);
         matrix.multiply_by_number(inverse_jacobian);
-        matrix
+        Ok(matrix)
     }
 
 
@@ -356,7 +359,7 @@ impl<T, V> BeamAuxFunctions<T, V>
             ];
         let mut lhs_matrix = ExtendedMatrix::create(T::from(1u8),
             BeamAuxFunctions::<T, V>::nodes_number() * BeamAuxFunctions::<T, V>::node_dof(),
-            lhs_elements, tolerance);
+            lhs_elements, tolerance)?;
         let inverse_jacobian = BeamAuxFunctions::inverse_jacobian(node_1_number, node_2_number,
             r, nodes);
         lhs_matrix.multiply_by_number(inverse_jacobian);
@@ -370,7 +373,7 @@ impl<T, V> BeamAuxFunctions<T, V>
 
         let rhs_matrix = ExtendedMatrix::create(T::from(1u8),
             BeamAuxFunctions::<T, V>::nodes_number() * BeamAuxFunctions::<T, V>::node_dof(),
-            rhs_elements, tolerance);
+            rhs_elements, tolerance)?;
 
         let matrix = lhs_matrix.subtract_matrix(&rhs_matrix)?;
 
@@ -389,7 +392,7 @@ impl<T, V> BeamAuxFunctions<T, V>
             ];
         let mut lhs_matrix = ExtendedMatrix::create(T::from(1u8),
             BeamAuxFunctions::<T, V>::nodes_number() * BeamAuxFunctions::<T, V>::node_dof(),
-            lhs_elements, tolerance);
+            lhs_elements, tolerance)?;
         let inverse_jacobian = BeamAuxFunctions::inverse_jacobian(node_1_number, node_2_number,
             r, nodes);
         lhs_matrix.multiply_by_number(inverse_jacobian);
@@ -402,7 +405,7 @@ impl<T, V> BeamAuxFunctions<T, V>
             ];
         let rhs_matrix = ExtendedMatrix::create(T::from(1u8),
             BeamAuxFunctions::<T, V>::nodes_number() * BeamAuxFunctions::<T, V>::node_dof(),
-            rhs_elements, tolerance);
+            rhs_elements, tolerance)?;
 
         let matrix = lhs_matrix.subtract_matrix(&rhs_matrix)?;
 
@@ -411,7 +414,7 @@ impl<T, V> BeamAuxFunctions<T, V>
 
 
     pub fn strain_displacement_matrix_thu(node_1_number: T, node_2_number: T, r: V, tolerance: V,
-        nodes: &HashMap<T, FENode<V>>) -> ExtendedMatrix<T, V>
+        nodes: &HashMap<T, FENode<V>>) -> Result<ExtendedMatrix<T, V>, String>
     {
         let elements = vec![
                 V::from(0f32), V::from(0f32), V::from(0f32),
@@ -421,16 +424,16 @@ impl<T, V> BeamAuxFunctions<T, V>
             ];
         let mut matrix = ExtendedMatrix::create(T::from(1u8),
             BeamAuxFunctions::<T, V>::nodes_number() * BeamAuxFunctions::<T, V>::node_dof(),
-            elements, tolerance);
+            elements, tolerance)?;
         let inverse_jacobian = BeamAuxFunctions::inverse_jacobian(node_1_number, node_2_number,
             r, nodes);
         matrix.multiply_by_number(inverse_jacobian);
-        matrix
+        Ok(matrix)
     }
 
 
     pub fn strain_displacement_matrix_thv(node_1_number: T, node_2_number: T, r: V, tolerance: V,
-        nodes: &HashMap<T, FENode<V>>) -> ExtendedMatrix<T, V>
+        nodes: &HashMap<T, FENode<V>>) -> Result<ExtendedMatrix<T, V>, String>
     {
         let elements = vec![
                 V::from(0f32), V::from(0f32), V::from(0f32),
@@ -440,16 +443,16 @@ impl<T, V> BeamAuxFunctions<T, V>
             ];
         let mut matrix = ExtendedMatrix::create(T::from(1u8),
             BeamAuxFunctions::<T, V>::nodes_number() * BeamAuxFunctions::<T, V>::node_dof(),
-            elements, tolerance);
+            elements, tolerance)?;
         let inverse_jacobian = BeamAuxFunctions::inverse_jacobian(node_1_number, node_2_number,
             r, nodes);
         matrix.multiply_by_number(inverse_jacobian);
-        matrix
+        Ok(matrix)
     }
 
 
     pub fn strain_displacement_matrix_thw(node_1_number: T, node_2_number: T, r: V, tolerance: V,
-        nodes: &HashMap<T, FENode<V>>) -> ExtendedMatrix<T, V>
+        nodes: &HashMap<T, FENode<V>>) -> Result<ExtendedMatrix<T, V>, String>
     {
         let elements = vec![
                 V::from(0f32), V::from(0f32), V::from(0f32),
@@ -459,11 +462,11 @@ impl<T, V> BeamAuxFunctions<T, V>
             ];
         let mut matrix = ExtendedMatrix::create(T::from(1u8),
             BeamAuxFunctions::<T, V>::nodes_number() * BeamAuxFunctions::<T, V>::node_dof(),
-            elements, tolerance);
+            elements, tolerance)?;
         let inverse_jacobian = BeamAuxFunctions::inverse_jacobian(node_1_number, node_2_number,
             r, nodes);
         matrix.multiply_by_number(inverse_jacobian);
-        matrix
+        Ok(matrix)
     }
 
 
@@ -473,10 +476,10 @@ impl<T, V> BeamAuxFunctions<T, V>
         -> Result<ExtendedMatrix<T, V>, String>
     {
         let mut lhs_matrix_u = BeamAuxFunctions::strain_displacement_matrix_u(
-            node_1_number, node_2_number, r, tolerance, nodes);
+            node_1_number, node_2_number, r, tolerance, nodes)?;
         lhs_matrix_u.transpose();
         let rhs_matrix_u = BeamAuxFunctions::strain_displacement_matrix_u(
-            node_1_number, node_2_number, r, tolerance, nodes);
+            node_1_number, node_2_number, r, tolerance, nodes)?;
         let mut matrix_u = lhs_matrix_u.multiply_by_matrix(&rhs_matrix_u)
             .map_err(|e|
                 format!("Beam2n2ipT: Local stiffness matrix could not be calculated! \
@@ -522,10 +525,10 @@ impl<T, V> BeamAuxFunctions<T, V>
             node_1_number, node_2_number, r, nodes) * alpha);
 
         let mut lhs_matrix_thu = BeamAuxFunctions::strain_displacement_matrix_thu(
-            node_1_number, node_2_number, r, tolerance, nodes);
+            node_1_number, node_2_number, r, tolerance, nodes)?;
         lhs_matrix_thu.transpose();
         let rhs_matrix_thu = BeamAuxFunctions::strain_displacement_matrix_thu(
-            node_1_number, node_2_number, r, tolerance, nodes);
+            node_1_number, node_2_number, r, tolerance, nodes)?;
         let mut matrix_thu = lhs_matrix_thu.multiply_by_matrix(
             &rhs_matrix_thu)
             .map_err(|e| format!("Beam2n2ipT: Local stiffness matrix could not be calculated! \
@@ -536,10 +539,10 @@ impl<T, V> BeamAuxFunctions<T, V>
             node_1_number, node_2_number, r, nodes) * alpha);
 
         let mut lhs_matrix_thv = BeamAuxFunctions::strain_displacement_matrix_thv(
-            node_1_number, node_2_number, r, tolerance, nodes);
+            node_1_number, node_2_number, r, tolerance, nodes)?;
         lhs_matrix_thv.transpose();
         let rhs_matrix_thv = BeamAuxFunctions::strain_displacement_matrix_thv(
-            node_1_number, node_2_number, r, tolerance, nodes);
+            node_1_number, node_2_number, r, tolerance, nodes)?;
         let mut matrix_thv = lhs_matrix_thv.multiply_by_matrix(
             &rhs_matrix_thv)
             .map_err(|e| format!("Beam2n2ipT: Local stiffness matrix could not be calculated! \
@@ -550,10 +553,10 @@ impl<T, V> BeamAuxFunctions<T, V>
             node_1_number, node_2_number, r, nodes) * alpha);
 
         let mut lhs_matrix_thw = BeamAuxFunctions::strain_displacement_matrix_thw(
-            node_1_number, node_2_number, r, tolerance, nodes);
+            node_1_number, node_2_number, r, tolerance, nodes)?;
         lhs_matrix_thw.transpose();
         let rhs_matrix_thw = BeamAuxFunctions::strain_displacement_matrix_thw(
-            node_1_number, node_2_number, r, tolerance, nodes);
+            node_1_number, node_2_number, r, tolerance, nodes)?;
         let mut matrix_thw = lhs_matrix_thw.multiply_by_matrix(
             &rhs_matrix_thw)
             .map_err(|e| format!("Beam2n2ipT: Local stiffness matrix could not be calculated! \
@@ -596,11 +599,11 @@ impl<T, V> BeamAuxFunctions<T, V>
     }
 
 
-    pub fn extract_column_matrix_values(column_matrix: &ExtendedMatrix<T, V>) -> Vec<V>
+    pub fn extract_column_matrix_values(column_matrix: &ExtendedMatrix<T, V>)
+        -> Result<Vec<V>, String>
     {
         let mut values = Vec::new();
         let shape = column_matrix.copy_shape();
-        let all_values = column_matrix.copy_all_elements_values();
 
         let mut row = T::from(0u8);
         while row < shape.0
@@ -608,13 +611,14 @@ impl<T, V> BeamAuxFunctions<T, V>
             let mut column = T::from(0u8);
             while column < shape.1
             {
-                let value = copy_element_value(row, column, &all_values);
+                let value = column_matrix.copy_element_value_or_zero(
+                    MatrixElementPosition::create(row, column))?;
                 values.push(value);
                 column += T::from(1u8);
             }
             row += T::from(1u8);
         }
-        values
+        Ok(values)
     }
 
 

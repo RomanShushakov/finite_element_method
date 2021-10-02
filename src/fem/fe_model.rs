@@ -1,17 +1,19 @@
+use std::time::{Duration, Instant};
+
 use std::ops::{Sub, Div, Rem, SubAssign, Mul, Add, AddAssign, MulAssign, DivAssign};
 use std::hash::Hash;
 use std::fmt::Debug;
 use std::collections::{HashSet, HashMap};
 use std::iter::FromIterator;
 
-use extended_matrix::basic_matrix::basic_matrix::{MatrixElementPosition, ZerosRowColumn};
 use extended_matrix::extended_matrix::ExtendedMatrix;
+use extended_matrix::matrix_element_position::MatrixElementPosition;
 use extended_matrix::extended_matrix::Operation;
-use extended_matrix::functions::{copy_element_value, conversion_uint_into_usize};
+use extended_matrix::functions::{conversion_uint_into_usize};
 
 use crate::fem::finite_elements::fe_node::{FENode, DeletedFENodeData};
 use crate::fem::finite_elements::finite_element::{FiniteElement, FEType, DeletedFEData};
-use crate::fem::global_analysis::fe_stiffness::StiffnessGroup;
+use crate::fem::global_analysis::fe_stiffness::{StiffnessGroup, StiffnessGroupKey};
 use crate::fem::global_analysis::fe_boundary_condition::{BoundaryCondition, BCType, DeletedBCData};
 use crate::fem::global_analysis::fe_global_analysis_result::{GlobalAnalysisResult, Displacements};
 use crate::fem::global_analysis::fe_dof_parameter_data::
@@ -21,14 +23,14 @@ use crate::fem::global_analysis::fe_dof_parameter_data::
 
 use crate::fem::element_analysis::fe_element_analysis_result::{ElementsAnalysisResult, EARType};
 
-use crate::fem::functions::{separate, compose_stiffness_sub_groups};
+use crate::fem::functions::{separate, add_new_stiffness_sub_groups};
 
 use crate::my_float::MyFloatTrait;
 
 
 struct State<T, V>
 {
-    stiffness_groups: Vec<StiffnessGroup<T>>,
+    stiffness_groups: HashMap<StiffnessGroupKey<T>, Vec<MatrixElementPosition<T>>>,
     nodes_dof_parameters_global: Vec<DOFParameterData<T>>,
     tolerance: V,
 }
@@ -36,8 +38,8 @@ struct State<T, V>
 
 impl<T, V> State<T, V>
 {
-    fn create(stiffness_groups: Vec<StiffnessGroup<T>>,
-        nodes_dof_parameters_global: Vec<DOFParameterData<T>>, tolerance: V,) -> Self
+    fn create(stiffness_groups: HashMap<StiffnessGroupKey<T>, Vec<MatrixElementPosition<T>>>,
+              nodes_dof_parameters_global: Vec<DOFParameterData<T>>, tolerance: V,) -> Self
     {
         State { stiffness_groups, nodes_dof_parameters_global, tolerance }
     }
@@ -56,14 +58,14 @@ pub struct FEModel<T, V>
 impl<T, V> FEModel<T, V>
     where T: Copy + PartialEq + Sub<Output = T> + Div<Output = T> + Rem<Output = T> + Eq + Hash +
              SubAssign + Debug + Mul<Output = T> + PartialOrd + Add<Output = T> + From<u8> +
-             AddAssign + 'static,
+             AddAssign + Ord + 'static,
           V: Copy + Sub<Output = V> + Mul<Output = V> + Add<Output = V> + Div<Output = V> +
              PartialEq + Debug + AddAssign + MulAssign + SubAssign + Into<f64> + PartialOrd +
              MyFloatTrait + From<f32> + MyFloatTrait<Other = V> + DivAssign + 'static,
 {
     pub fn create(tolerance: V) -> Self
     {
-        let state = State::create(Vec::new(),
+        let state = State::create(HashMap::new(),
             Vec::new(), tolerance);
 
         FEModel { nodes: HashMap::new(), elements: HashMap::new(),
@@ -76,17 +78,18 @@ impl<T, V> FEModel<T, V>
         self.nodes = HashMap::new();
         self.elements = HashMap::new();
         self.boundary_conditions = Vec::new();
-        self.state.stiffness_groups = Vec::new();
+        self.state.stiffness_groups = HashMap::new();
         self.state.nodes_dof_parameters_global = Vec::new();
     }
 
 
     fn update_stiffness_groups(&mut self) -> Result<(), &str>
     {
-        let mut stiffness_groups = Vec::new();
+        let mut stiffness_groups =
+            HashMap::new();
         if self.nodes.len() < 2
         {
-            self.state.stiffness_groups = Vec::new();
+            self.state.stiffness_groups = HashMap::new();
         }
         else
         {
@@ -110,38 +113,30 @@ impl<T, V> FEModel<T, V>
                 {
                     if j + 1 == i
                     {
-                        let stiffness_sub_groups =
-                             compose_stiffness_sub_groups(position,
-                            columns_number, nodes_numbers[j],
-                            nodes_numbers[j])?;
-                        stiffness_groups.extend(stiffness_sub_groups);
+                        add_new_stiffness_sub_groups(&mut stiffness_groups,
+                            position, columns_number,
+                            nodes_numbers[j], nodes_numbers[j])?;
                         position += T::from(1u8);
                     }
-                    let stiffness_sub_groups =
-                         compose_stiffness_sub_groups(position,
-                        columns_number, excluded,
-                        v_lhs[j])?;
-                    stiffness_groups.extend(stiffness_sub_groups);
+                    add_new_stiffness_sub_groups(&mut stiffness_groups,
+                        position, columns_number,
+                        excluded, v_lhs[j])?;
                     position += T::from(1u8);
                 }
             }
 
             for i in 0..nodes_numbers.len() - 1
             {
-                let stiffness_sub_groups =
-                     compose_stiffness_sub_groups(position,
-                    columns_number,
+                add_new_stiffness_sub_groups(&mut stiffness_groups,
+                    position, columns_number,
                     nodes_numbers[nodes_numbers.len() - 1],
-                    nodes_numbers[i])?;
-                stiffness_groups.extend(stiffness_sub_groups);
+                        nodes_numbers[i])?;
                 position += T::from(1u8);
             }
-            let stiffness_sub_groups =
-                 compose_stiffness_sub_groups(position,
-                columns_number,
+            add_new_stiffness_sub_groups(&mut stiffness_groups,
+                position, columns_number,
                 nodes_numbers[nodes_numbers.len() - 1],
                 nodes_numbers[nodes_numbers.len() - 1])?;
-            stiffness_groups.extend(stiffness_sub_groups);
         }
         self.state.stiffness_groups = stiffness_groups;
         Ok(())
@@ -537,21 +532,25 @@ impl<T, V> FEModel<T, V>
     }
 
 
-    fn compose_global_stiffness_matrix(&self) -> Result<ExtendedMatrix<T, V>, &str>
+    fn compose_global_stiffness_matrix(&self) -> Result<ExtendedMatrix<T, V>, String>
     {
         if self.elements.is_empty()
         {
             return Err("FEModel: Global stiffness matrix could not be composed because there are \
-                no elements in the model!");
+                no elements in the model!".to_string());
         }
 
+        let start = Instant::now();
         if self.nodes.keys().any(|node_number|
             self.elements.values().position(|element|
                 element.is_node_belong_element(*node_number)).is_none())
         {
             return Err("FEModel: Global stiffness matrix could not be composed because there are \
-                free nodes exist!");
+                free nodes exist!".to_string());
         }
+        let duration = start.elapsed();
+        println!("Nodes existence check completed: {:?}", duration);
+        println!();
 
         let mut nodes_len_value = T::from(0u8);
         (0..self.nodes.len()).for_each(|_| nodes_len_value += T::from(1u8));
@@ -560,26 +559,47 @@ impl<T, V> FEModel<T, V>
             nodes_len_value * global_dof::<T>(),
             nodes_len_value * global_dof::<T>(),
             vec![V::from(0f32); (self.nodes.len() * GLOBAL_DOF).pow(2)],
-            self.state.tolerance);
+            self.state.tolerance)?;
 
         for element in self.elements.values()
         {
-            let element_stiffness_matrix = element.extract_stiffness_matrix()?;
+            let start = Instant::now();
+            let mut element_stiffness_matrix = element.extract_stiffness_matrix()?;
+            let duration = start.elapsed();
+            println!("Element stiffness matrix was extracted: {:?}", duration);
+            println!();
 
+            let start = Instant::now();
             let element_stiffness_groups = element.extract_stiffness_groups();
+            let duration = start.elapsed();
+            println!("Element stiffness groups were extracted: {:?}", duration);
+            println!();
+
             for element_stiffness_group in element_stiffness_groups
             {
-                if let Some(position) = self.state.stiffness_groups
-                    .iter()
-                    .position(|group|
-                        { group.stiffness_type == element_stiffness_group.stiffness_type &&
-                        group.number_1 == element_stiffness_group.number_1 &&
-                        group.number_2 == element_stiffness_group.number_2 })
+                let start = Instant::now();
+
+                let stiffness_group_key = StiffnessGroupKey {
+                    stiffness_type: element_stiffness_group.stiffness_type,
+                    number_1: element_stiffness_group.number_1,
+                    number_2: element_stiffness_group.number_2 };
+                if let Some(matrix_elements_positions) =
+                    self.state.stiffness_groups.get(&stiffness_group_key)
                 {
-                    global_stiffness_matrix.add_sub_matrix(
-                        &element_stiffness_matrix,
-                        &self.state.stiffness_groups[position].positions,
-                        &element_stiffness_group.positions, self.state.tolerance);
+                    let duration = start.elapsed();
+                    println!("Stiffness group was found: {:?}", duration);
+                    println!();
+
+                    let start = Instant::now();
+                    global_stiffness_matrix.add_submatrix_to_assemblage(
+                        &mut element_stiffness_matrix,
+                        matrix_elements_positions,
+                        &element_stiffness_group.positions);
+                    let duration = start.elapsed();
+                    println!("Element stiffness matrix was added: {:?}", duration);
+                    println!();
+
+                    println!("{:?}", matrix_elements_positions);
                 }
             }
         }
@@ -650,14 +670,14 @@ impl<T, V> FEModel<T, V>
     }
 
 
-    fn shrink_of_nodes_dof_parameters(&mut self, zeros_rows_columns: &Vec<ZerosRowColumn<T>>)
+    fn shrink_of_nodes_dof_parameters(&mut self, zeros_rows_columns: &Vec<MatrixElementPosition<T>>)
         -> Result<(), String>
     {
         for row_column in zeros_rows_columns
         {
             let mut row_column_as_index = 0usize;
             let mut n = T::from(0u8);
-            while n < row_column.column()
+            while n < *row_column.ref_column()
             {
                 row_column_as_index += 1usize;
                 n += T::from(1u8);
@@ -727,7 +747,7 @@ impl<T, V> FEModel<T, V>
 
 
     fn compose_matrix_by_rows_numbers(&self, rows_numbers: &[T], bc_type: BCType)
-        -> ExtendedMatrix<T, V>
+        -> Result<ExtendedMatrix<T, V>, String>
     {
         let mut all_elements = Vec::new();
         for row_number in rows_numbers
@@ -760,39 +780,59 @@ impl<T, V> FEModel<T, V>
         let matrix = ExtendedMatrix::create(
             converted_rows_numbers,
             T::from(1u8),
-            all_elements, self.state.tolerance);
-        matrix
+            all_elements, self.state.tolerance)?;
+        Ok(matrix)
     }
 
 
     fn compose_displacements_matrix(&self, ua_matrix: ExtendedMatrix<T, V>,
         ub_matrix: ExtendedMatrix<T, V>, ua_ra_rows_numbers: &[T],
-        ub_rb_rows_numbers: &Vec<T>) -> ExtendedMatrix<T, V>
+        ub_rb_rows_numbers: &Vec<T>) -> Result<ExtendedMatrix<T, V>, String>
     {
-        let ua_values = ua_matrix.copy_all_elements_values();
-        let ub_values = ub_matrix.copy_all_elements_values();
         let mut all_displacements_values =
             vec![V::from(0f32); self.state.nodes_dof_parameters_global.len()];
 
         let mut i = T::from(0u8);
-        (0..ua_ra_rows_numbers.len()).for_each(|index|
-            {
-                let displacement_value = copy_element_value(
-                    i, T::from(0u8), &ua_values);
-                let converted_index = conversion_uint_into_usize(ua_ra_rows_numbers[index]);
-                all_displacements_values[converted_index] = displacement_value;
-                i += T::from(1u8);
-            });
+        let mut index = 0usize;
+        while index < ua_ra_rows_numbers.len()
+        {
+            let displacement_value = ua_matrix.copy_element_value_or_zero(
+                MatrixElementPosition::create(i, T::from(0u8)))?;
+            let converted_index = conversion_uint_into_usize(ua_ra_rows_numbers[index]);
+            all_displacements_values[converted_index] = displacement_value;
+            i += T::from(1u8);
+            index += 1usize;
+        }
+
+        // (0..ua_ra_rows_numbers.len()).for_each(|index|
+        //     {
+        //         let displacement_value = ua_matrix.copy_element_value_or_zero(
+        //             MatrixElementPosition::create(i, T::from(0u8)))?;
+        //         let converted_index = conversion_uint_into_usize(ua_ra_rows_numbers[index]);
+        //         all_displacements_values[converted_index] = displacement_value;
+        //         i += T::from(1u8);
+        //     });
 
         let mut j = T::from(0u8);
-        (0..ub_rb_rows_numbers.len()).for_each(|index|
-            {
-                let displacement_value = copy_element_value(
-                    j, T::from(0u8), &ub_values);
-                let converted_index = conversion_uint_into_usize(ub_rb_rows_numbers[index]);
-                all_displacements_values[converted_index] = displacement_value;
-                j += T::from(1u8);
-            });
+        let mut index = 0usize;
+        while index < ub_rb_rows_numbers.len()
+        {
+            let displacement_value = ub_matrix.copy_element_value_or_zero(
+                MatrixElementPosition::create(j, T::from(0u8)))?;
+            let converted_index = conversion_uint_into_usize(ub_rb_rows_numbers[index]);
+            all_displacements_values[converted_index] = displacement_value;
+            j += T::from(1u8);
+            index += 1usize;
+        }
+
+        // (0..ub_rb_rows_numbers.len()).for_each(|index|
+        //     {
+        //         let displacement_value = ub_matrix.copy_element_value_or_zero(
+        //             MatrixElementPosition::create(j, T::from(0u8)))?;
+        //         let converted_index = conversion_uint_into_usize(ub_rb_rows_numbers[index]);
+        //         all_displacements_values[converted_index] = displacement_value;
+        //         j += T::from(1u8);
+        //     });
 
         let mut rows_number = T::from(0u8);
         (0..self.state.nodes_dof_parameters_global.len()).for_each(|_| rows_number += T::from(1u8));
@@ -807,7 +847,11 @@ impl<T, V> FEModel<T, V>
 
     pub fn global_analysis(&mut self) -> Result<GlobalAnalysisResult<T, V>, String>
     {
+        let start = Instant::now();
         self.update_nodes_dof_parameters_global()?;
+        let duration = start.elapsed();
+        println!("Nodes dof parameters were updated: {:?}", duration);
+        println!();
 
         if self.boundary_conditions.iter().position(|bc|
             bc.is_type_same(BCType::Displacement)).is_none()
@@ -815,12 +859,22 @@ impl<T, V> FEModel<T, V>
             return Err("FEModel: Model could not be analyzed because there are no restraints were \
                 applied!".into())
         }
+
+        let start = Instant::now();
         let mut global_stiffness_matrix =
             self.compose_global_stiffness_matrix()?;
+        let duration = start.elapsed();
+        println!("Global stiffness matrix composed: {:?}", duration);
+        println!();
 
+        let start = Instant::now();
         let removed_zeros_rows_columns =
             global_stiffness_matrix.remove_zeros_rows_columns();
         self.shrink_of_nodes_dof_parameters(&removed_zeros_rows_columns)?;
+        let duration = start.elapsed();
+        println!("Zero rows and columns were removed: {:?}", duration);
+        println!();
+
         let mut ub_rb_rows_numbers = Vec::new();
         let mut separation_positions = Vec::new();
         self.compose_separation_positions(&mut ub_rb_rows_numbers, &mut separation_positions);
@@ -829,18 +883,22 @@ impl<T, V> FEModel<T, V>
         self.compose_ua_ra_rows_numbers(&ub_rb_rows_numbers, &mut ua_ra_rows_numbers);
 
         let ra_matrix = self.compose_matrix_by_rows_numbers(
-            &ua_ra_rows_numbers, BCType::Force);
+            &ua_ra_rows_numbers, BCType::Force)?;
         let ub_matrix = self.compose_matrix_by_rows_numbers(
-            &ub_rb_rows_numbers, BCType::Displacement);
+            &ub_rb_rows_numbers, BCType::Displacement)?;
         let rb_c_matrix = self.compose_matrix_by_rows_numbers(
-            &ub_rb_rows_numbers, BCType::Force);
+            &ub_rb_rows_numbers, BCType::Force)?;
 
         let separated_matrix =
             separate(global_stiffness_matrix, separation_positions, self.state.tolerance)?;
+
         let ua_matrix = separated_matrix.ref_k_aa()
-            .naive_gauss_elimination(&ra_matrix.add_subtract_matrix(
+            .direct_solution(&ra_matrix.add_subtract_matrix(
                 &separated_matrix.ref_k_ab().multiply_by_matrix(&ub_matrix)?,
                 Operation::Subtraction)?)?;
+        let duration = start.elapsed();
+        println!("Ua matrix was calculated: {:?}", duration);
+
         let reactions_values_matrix = separated_matrix.ref_k_ba()
             .multiply_by_matrix(&ua_matrix)?
             .add_subtract_matrix(
@@ -848,8 +906,7 @@ impl<T, V> FEModel<T, V>
                     .multiply_by_matrix(&ub_matrix)?,
                         Operation::Addition)?
             .add_subtract_matrix(&rb_c_matrix, Operation::Subtraction)?;
-        let all_reactions =
-            reactions_values_matrix.copy_all_elements_values();
+
         let reactions_values_matrix_shape = reactions_values_matrix.copy_shape();
         let mut reactions_values = Vec::new();
 
@@ -859,8 +916,8 @@ impl<T, V> FEModel<T, V>
             let mut column = T::from(0u8);
             while column < reactions_values_matrix_shape.1
             {
-                let reaction_value = copy_element_value(row, column,
-                    &all_reactions);
+                let reaction_value = reactions_values_matrix.copy_element_value_or_zero(
+                    MatrixElementPosition::create(row, column))?;
                 reactions_values.push(reaction_value);
                 column += T::from(1u8);
             }
@@ -877,9 +934,8 @@ impl<T, V> FEModel<T, V>
         let displacements_dof_parameters_data =
             self.state.nodes_dof_parameters_global.clone();
         let displacements_values_matrix = self.compose_displacements_matrix(
-            ua_matrix, ub_matrix, &ua_ra_rows_numbers, &ub_rb_rows_numbers);
-        let all_displacements =
-            displacements_values_matrix.copy_all_elements_values();
+            ua_matrix, ub_matrix, &ua_ra_rows_numbers, &ub_rb_rows_numbers)?;
+
         let displacements_values_matrix_shape = displacements_values_matrix.copy_shape();
         let mut displacements_values = Vec::new();
 
@@ -889,8 +945,8 @@ impl<T, V> FEModel<T, V>
             let mut column = T::from(0u8);
             while column < displacements_values_matrix_shape.1
             {
-                let displacement_value = copy_element_value(row, column,
-                    &all_displacements);
+                let displacement_value = displacements_values_matrix.copy_element_value_or_zero(
+                    MatrixElementPosition::create(row, column))?;
                 displacements_values.push(displacement_value);
                 column += T::from(1u8);
             }
@@ -980,7 +1036,7 @@ impl<T, V> FEModel<T, V>
     {
         if let Some(element) = self.elements.get(element_number)
         {
-            Ok(element.extract_unique_elements_of_rotation_matrix())
+            Ok(element.extract_unique_elements_of_rotation_matrix()?)
         }
         else
         {

@@ -1,28 +1,29 @@
 use std::ops::{Div, Rem, Mul, Add, AddAssign, Sub, SubAssign, MulAssign};
 use std::fmt::Debug;
 use std::hash::Hash;
+use std::collections::HashMap;
 
-use extended_matrix::basic_matrix::basic_matrix::MatrixElementPosition;
+use extended_matrix::matrix_element_position::MatrixElementPosition;
 use extended_matrix::extended_matrix::ExtendedMatrix;
-use extended_matrix::functions::{copy_element_value, conversion_uint_into_usize};
+use extended_matrix::functions::{conversion_uint_into_usize};
 
 
 use crate::fem::global_analysis::fe_stiffness::
 {
-    stiffness_types_number, StiffnessGroup, StiffnessType
+    stiffness_types_number, StiffnessGroup, StiffnessType, StiffnessGroupKey
 };
 use crate::fem::global_analysis::fe_dof_parameter_data::global_dof;
 
 use crate::fem::separated_matrix::SeparatedMatrix;
 
 
-pub fn compose_stiffness_sub_groups<'a, T>(global_group_position: T,
-    global_group_columns_number: T, global_number_1: T, global_number_2: T)
-    -> Result<Vec<StiffnessGroup<T>>, &'a str>
+pub fn add_new_stiffness_sub_groups<'a, T>(
+    stiffness_groups: &mut HashMap<StiffnessGroupKey<T>, Vec<MatrixElementPosition<T>>>,
+    global_group_position: T, global_group_columns_number: T, global_number_1: T,
+    global_number_2: T) -> Result<(), &'a str>
     where T: Copy + Debug + Div<Output = T> + Rem<Output = T> + Mul<Output = T> + Add<Output = T> +
-             PartialOrd + AddAssign + From<u8>
+             PartialOrd + AddAssign + From<u8> + Eq + Hash + SubAssign
 {
-    let mut stiffness_sub_groups = Vec::new();
     let row = global_group_position / global_group_columns_number;
     let column = global_group_position % global_group_columns_number;
 
@@ -60,30 +61,24 @@ pub fn compose_stiffness_sub_groups<'a, T>(global_group_position: T,
         let stiffness_type = StiffnessType::iterator()
             .nth(converted_index)
             .ok_or("FEModel: Stiffness type could not be defined")?;
-        let stiffness_sub_group = StiffnessGroup { stiffness_type: *stiffness_type,
-            number_1: global_number_1,
-            number_2: global_number_2,
-            positions: element_positions,
-        };
-        stiffness_sub_groups.push(stiffness_sub_group);
+        let stiffness_group_key = StiffnessGroupKey { stiffness_type: *stiffness_type,
+            number_1: global_number_1, number_2: global_number_2 };
+        stiffness_groups.insert(stiffness_group_key, element_positions);
         k += T::from(1u8);
     }
-    Ok(stiffness_sub_groups)
+    Ok(())
 }
 
 
-pub fn separate<'a, T, V>(matrix: ExtendedMatrix<T, V>, positions: Vec<MatrixElementPosition<T>>,
-    tolerance: V) -> Result<SeparatedMatrix<T, V>, &'a str>
+pub fn separate<T, V>(matrix: ExtendedMatrix<T, V>, positions: Vec<MatrixElementPosition<T>>,
+    tolerance: V) -> Result<SeparatedMatrix<T, V>, String>
     where T: Add<Output = T> + Mul<Output = T> + Sub<Output = T> + Div<Output = T> +
              Rem<Output = T> + Copy + Debug + Eq + Hash + SubAssign + PartialOrd + AddAssign +
-             From<u8> + 'static,
+             From<u8> + Ord + 'static,
           V: Add<Output = V> + Mul<Output = V> + Sub<Output = V> + Div<Output = V> + Copy + Debug +
              PartialEq + AddAssign + MulAssign + SubAssign + Into<f64> + From<f32> + 'static
 {
     let shape = matrix.copy_shape();
-
-    let all_elements_values =
-        matrix.copy_all_elements_values();
 
     let mut converted_positions_length = T::from(0u8);
     (0..positions.len()).for_each(|_| converted_positions_length += T::from(1u8));
@@ -100,10 +95,11 @@ pub fn separate<'a, T, V>(matrix: ExtendedMatrix<T, V>, positions: Vec<MatrixEle
         let mut j = T::from(0u8);
         while j < shape.1
         {
-            if positions.iter().position(|p| p.row() == i).is_none() &&
-                positions.iter().position(|p| p.column() == j).is_none()
+            if positions.iter().position(|p| *p.ref_row() == i).is_none() &&
+                positions.iter().position(|p| *p.ref_column() == j).is_none()
             {
-                let value = copy_element_value(i, j, &all_elements_values);
+                let value = matrix.copy_element_value_or_zero(
+                    MatrixElementPosition::create(i, j))?;
                 k_aa_elements.push(value);
             }
             j += T::from(1u8);
@@ -112,7 +108,7 @@ pub fn separate<'a, T, V>(matrix: ExtendedMatrix<T, V>, positions: Vec<MatrixEle
     }
 
     let k_aa_matrix = ExtendedMatrix::create(k_aa_rows_number,
-        k_aa_columns_number, k_aa_elements, tolerance);
+        k_aa_columns_number, k_aa_elements, tolerance)?;
 
     let k_ab_rows_number = shape.0 - converted_positions_length;
 
@@ -123,18 +119,19 @@ pub fn separate<'a, T, V>(matrix: ExtendedMatrix<T, V>, positions: Vec<MatrixEle
     let mut i = T::from(0u8);
     while i < shape.0
     {
-        if positions.iter().position(|p| p.row() == i).is_none()
+        if positions.iter().position(|p| *p.ref_row() == i).is_none()
         {
             for j in 0..positions.len()
             {
                 let row = i;
-                let column = positions[j].column();
-                if column > shape.1
+                let column = positions[j].ref_column();
+                if *column > shape.1
                 {
                     return Err("Extended matrix: Matrix could not be separated! Matrix Kab \
-                        could not be composed!");
+                        could not be composed!".to_string());
                 }
-                let value = copy_element_value(row, column, &all_elements_values);
+                let value = matrix.copy_element_value_or_zero(
+                    MatrixElementPosition::create(row, *column))?;
                 k_ab_elements.push(value);
             }
         }
@@ -142,7 +139,7 @@ pub fn separate<'a, T, V>(matrix: ExtendedMatrix<T, V>, positions: Vec<MatrixEle
     }
 
     let k_ab_matrix = ExtendedMatrix::create(k_ab_rows_number,
-        k_ab_columns_number, k_ab_elements, tolerance);
+        k_ab_columns_number, k_ab_elements, tolerance)?;
 
     let k_ba_rows_number = converted_positions_length;
 
@@ -156,16 +153,17 @@ pub fn separate<'a, T, V>(matrix: ExtendedMatrix<T, V>, positions: Vec<MatrixEle
         let mut j = T::from(0u8);
         while j < shape.1
         {
-            if positions.iter().position(|p| p.column() == j).is_none()
+            if positions.iter().position(|p| *p.ref_column() == j).is_none()
             {
-                let row = positions[i].row();
+                let row = positions[i].ref_row();
                 let column = j;
-                if row > shape.0
+                if *row > shape.0
                 {
                     return Err("Extended matrix: Matrix could not be separated! Matrix Kba \
-                        could not be composed!");
+                        could not be composed!".to_string());
                 }
-                let value = copy_element_value(row, column, &all_elements_values);
+                let value = matrix.copy_element_value_or_zero(
+                    MatrixElementPosition::create(*row, column))?;
                 k_ba_elements.push(value);
             }
             j += T::from(1u8);
@@ -173,7 +171,7 @@ pub fn separate<'a, T, V>(matrix: ExtendedMatrix<T, V>, positions: Vec<MatrixEle
     }
 
     let k_ba_matrix = ExtendedMatrix::create(k_ba_rows_number,
-        k_ba_columns_number, k_ba_elements, tolerance);
+        k_ba_columns_number, k_ba_elements, tolerance)?;
 
     let k_bb_rows_number = converted_positions_length;
 
@@ -185,19 +183,20 @@ pub fn separate<'a, T, V>(matrix: ExtendedMatrix<T, V>, positions: Vec<MatrixEle
     {
         for j in 0..positions.len()
         {
-            let row = positions[i].row();
-            let column = positions[j].column();
-            if row > shape.0 || column > shape.1
+            let row = positions[i].ref_row();
+            let column = positions[j].ref_column();
+            if *row > shape.0 || *column > shape.1
             {
                 return Err("Extended matrix: Matrix could not be separated! Matrix Kbb could \
-                    not be composed!");
+                    not be composed!".to_string());
             }
-            let value = copy_element_value(row, column, &all_elements_values);
+            let value = matrix.copy_element_value_or_zero(
+                MatrixElementPosition::create(*row, *column))?;
             k_bb_elements.push(value);
         }
     }
     let k_bb_matrix = ExtendedMatrix::create(k_bb_rows_number,
-        k_bb_columns_number, k_bb_elements, tolerance);
+        k_bb_columns_number, k_bb_elements, tolerance)?;
 
     let separated_matrix = SeparatedMatrix::create(k_aa_matrix,
         k_ab_matrix, k_ba_matrix, k_bb_matrix);

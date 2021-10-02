@@ -4,7 +4,7 @@ use std::ops::{Sub, Mul, Add, Div, Rem, SubAssign, AddAssign, MulAssign};
 use std::collections::HashMap;
 use std::f32::consts::PI;
 
-use extended_matrix::basic_matrix::basic_matrix::MatrixElementPosition;
+use extended_matrix::matrix_element_position::MatrixElementPosition;
 use extended_matrix::extended_matrix::ExtendedMatrix;
 
 use crate::fem::finite_elements::finite_element::{FiniteElementTrait, FEType};
@@ -73,14 +73,14 @@ pub struct Beam2n1ipT<T, V>
 impl<T, V> Beam2n1ipT<T, V>
     where T: Copy + PartialOrd + Add<Output = T> + Sub<Output = T> + Div<Output = T> +
              Rem<Output = T> + Eq + Hash + SubAssign + Debug + Mul<Output = T> + AddAssign +
-             From<u8> + 'static,
+             From<u8> + Ord + 'static,
           V: Copy + Into<f64> + Sub<Output = V> + Mul<Output = V> + From<f32> + Add<Output = V> +
              Div<Output = V> + PartialEq + Debug + AddAssign + MulAssign + SubAssign +
              MyFloatTrait + PartialOrd + MyFloatTrait<Other = V> + 'static
 {
     pub fn create(node_1_number: T, node_2_number: T, young_modulus: V, poisson_ratio: V, area: V,
-    i11_init: V, i22_init: V, i12_init: V, it: V, shear_factor: V,
-    local_axis_1_direction: [V; 3], tolerance: V, nodes: &HashMap<T, FENode<V>>)
+        i11_init: V, i22_init: V, i12_init: V, it: V, shear_factor: V,
+        local_axis_1_direction: [V; 3], tolerance: V, nodes: &HashMap<T, FENode<V>>)
     -> Result<Self, String>
     {
         let (i11, i22, angle) =
@@ -99,7 +99,7 @@ impl<T, V> Beam2n1ipT<T, V>
         let mut local_stiffness_matrix = ExtendedMatrix::create(
             BeamAuxFunctions::<T, V>::nodes_number() * BeamAuxFunctions::<T, V>::node_dof(),
             BeamAuxFunctions::<T, V>::nodes_number() * BeamAuxFunctions::<T, V>::node_dof(),
-            vec![V::from(0f32); (BEAM2N1IPT_NODES_NUMBER * BEAM_NODE_DOF).pow(2)], tolerance);
+            vec![V::from(0f32); (BEAM2N1IPT_NODES_NUMBER * BEAM_NODE_DOF).pow(2)], tolerance)?;
 
         for integration_point in &integration_points
         {
@@ -159,7 +159,7 @@ impl<T, V> Beam2n1ipT<T, V>
 
         let element_global_displacements = ExtendedMatrix::create(rows_number,
             T::from(1u8), element_global_displacements_values,
-            tolerance);
+            tolerance)?;
 
         let element_local_displacements =
             self.state.rotation_matrix.multiply_by_matrix(&element_global_displacements)?;
@@ -171,7 +171,7 @@ impl<T, V> Beam2n1ipT<T, V>
 impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
     where T: Copy + Add<Output = T> + Sub<Output = T> + Div<Output = T> + Rem<Output = T> +
              Mul<Output = T> + Eq + Hash + Debug + SubAssign + PartialOrd + AddAssign +
-             From<u8> + 'static,
+             From<u8> + Ord + 'static,
           V: Copy + Sub<Output = V> + Mul<Output = V> + Add<Output = V> + Div<Output = V> +
              Into<f64> + SubAssign + AddAssign + MulAssign + PartialEq + Debug +
              MyFloatTrait + PartialOrd + From<f32> + MyFloatTrait<Other = V> + 'static,
@@ -212,7 +212,7 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
         let mut local_stiffness_matrix = ExtendedMatrix::create(
             BeamAuxFunctions::<T, V>::nodes_number() * BeamAuxFunctions::<T, V>::node_dof(),
             BeamAuxFunctions::<T, V>::nodes_number() * BeamAuxFunctions::<T, V>::node_dof(),
-            vec![V::from(0f32); (BEAM2N1IPT_NODES_NUMBER * BEAM_NODE_DOF).pow(2)], tolerance);
+            vec![V::from(0f32); (BEAM2N1IPT_NODES_NUMBER * BEAM_NODE_DOF).pow(2)], tolerance)?;
 
         for integration_point in &self.state.integration_points
         {
@@ -468,7 +468,7 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
         let mut local_stiffness_matrix = ExtendedMatrix::create(
             BeamAuxFunctions::<T, V>::nodes_number() * BeamAuxFunctions::<T, V>::node_dof(),
             BeamAuxFunctions::<T, V>::nodes_number() * BeamAuxFunctions::<T, V>::node_dof(),
-            vec![V::from(0f32); (BEAM2N1IPT_NODES_NUMBER * BEAM_NODE_DOF).pow(2)], tolerance);
+            vec![V::from(0f32); (BEAM2N1IPT_NODES_NUMBER * BEAM_NODE_DOF).pow(2)], tolerance)?;
 
         for integration_point in self.state.integration_points.iter()
         {
@@ -506,11 +506,11 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
 
         let strain_displacement_matrix_u =
             BeamAuxFunctions::strain_displacement_matrix_u(
-                self.node_1_number, self.node_2_number, r, tolerance, nodes);
+                self.node_1_number, self.node_2_number, r, tolerance, nodes)?;
         let strains_matrix_u =
             strain_displacement_matrix_u.multiply_by_matrix(&element_local_displacements)?;
         let force_x = BeamAuxFunctions::extract_column_matrix_values(
-            &strains_matrix_u)[0] * self.area * self.young_modulus;
+            &strains_matrix_u)?[0] * self.area * self.young_modulus;
         forces_components.push(ForceComponent::ForceX);
         forces_values.push(force_x);
 
@@ -522,7 +522,7 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
         let shear_modulus = self.young_modulus /
             (V::from(2f32) * (V::from(1f32) + self.poisson_ratio));
         let force_y = BeamAuxFunctions::extract_column_matrix_values(
-            &strains_matrix_v)[0] * shear_modulus * self.area * self.shear_factor;
+            &strains_matrix_v)?[0] * shear_modulus * self.area * self.shear_factor;
         forces_components.push(ForceComponent::ForceY);
         forces_values.push(force_y);
 
@@ -532,17 +532,17 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
         let strains_matrix_w =
             strain_displacement_matrix_w.multiply_by_matrix(&element_local_displacements)?;
         let force_z = BeamAuxFunctions::extract_column_matrix_values(
-            &strains_matrix_w)[0] * shear_modulus * self.area * self.shear_factor;
+            &strains_matrix_w)?[0] * shear_modulus * self.area * self.shear_factor;
         forces_components.push(ForceComponent::ForceZ);
         forces_values.push(force_z);
 
         let strain_displacement_matrix_thu =
             BeamAuxFunctions::strain_displacement_matrix_thu(
-                self.node_1_number, self.node_2_number, r, tolerance, nodes);
+                self.node_1_number, self.node_2_number, r, tolerance, nodes)?;
         let strains_matrix_thu =
             strain_displacement_matrix_thu.multiply_by_matrix(&element_local_displacements)?;
         let moment_x = BeamAuxFunctions::extract_column_matrix_values(
-            &strains_matrix_thu)[0] * shear_modulus * self.it;
+            &strains_matrix_thu)?[0] * shear_modulus * self.it;
         forces_components.push(ForceComponent::MomentX);
         forces_values.push(moment_x);
 
@@ -559,11 +559,11 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
 
         let strain_displacement_matrix_thv =
             BeamAuxFunctions::strain_displacement_matrix_thv(
-                self.node_1_number, self.node_2_number, r, tolerance, nodes);
+                self.node_1_number, self.node_2_number, r, tolerance, nodes)?;
         let strains_matrix_thv =
             strain_displacement_matrix_thv.multiply_by_matrix(&element_local_displacements)?;
         let moment_y_average = BeamAuxFunctions::extract_column_matrix_values(
-            &strains_matrix_thv)[0] * self.young_modulus * i22;
+            &strains_matrix_thv)?[0] * self.young_modulus * i22;
         forces_components.push(ForceComponent::MomentY);
         forces_values.push(moment_y_average);
         let moment_y_at_node_1 = moment_y_average + length * force_z / V::from(2f32);
@@ -575,11 +575,11 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
 
         let strain_displacement_matrix_thw =
             BeamAuxFunctions::strain_displacement_matrix_thw(
-                self.node_1_number, self.node_2_number, r, tolerance, nodes);
+                self.node_1_number, self.node_2_number, r, tolerance, nodes)?;
         let strains_matrix_thw =
             strain_displacement_matrix_thw.multiply_by_matrix(&element_local_displacements)?;
         let moment_z_average = BeamAuxFunctions::extract_column_matrix_values(
-            &strains_matrix_thw)[0] * self.young_modulus * i11;
+            &strains_matrix_thw)?[0] * self.young_modulus * i11;
         forces_components.push(ForceComponent::MomentZ);
         forces_values.push(moment_z_average);
         let moment_z_at_node_1 = moment_z_average + length * force_y / V::from(2f32);
@@ -614,7 +614,7 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
     }
 
 
-    fn extract_unique_elements_of_rotation_matrix(&self) -> Vec<V>
+    fn extract_unique_elements_of_rotation_matrix(&self) -> Result<Vec<V>, String>
     {
         extract_unique_elements_of_rotation_matrix(&self.state.rotation_matrix)
     }

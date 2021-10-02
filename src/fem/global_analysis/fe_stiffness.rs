@@ -1,7 +1,7 @@
 use std::slice::Iter;
 use std::ops::AddAssign;
 
-use extended_matrix::basic_matrix::basic_matrix::MatrixElementPosition;
+use extended_matrix::matrix_element_position::MatrixElementPosition;
 
 use self::StiffnessType::*;
 
@@ -18,7 +18,7 @@ pub fn stiffness_types_number<T>() -> T
 }
 
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Hash, Eq)]
 pub enum StiffnessType
 {
     Kuu,
@@ -47,4 +47,13 @@ pub struct StiffnessGroup<T>
     pub number_1: T,
     pub number_2: T,
     pub positions: Vec<MatrixElementPosition<T>>
+}
+
+
+#[derive(Hash, Eq, PartialEq)]
+pub struct StiffnessGroupKey<T>
+{
+    pub stiffness_type: StiffnessType,
+    pub number_1: T,
+    pub number_2: T,
 }

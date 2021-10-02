@@ -65,7 +65,7 @@ pub(super) trait FiniteElementTrait<T, V>
     fn extract_element_analysis_data(&self, global_displacements: &Displacements<T, V>,
         tolerance: V, nodes: &HashMap<T, FENode<V>>) -> Result<ElementAnalysisData<T, V>, String>;
     fn copy_nodes_numbers(&self) -> Vec<T>;
-    fn extract_unique_elements_of_rotation_matrix(&self) -> Vec<V>;
+    fn extract_unique_elements_of_rotation_matrix(&self) -> Result<Vec<V>, String>;
     fn copy_properties(&self) -> Vec<V>;
 }
 
@@ -76,7 +76,7 @@ struct FECreator<T, V>(T, V);
 impl<T, V> FECreator<T, V>
     where T: Copy + Sub<Output = T> + Div<Output = T> + Rem<Output = T> + Eq + Hash + SubAssign +
              Debug + Mul<Output = T> + PartialOrd + Add<Output = T> + AddAssign + From<u8> +
-             'static,
+             Ord + 'static,
           V: Copy + Sub<Output = V> + Mul<Output = V> + Add<Output = V> + Div<Output = V> +
              PartialEq + Debug + AddAssign + MulAssign + SubAssign + MyFloatTrait + PartialOrd +
              Into<f64> + From<f32> + MyFloatTrait<Other = V> + 'static,
@@ -162,7 +162,7 @@ pub(crate) struct FiniteElement<T, V>
 impl<T, V> FiniteElement<T, V>
     where T: Copy + Sub<Output = T> + Div<Output = T> + Rem<Output = T> + Eq + Hash + SubAssign +
              Debug + Mul<Output = T> + PartialOrd + Add<Output = T> + AddAssign + From<u8> +
-             'static,
+             Ord + 'static,
           V: Copy + Sub<Output = V> + Mul<Output = V> + Add<Output = V> + Div<Output = V> +
              PartialEq + Debug + AddAssign + MulAssign + SubAssign + MyFloatTrait + PartialOrd +
              Into<f64> + From<f32> + MyFloatTrait<Other = V> + 'static,
@@ -243,7 +243,7 @@ impl<T, V> FiniteElement<T, V>
     }
 
 
-    pub fn extract_unique_elements_of_rotation_matrix(&self) -> Vec<V>
+    pub fn extract_unique_elements_of_rotation_matrix(&self) -> Result<Vec<V>, String>
     {
         self.element.extract_unique_elements_of_rotation_matrix()
     }
@@ -269,7 +269,7 @@ pub struct DeletedFEData<T, V>
 impl<T, V> DeletedFEData<T, V>
     where T: Copy + Sub<Output = T> + Div<Output = T> + Rem<Output = T> + Eq + Hash + SubAssign +
              Debug + Mul<Output = T> + PartialOrd + Add<Output = T> + AddAssign + From<u8> +
-             'static,
+             Ord + 'static,
           V: Copy + Sub<Output = V> + Mul<Output = V> + Add<Output = V> + Div<Output = V> +
              PartialEq + Debug + AddAssign + MulAssign + SubAssign + MyFloatTrait + PartialOrd +
              Into<f64> + From<f32> + MyFloatTrait<Other = V> + 'static,

@@ -4,7 +4,7 @@ use std::fmt::Debug;
 use std::collections::HashMap;
 
 use extended_matrix::extended_matrix::ExtendedMatrix;
-use extended_matrix::functions::copy_element_value;
+use extended_matrix::matrix_element_position::MatrixElementPosition;
 
 use crate::my_float::MyFloatTrait;
 
@@ -22,7 +22,7 @@ pub struct TrussAuxFunctions<T, V>(T, V);
 impl<T, V> TrussAuxFunctions<T, V>
     where T: Copy + PartialOrd + Add<Output = T> + Sub<Output = T> + Div<Output = T> +
              Rem<Output = T> + Eq + Hash + SubAssign + Debug + Mul<Output = T> + AddAssign +
-             From<u8> + 'static,
+             From<u8> + Ord + 'static,
           V: Copy + Into<f64> + Sub<Output = V> + Mul<Output = V> + Add<Output = V> + From<f32> +
              Div<Output = V> + PartialEq + Debug + AddAssign + MulAssign + SubAssign +
              MyFloatTrait + PartialOrd + 'static,
@@ -54,7 +54,7 @@ impl<T, V> TrussAuxFunctions<T, V>
 
 
     pub fn rotation_matrix(node_1_number: T, node_2_number: T, tolerance: V,
-        nodes: &HashMap<T, FENode<V>>) -> ExtendedMatrix<T, V>
+        nodes: &HashMap<T, FENode<V>>) -> Result<ExtendedMatrix<T, V>, String>
     {
         let node_1 = nodes.get(&node_1_number).unwrap();
         let node_2 = nodes.get(&node_2_number).unwrap();
@@ -106,8 +106,8 @@ impl<T, V> TrussAuxFunctions<T, V>
                 [V::from(0f32); TRUSS_NODE_DOF], [q_31, q_32, q_33],
             ].concat(),
             tolerance,
-        );
-        rotation_matrix
+        )?;
+        Ok(rotation_matrix)
     }
 
 
@@ -183,17 +183,17 @@ impl<T, V> TrussAuxFunctions<T, V>
 
 
     pub fn strain_displacement_matrix(node_1_number: T, node_2_number: T, r: V, tolerance: V,
-        nodes: &HashMap<T, FENode<V>>) -> ExtendedMatrix<T, V>
+        nodes: &HashMap<T, FENode<V>>) -> Result<ExtendedMatrix<T, V>, String>
     {
         let elements = vec![TrussAuxFunctions::<T, V>::dh1_dr(r), V::from(0f32),
             V::from(0f32), TrussAuxFunctions::<T, V>::dh2_dr(r), V::from(0f32), V::from(0f32)];
         let mut matrix = ExtendedMatrix::create(T::from(1u8),
             TrussAuxFunctions::<T, V>::nodes_number() * TrussAuxFunctions::<T, V>::node_dof(),
-            elements, tolerance);
+            elements, tolerance)?;
         let inverse_jacobian = TrussAuxFunctions::inverse_jacobian(node_1_number, node_2_number,
             r, nodes);
         matrix.multiply_by_number(inverse_jacobian);
-        matrix
+        Ok(matrix)
     }
 
 
@@ -218,14 +218,14 @@ impl<T, V> TrussAuxFunctions<T, V>
         let current_area = TrussAuxFunctions::<T, V>::area(area_1, area_2, r);
 
         let mut lhs_matrix = TrussAuxFunctions::strain_displacement_matrix(
-            node_1_number, node_2_number, r, tolerance, nodes);
+            node_1_number, node_2_number, r, tolerance, nodes)?;
 
         lhs_matrix.transpose();
 
         lhs_matrix.multiply_by_number(young_modulus * current_area);
 
         let rhs_matrix = TrussAuxFunctions::strain_displacement_matrix(
-                node_1_number, node_2_number, r, tolerance, nodes);
+                node_1_number, node_2_number, r, tolerance, nodes)?;
 
         return match lhs_matrix.multiply_by_matrix(&rhs_matrix)
         {
@@ -265,11 +265,11 @@ impl<T, V> TrussAuxFunctions<T, V>
     }
 
 
-    pub fn extract_column_matrix_values(column_matrix: &ExtendedMatrix<T, V>) -> Vec<V>
+    pub fn extract_column_matrix_values(column_matrix: &ExtendedMatrix<T, V>)
+        -> Result<Vec<V>, String>
     {
         let mut values = Vec::new();
         let shape = column_matrix.copy_shape();
-        let all_values = column_matrix.copy_all_elements_values();
 
         let mut row = T::from(0u8);
         while row < shape.0
@@ -277,12 +277,13 @@ impl<T, V> TrussAuxFunctions<T, V>
             let mut column = T::from(0u8);
             while column < shape.1
             {
-                let value = copy_element_value(row, column, &all_values);
+                let value = column_matrix.copy_element_value_or_zero(
+                    MatrixElementPosition::create(row, column))?;;
                 values.push(value);
                 column += T::from(1u8);
             }
             row += T::from(1u8);
         }
-        values
+        Ok(values)
     }
 }
