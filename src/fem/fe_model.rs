@@ -783,15 +783,6 @@ impl<T, V> FEModel<T, V>
             index += 1usize;
         }
 
-        // (0..ua_ra_rows_numbers.len()).for_each(|index|
-        //     {
-        //         let displacement_value = ua_matrix.copy_element_value_or_zero(
-        //             MatrixElementPosition::create(i, T::from(0u8)))?;
-        //         let converted_index = conversion_uint_into_usize(ua_ra_rows_numbers[index]);
-        //         all_displacements_values[converted_index] = displacement_value;
-        //         i += T::from(1u8);
-        //     });
-
         let mut j = T::from(0u8);
         let mut index = 0usize;
         while index < ub_rb_rows_numbers.len()
@@ -803,15 +794,6 @@ impl<T, V> FEModel<T, V>
             j += T::from(1u8);
             index += 1usize;
         }
-
-        // (0..ub_rb_rows_numbers.len()).for_each(|index|
-        //     {
-        //         let displacement_value = ub_matrix.copy_element_value_or_zero(
-        //             MatrixElementPosition::create(j, T::from(0u8)))?;
-        //         let converted_index = conversion_uint_into_usize(ub_rb_rows_numbers[index]);
-        //         all_displacements_values[converted_index] = displacement_value;
-        //         j += T::from(1u8);
-        //     });
 
         let mut rows_number = T::from(0u8);
         (0..self.state.nodes_dof_parameters_global.len()).for_each(|_| rows_number += T::from(1u8));
