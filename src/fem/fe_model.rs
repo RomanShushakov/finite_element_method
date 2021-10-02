@@ -1,5 +1,3 @@
-use std::time::{Duration, Instant};
-
 use std::ops::{Sub, Div, Rem, SubAssign, Mul, Add, AddAssign, MulAssign, DivAssign};
 use std::hash::Hash;
 use std::fmt::Debug;
@@ -540,7 +538,6 @@ impl<T, V> FEModel<T, V>
                 no elements in the model!".to_string());
         }
 
-        let start = Instant::now();
         if self.nodes.keys().any(|node_number|
             self.elements.values().position(|element|
                 element.is_node_belong_element(*node_number)).is_none())
@@ -562,7 +559,6 @@ impl<T, V> FEModel<T, V>
         {
             let mut element_stiffness_matrix = element.extract_stiffness_matrix()?;
 
-            let start = Instant::now();
             let element_stiffness_groups = element.extract_stiffness_groups();
 
             for element_stiffness_group in element_stiffness_groups
@@ -574,7 +570,6 @@ impl<T, V> FEModel<T, V>
                 if let Some(matrix_elements_positions) =
                     self.state.stiffness_groups.get(&stiffness_group_key)
                 {
-                    let start = Instant::now();
                     global_stiffness_matrix.add_submatrix_to_assemblage(
                         &mut element_stiffness_matrix,
                         matrix_elements_positions,
@@ -808,11 +803,7 @@ impl<T, V> FEModel<T, V>
 
     pub fn global_analysis(&mut self) -> Result<GlobalAnalysisResult<T, V>, String>
     {
-        let start = Instant::now();
         self.update_nodes_dof_parameters_global()?;
-        let duration = start.elapsed();
-        println!("Nodes dof parameters were updated: {:?}", duration);
-        println!();
 
         if self.boundary_conditions.iter().position(|bc|
             bc.is_type_same(BCType::Displacement)).is_none()
@@ -821,20 +812,12 @@ impl<T, V> FEModel<T, V>
                 applied!".into())
         }
 
-        let start = Instant::now();
         let mut global_stiffness_matrix =
             self.compose_global_stiffness_matrix()?;
-        let duration = start.elapsed();
-        println!("Global stiffness matrix composed: {:?}", duration);
-        println!();
 
-        let start = Instant::now();
         let removed_zeros_rows_columns =
             global_stiffness_matrix.remove_zeros_rows_columns();
         self.shrink_of_nodes_dof_parameters(&removed_zeros_rows_columns)?;
-        let duration = start.elapsed();
-        println!("Zero rows and columns were removed: {:?}", duration);
-        println!();
 
         let mut ub_rb_rows_numbers = Vec::new();
         let mut separation_positions = Vec::new();
@@ -857,8 +840,6 @@ impl<T, V> FEModel<T, V>
             .direct_solution(&ra_matrix.add_subtract_matrix(
                 &separated_matrix.ref_k_ab().multiply_by_matrix(&ub_matrix)?,
                 Operation::Subtraction)?)?;
-        let duration = start.elapsed();
-        println!("Ua matrix was calculated: {:?}", duration);
 
         let reactions_values_matrix = separated_matrix.ref_k_ba()
             .multiply_by_matrix(&ua_matrix)?
