@@ -548,9 +548,6 @@ impl<T, V> FEModel<T, V>
             return Err("FEModel: Global stiffness matrix could not be composed because there are \
                 free nodes exist!".to_string());
         }
-        let duration = start.elapsed();
-        println!("Nodes existence check completed: {:?}", duration);
-        println!();
 
         let mut nodes_len_value = T::from(0u8);
         (0..self.nodes.len()).for_each(|_| nodes_len_value += T::from(1u8));
@@ -563,22 +560,13 @@ impl<T, V> FEModel<T, V>
 
         for element in self.elements.values()
         {
-            let start = Instant::now();
             let mut element_stiffness_matrix = element.extract_stiffness_matrix()?;
-            let duration = start.elapsed();
-            println!("Element stiffness matrix was extracted: {:?}", duration);
-            println!();
 
             let start = Instant::now();
             let element_stiffness_groups = element.extract_stiffness_groups();
-            let duration = start.elapsed();
-            println!("Element stiffness groups were extracted: {:?}", duration);
-            println!();
 
             for element_stiffness_group in element_stiffness_groups
             {
-                let start = Instant::now();
-
                 let stiffness_group_key = StiffnessGroupKey {
                     stiffness_type: element_stiffness_group.stiffness_type,
                     number_1: element_stiffness_group.number_1,
@@ -586,20 +574,11 @@ impl<T, V> FEModel<T, V>
                 if let Some(matrix_elements_positions) =
                     self.state.stiffness_groups.get(&stiffness_group_key)
                 {
-                    let duration = start.elapsed();
-                    println!("Stiffness group was found: {:?}", duration);
-                    println!();
-
                     let start = Instant::now();
                     global_stiffness_matrix.add_submatrix_to_assemblage(
                         &mut element_stiffness_matrix,
                         matrix_elements_positions,
                         &element_stiffness_group.positions);
-                    let duration = start.elapsed();
-                    println!("Element stiffness matrix was added: {:?}", duration);
-                    println!();
-
-                    println!("{:?}", matrix_elements_positions);
                 }
             }
         }
