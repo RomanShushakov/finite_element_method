@@ -801,7 +801,8 @@ impl<T, V> FEModel<T, V>
     }
 
 
-    pub fn global_analysis(&mut self) -> Result<GlobalAnalysisResult<T, V>, String>
+    pub fn global_analysis(&mut self , colsol_usage: bool)
+        -> Result<GlobalAnalysisResult<T, V>, String>
     {
         self.update_nodes_dof_parameters_global()?;
 
@@ -839,7 +840,7 @@ impl<T, V> FEModel<T, V>
         let ua_matrix = separated_matrix.ref_k_aa()
             .direct_solution(&ra_matrix.add_subtract_matrix(
                 &separated_matrix.ref_k_ab().multiply_by_matrix(&ub_matrix)?,
-                Operation::Subtraction)?)?;
+                Operation::Subtraction)?, colsol_usage)?;
 
         let reactions_values_matrix = separated_matrix.ref_k_ba()
             .multiply_by_matrix(&ua_matrix)?

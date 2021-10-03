@@ -28,7 +28,7 @@ pub fn extract_unique_elements_of_rotation_matrix<T, V>(rotation_matrix: &Extend
              PartialOrd + Ord + 'static,
           V: Add<Output = V> + Sub<Output = V> + Mul<Output = V> + Div<Output = V> + Copy +
              Debug + AddAssign + SubAssign + MulAssign + PartialEq + From<f32> + Into<f64> +
-             'static
+             PartialOrd + 'static
 {
     let r11 = rotation_matrix.copy_element_value_or_zero(
         MatrixElementPosition::create(T::from(0u8), T::from(0u8)))?;

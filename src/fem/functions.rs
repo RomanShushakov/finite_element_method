@@ -76,7 +76,8 @@ pub fn separate<T, V>(matrix: ExtendedMatrix<T, V>, positions: Vec<MatrixElement
              Rem<Output = T> + Copy + Debug + Eq + Hash + SubAssign + PartialOrd + AddAssign +
              From<u8> + Ord + 'static,
           V: Add<Output = V> + Mul<Output = V> + Sub<Output = V> + Div<Output = V> + Copy + Debug +
-             PartialEq + AddAssign + MulAssign + SubAssign + Into<f64> + From<f32> + 'static
+             PartialEq + AddAssign + MulAssign + SubAssign + Into<f64> + From<f32> + PartialOrd +
+             'static
 {
     let shape = matrix.copy_shape();
 
