@@ -15,11 +15,10 @@ use crate::fem::finite_elements::membrane::consts::{MEM4N4IP_NODES_NUMBER, MEMBR
 use crate::fem::finite_elements::functions::compare_with_tolerance;
 
 
+pub struct QuadMemAuxFunctions<T, V>(T, V);
 
-pub struct MemAuxFunctions<T, V>(T, V);
 
-
-impl<T, V> MemAuxFunctions<T, V>
+impl<T, V> QuadMemAuxFunctions<T, V>
     where T: Copy + PartialOrd + Add<Output = T> + Sub<Output = T> + Div<Output = T> +
              Rem<Output = T> + Eq + Hash + SubAssign + Debug + Mul<Output = T> + AddAssign +
              From<u8> + Ord + 'static,
@@ -64,7 +63,7 @@ impl<T, V> MemAuxFunctions<T, V>
         let edge_3_4_y = node_4.copy_y() - node_3.copy_y();
         let edge_3_4_z = node_4.copy_z() - node_3.copy_z();
 
-        let edge_3_4_length = MemAuxFunctions::<T, V>::length(node_3_number, node_4_number, nodes);
+        let edge_3_4_length = QuadMemAuxFunctions::<T, V>::length(node_3_number, node_4_number, nodes);
 
         let (u, v, w) = (edge_3_4_length, V::from(0f32), V::from(0f32));
         let alpha = ((edge_3_4_x * u + edge_3_4_y * v + edge_3_4_z * w) / 
@@ -163,8 +162,8 @@ impl<T, V> MemAuxFunctions<T, V>
             { (c_y * c_z * s + c_x * c) / c_xz } else { c };
 
         let rotation_matrix = ExtendedMatrix::create(
-            MemAuxFunctions::<T, V>::nodes_number() * MemAuxFunctions::<T, V>::node_dof(),
-            MemAuxFunctions::<T, V>::nodes_number() * MemAuxFunctions::<T, V>::node_dof(),
+            QuadMemAuxFunctions::<T, V>::nodes_number() * QuadMemAuxFunctions::<T, V>::node_dof(),
+            QuadMemAuxFunctions::<T, V>::nodes_number() * QuadMemAuxFunctions::<T, V>::node_dof(),
             vec![
                 [r_11, r_12, r_13], [V::from(0f32); MEMBRANE_NODE_DOF],
                 [V::from(0f32); MEMBRANE_NODE_DOF], [V::from(0f32); MEMBRANE_NODE_DOF],
@@ -200,37 +199,171 @@ impl<T, V> MemAuxFunctions<T, V>
     }
 
 
-    // fn power_func_x(a: V, x: V, n: i32) -> V
-    // {
-    //     (0..n).fold(a, |acc, _| acc * x)
-    // }
+    fn power_func_x(a: V, x: V, n: i32) -> V
+    {
+        (0..n).fold(a, |acc, _| acc * x)
+    }
 
 
-    // fn derivative_x(f: fn(V, V, i32) -> V, a: V, x: V, n: i32) -> V
-    // {
-    //     let mut converted_n = V::from(0f32);
-    //     (0..n).for_each(|_| converted_n += V::from(1f32));
+    fn derivative_x(f: fn(V, V, i32) -> V, a: V, x: V, n: i32) -> V
+    {
+        let mut converted_n = V::from(0f32);
+        (0..n).for_each(|_| converted_n += V::from(1f32));
 
-    //     f(a * converted_n, x, n - 1)
-    // }
-
-
-    // fn dx_dr(x_1: V, x_2: V, r: V) -> V
-    // {
-    //     TrussAuxFunctions::<T, V>::derivative_x(
-    //         TrussAuxFunctions::<T, V>::power_func_x, x_1 * V::from(0.5f32), V::from(0f32),
-    //         0) -
-    //     TrussAuxFunctions::<T, V>::derivative_x(
-    //         TrussAuxFunctions::<T, V>::power_func_x, x_1 * V::from(0.5f32), r, 1) +
-    //     TrussAuxFunctions::<T, V>::derivative_x(
-    //         TrussAuxFunctions::<T, V>::power_func_x, x_2 * V::from(0.5f32), V::from(0f32),
-    //         0) +
-    //     TrussAuxFunctions::<T, V>::derivative_x(
-    //         TrussAuxFunctions::<T, V>::power_func_x, x_2 * V::from(0.5f32), r, 1)
-    // }
+        f(a * converted_n, x, n - 1)
+    }
 
 
-    // fn jacobian(node_1_number: T, node_2_number: T, r: V, nodes: &HashMap<T, FENode<V>>) -> V
+    fn dx_dr(x_1: V, x_2: V, x_3: V, x_4: V, r: V, s: V) -> V
+    {
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, x_1 * V::from(0.25f32), V::from(0f32), 0) +
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, x_1 * V::from(0.25f32) * s, V::from(0f32), 0) +
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, x_1 * V::from(0.25f32), r, 1) +
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, x_1 * V::from(0.25f32) * s, r, 1) +
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, x_2 * V::from(0.25f32), V::from(0f32), 0) +
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, x_2 * V::from(0.25f32) * s, V::from(0f32), 0) -
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, x_2 * V::from(0.25f32), r, 1) -
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, x_2 * V::from(0.25f32) * s, r, 1) +
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, x_3 * V::from(0.25f32), V::from(0f32), 0) -
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, x_3 * V::from(0.25f32) * s, V::from(0f32), 0) -
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, x_3 * V::from(0.25f32), r, 1) +
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, x_3 * V::from(0.25f32) * s, r, 1) +
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, x_4 * V::from(0.25f32), V::from(0f32), 0) -
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, x_4 * V::from(0.25f32) * s, V::from(0f32), 0) +
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, x_4 * V::from(0.25f32), r, 1) -
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, x_4 * V::from(0.25f32) * s, r, 1)
+    }
+
+
+    fn dx_ds(x_1: V, x_2: V, x_3: V, x_4: V, r: V, s: V) -> V
+    {
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, x_1 * V::from(0.25f32), V::from(0f32), 0) +
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, x_1 * V::from(0.25f32), s, 1) +
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, x_1 * V::from(0.25f32) * r, V::from(0f32), 0) +
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, x_1 * V::from(0.25f32) * r, s, 1) +
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, x_2 * V::from(0.25f32), V::from(0f32), 0) +
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, x_2 * V::from(0.25f32), s, 1) -
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, x_2 * V::from(0.25f32) * r, V::from(0f32), 0) -
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, x_2 * V::from(0.25f32) * r, s, 1) +
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, x_3 * V::from(0.25f32), V::from(0f32), 0) -
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, x_3 * V::from(0.25f32), s, 1) -
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, x_3 * V::from(0.25f32) * r, V::from(0f32), 0) +
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, x_3 * V::from(0.25f32) * r, s, 1) +
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, x_4 * V::from(0.25f32), V::from(0f32), 0) -
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, x_4 * V::from(0.25f32), s, 1) +
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, x_4 * V::from(0.25f32) * r, V::from(0f32), 0) -
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, x_4 * V::from(0.25f32) * r, s, 1)
+    }
+
+
+    fn dy_dr(y_1: V, y_2: V, y_3: V, y_4: V, r: V, s: V) -> V
+    {
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, y_1 * V::from(0.25f32), V::from(0f32), 0) +
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, y_1 * V::from(0.25f32) * s, V::from(0f32), 0) +
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, y_1 * V::from(0.25f32), r, 1) +
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, y_1 * V::from(0.25f32) * s, r, 1) +
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, y_2 * V::from(0.25f32), V::from(0f32), 0) +
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, y_2 * V::from(0.25f32) * s, V::from(0f32), 0) -
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, y_2 * V::from(0.25f32), r, 1) -
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, y_2 * V::from(0.25f32) * s, r, 1) +
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, y_3 * V::from(0.25f32), V::from(0f32), 0) -
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, y_3 * V::from(0.25f32) * s, V::from(0f32), 0) -
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, y_3 * V::from(0.25f32), r, 1) +
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, y_3 * V::from(0.25f32) * s, r, 1) +
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, y_4 * V::from(0.25f32), V::from(0f32), 0) -
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, y_4 * V::from(0.25f32) * s, V::from(0f32), 0) +
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, y_4 * V::from(0.25f32), r, 1) -
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, y_4 * V::from(0.25f32) * s, r, 1)
+    }
+
+
+    fn dy_ds(y_1: V, y_2: V, y_3: V, y_4: V, r: V, s: V) -> V
+    {
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, y_1 * V::from(0.25f32), V::from(0f32), 0) +
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, y_1 * V::from(0.25f32), s, 1) +
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, y_1 * V::from(0.25f32) * r, V::from(0f32), 0) +
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, y_1 * V::from(0.25f32) * r, s, 1) +
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, y_2 * V::from(0.25f32), V::from(0f32), 0) +
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, y_2 * V::from(0.25f32), s, 1) -
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, y_2 * V::from(0.25f32) * r, V::from(0f32), 0) -
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, y_2 * V::from(0.25f32) * r, s, 1) +
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, y_3 * V::from(0.25f32), V::from(0f32), 0) -
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, y_3 * V::from(0.25f32), s, 1) -
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, y_3 * V::from(0.25f32) * r, V::from(0f32), 0) +
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, y_3 * V::from(0.25f32) * r, s, 1) +
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, y_4 * V::from(0.25f32), V::from(0f32), 0) -
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, y_4 * V::from(0.25f32), s, 1) +
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, y_4 * V::from(0.25f32) * r, V::from(0f32), 0) -
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, y_4 * V::from(0.25f32) * r, s, 1)
+    }
+
+
+    // fn jacobian(node_1_number: T, node_2_number: T, node_number_3: T, node_number_4: T,
+    //     r: V, s: V, nodes: &HashMap<T, FENode<V>>) -> V
     // {
     //     let length = TrussAuxFunctions::length(node_1_number, node_2_number, nodes);
     //     let x_1 = V::from(-1f32) * length / V::from(2f32);

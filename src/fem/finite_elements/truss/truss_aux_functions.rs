@@ -225,7 +225,7 @@ impl<T, V> TrussAuxFunctions<T, V>
         lhs_matrix.multiply_by_number(young_modulus * current_area);
 
         let rhs_matrix = TrussAuxFunctions::strain_displacement_matrix(
-                node_1_number, node_2_number, r, tolerance, nodes)?;
+            node_1_number, node_2_number, r, tolerance, nodes)?;
 
         return match lhs_matrix.multiply_by_matrix(&rhs_matrix)
         {
