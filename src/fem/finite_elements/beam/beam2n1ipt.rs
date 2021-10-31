@@ -257,10 +257,10 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
         let mut interim_matrix = self.state.rotation_matrix.clone();
         interim_matrix.transpose();
         if let Ok(matrix) =
-        interim_matrix.multiply_by_matrix(&self.state.local_stiffness_matrix)
+            interim_matrix.multiply_by_matrix(&self.state.local_stiffness_matrix)
         {
             if let Ok(matrix) =
-            matrix.multiply_by_matrix(&self.state.rotation_matrix)
+                matrix.multiply_by_matrix(&self.state.rotation_matrix)
             {
                 return Ok(matrix);
             }

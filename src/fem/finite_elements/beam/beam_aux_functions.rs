@@ -32,8 +32,11 @@ impl<T, V> BeamAuxFunctions<T, V>
         let node_1 = nodes.get(&node_1_number).unwrap();
         let node_2 = nodes.get(&node_2_number).unwrap();
 
-        ((node_1.copy_x() - node_2.copy_x()).my_powi(2) + (node_1.copy_y() - node_2.copy_y()).my_powi(2) +
-        (node_1.copy_z() - node_2.copy_z()).my_powi(2)).my_sqrt()
+        (
+            (node_1.copy_x() - node_2.copy_x()).my_powi(2) +
+            (node_1.copy_y() - node_2.copy_y()).my_powi(2) +
+            (node_1.copy_z() - node_2.copy_z()).my_powi(2)
+        ).my_sqrt()
     }
 
 
@@ -149,8 +152,9 @@ impl<T, V> BeamAuxFunctions<T, V>
             )?;
 
         let interim_rotation_matrix = ExtendedMatrix::create(
-            3, 3, vec![q_11, q_12, q_13, q_21, q_22, q_23, q_31,
-            q_32, q_33], tolerance)?;
+            3, 3,
+            vec![q_11, q_12, q_13, q_21, q_22, q_23, q_31, q_32, q_33],
+            tolerance)?;
 
         let projection_of_beam_section_orientation = ExtendedMatrix::create(
             3, 1,
@@ -158,7 +162,8 @@ impl<T, V> BeamAuxFunctions<T, V>
             tolerance)?;
 
         let transformed_projection_of_beam_section_orientation =
-            interim_rotation_matrix.multiply_by_matrix(&projection_of_beam_section_orientation)?;
+            interim_rotation_matrix.multiply_by_matrix(
+                &projection_of_beam_section_orientation)?;
 
         let transformed_projection_of_beam_section_orientation_x =
             transformed_projection_of_beam_section_orientation.copy_element_value_or_zero(
@@ -183,7 +188,7 @@ impl<T, V> BeamAuxFunctions<T, V>
         let total_angle = angle +
             angle_between_beam_section_local_axis_1_direction_and_axis_t;
 
-        let c_x = compare_with_tolerance(x /length, tolerance);
+        let c_x = compare_with_tolerance(x / length, tolerance);
         let c_y = compare_with_tolerance(y / length, tolerance);
         let c_z = compare_with_tolerance(z / length, tolerance);
         let c_xz = compare_with_tolerance(
@@ -195,8 +200,8 @@ impl<T, V> BeamAuxFunctions<T, V>
         let r_11 = if c_xz != V::from(0f32) { c_x } else { V::from(0f32) };
         let r_12 = c_y;
         let r_13 = if c_xz != V::from(0f32) { c_z } else { V::from(0f32) };
-        let r_21 = if c_xz != V::from(0f32)
-            { (V::from(-1f32) * c_x * c_y * c - c_z * s) / c_xz } else { V::from(-1f32) * c_y * c };
+        let r_21 = if c_xz != V::from(0f32) { (V::from(-1f32) * c_x * c_y * c - c_z * s) / c_xz }
+            else { V::from(-1f32) * c_y * c };
         let r_22 = if c_xz != V::from(0f32) { c_xz * c } else { V::from(0f32) };
         let r_23 = if c_xz != V::from(0f32)
             { (V::from(-1f32) * c_y * c_z * c + c_x * s) / c_xz } else { s };
