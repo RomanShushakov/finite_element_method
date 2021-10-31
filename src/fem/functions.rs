@@ -5,7 +5,7 @@ use std::collections::HashMap;
 
 use extended_matrix::matrix_element_position::MatrixElementPosition;
 use extended_matrix::extended_matrix::ExtendedMatrix;
-use extended_matrix::functions::{conversion_uint_into_usize};
+use extended_matrix::functions::conversion_uint_into_usize;
 
 
 use crate::fem::global_analysis::fe_stiffness::

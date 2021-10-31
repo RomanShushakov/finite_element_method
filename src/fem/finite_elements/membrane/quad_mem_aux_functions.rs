@@ -12,7 +12,10 @@ use crate::fem::global_analysis::fe_dof_parameter_data::{DOFParameterData, Globa
 
 use crate::fem::finite_elements::fe_node::FENode;
 use crate::fem::finite_elements::membrane::consts::{MEM4N4IP_NODES_NUMBER, MEMBRANE_NODE_DOF};
-use crate::fem::finite_elements::functions::compare_with_tolerance;
+use crate::fem::finite_elements::functions::
+{
+    compare_with_tolerance, extract_unique_elements_of_rotation_matrix
+};
 
 
 pub struct QuadMemAuxFunctions<T, V>(T, V);
@@ -362,14 +365,97 @@ impl<T, V> QuadMemAuxFunctions<T, V>
     }
 
 
-    // fn jacobian(node_1_number: T, node_2_number: T, node_number_3: T, node_number_4: T,
-    //     r: V, s: V, nodes: &HashMap<T, FENode<V>>) -> V
-    // {
-    //     let length = TrussAuxFunctions::length(node_1_number, node_2_number, nodes);
-    //     let x_1 = V::from(-1f32) * length / V::from(2f32);
-    //     let x_2 = length / V::from(2f32);
-    //     TrussAuxFunctions::<T, V>::dx_dr(x_1, x_2, r)
-    // }
+    pub fn jacobian(node_1_number: T, node_2_number: T, node_3_number: T, node_4_number: T,
+        r: V, s: V, ref_nodes: &HashMap<T, FENode<V>>, ref_rotation_matrix: &ExtendedMatrix<T, V>,
+        tolerance: V) -> Result<ExtendedMatrix<T, V>, String>
+    {
+        let unique_elements_of_rotation_matrix = 
+            extract_unique_elements_of_rotation_matrix::<T, V>(ref_rotation_matrix)?;
+        let shrinked_rotation_matrix = 
+            ExtendedMatrix::create(T::from(3u8), T::from(3u8), 
+            unique_elements_of_rotation_matrix, tolerance)?;
+
+        let node_1 = ref_nodes.get(&node_1_number).unwrap();
+        let node_2 = ref_nodes.get(&node_2_number).unwrap();
+        let node_3 = ref_nodes.get(&node_3_number).unwrap();
+        let node_4 = ref_nodes.get(&node_4_number).unwrap();
+        let (node_1_x, node_1_y, node_1_z) = node_1.copy_coordinates();
+        let (node_2_x, node_2_y, node_2_z) = node_2.copy_coordinates();
+        let (node_3_x, node_3_y, node_3_z) = node_3.copy_coordinates(); 
+        let (node_4_x, node_4_y, node_4_z) = node_4.copy_coordinates();
+
+        let node_1_direction_vector = vec![
+            node_1_x - node_3_x, node_1_y - node_3_y, node_1_z - node_3_z,
+        ];
+        let node_2_direction_vector = vec![
+            node_2_x - node_3_x, node_2_y - node_3_y, node_2_z - node_3_z,
+        ];
+        let node_4_direction_vector = vec![
+            node_4_x - node_3_x, node_4_y - node_3_y, node_4_z - node_3_z,
+        ];
+
+        let node_1_direction = ExtendedMatrix::create(T::from(3u8),
+            T::from(1u8), node_1_direction_vector, tolerance)?;
+        let node_2_direction = ExtendedMatrix::create(T::from(3u8),
+            T::from(1u8), node_2_direction_vector, tolerance)?;
+        let node_4_direction = ExtendedMatrix::create(T::from(3u8),
+            T::from(1u8), node_4_direction_vector, tolerance)?;
+
+        let transformed_node_1_direction = shrinked_rotation_matrix.multiply_by_matrix(&node_1_direction)?;
+        let transformed_node_2_direction = shrinked_rotation_matrix.multiply_by_matrix(&node_2_direction)?;
+        let transformed_node_4_direction = shrinked_rotation_matrix.multiply_by_matrix(&node_4_direction)?;
+
+        let transformed_transformed_node_1_direction_x =
+            transformed_node_1_direction.copy_element_value_or_zero(
+                MatrixElementPosition::create(T::from(0u8), T::from(0u8)))?;
+        let transformed_transformed_node_1_direction_y =
+            transformed_node_1_direction.copy_element_value_or_zero(
+                MatrixElementPosition::create(T::from(1u8), T::from(0u8)))?;
+        let transformed_transformed_node_1_direction_z =
+            transformed_node_1_direction.copy_element_value_or_zero(
+                MatrixElementPosition::create(T::from(2u8), T::from(0u8)))?;
+        let transformed_transformed_node_2_direction_x =
+            transformed_node_2_direction.copy_element_value_or_zero(
+                MatrixElementPosition::create(T::from(0u8), T::from(0u8)))?;
+        let transformed_transformed_node_2_direction_y =
+            transformed_node_2_direction.copy_element_value_or_zero(
+                MatrixElementPosition::create(T::from(1u8), T::from(0u8)))?;
+        let transformed_transformed_node_2_direction_z =
+            transformed_node_2_direction.copy_element_value_or_zero(
+                MatrixElementPosition::create(T::from(2u8), T::from(0u8)))?;
+        let transformed_transformed_node_4_direction_x =
+            transformed_node_4_direction.copy_element_value_or_zero(
+                MatrixElementPosition::create(T::from(0u8), T::from(0u8)))?;
+        let transformed_transformed_node_4_direction_y =
+            transformed_node_4_direction.copy_element_value_or_zero(
+                MatrixElementPosition::create(T::from(1u8), T::from(0u8)))?;
+        let transformed_transformed_node_4_direction_z =
+            transformed_node_4_direction.copy_element_value_or_zero(
+                MatrixElementPosition::create(T::from(2u8), T::from(0u8)))?;
+
+        println!("{:?}, {:?}, {:?}", transformed_transformed_node_1_direction_z,
+            transformed_transformed_node_2_direction_z, transformed_transformed_node_4_direction_z);
+        
+        let jacobian_elements = vec![
+            QuadMemAuxFunctions::<T, V>::dx_dr(
+                transformed_transformed_node_1_direction_x, transformed_transformed_node_2_direction_x, 
+                V::from(0f32), transformed_transformed_node_4_direction_x, r, s),
+            QuadMemAuxFunctions::<T, V>::dy_dr(
+                transformed_transformed_node_1_direction_y, transformed_transformed_node_2_direction_y, 
+                V::from(0f32), transformed_transformed_node_4_direction_y, r, s),
+            QuadMemAuxFunctions::<T, V>::dx_ds(
+                transformed_transformed_node_1_direction_x, transformed_transformed_node_2_direction_x, 
+                V::from(0f32), transformed_transformed_node_4_direction_x, r, s),
+            QuadMemAuxFunctions::<T, V>::dy_ds(
+                transformed_transformed_node_1_direction_y, transformed_transformed_node_2_direction_y, 
+                V::from(0f32), transformed_transformed_node_4_direction_y, r, s),
+        ];
+
+        let jacobian = ExtendedMatrix::create(
+            T::from(2u8), T::from(2u8), jacobian_elements, tolerance)?;
+
+        Ok(jacobian)
+    }
 
 
     // fn inverse_jacobian(node_1_number: T, node_2_number: T, r: V, nodes: &HashMap<T, FENode<V>>)
