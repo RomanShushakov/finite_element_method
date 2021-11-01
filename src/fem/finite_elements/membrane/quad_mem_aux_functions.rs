@@ -312,6 +312,9 @@ impl<T, V> QuadMemAuxFunctions<T, V>
     }
 
 
+    // fn jacobian(node_1_number: T, node_2_number: T, node_3_number: T, node_4_number: T,
+    //     r: V, s: V, ref_nodes: &HashMap<T, FENode<V>>, ref_rotation_matrix: &ExtendedMatrix<T, V>,
+    //     tolerance: V) -> Result<ExtendedMatrix<T, V>, String>
     pub fn jacobian(node_1_number: T, node_2_number: T, node_3_number: T, node_4_number: T,
         r: V, s: V, ref_nodes: &HashMap<T, FENode<V>>, ref_rotation_matrix: &ExtendedMatrix<T, V>,
         tolerance: V) -> Result<ExtendedMatrix<T, V>, String>
@@ -340,24 +343,16 @@ impl<T, V> QuadMemAuxFunctions<T, V>
         let node_4_direction_vector = vec![
             node_4_x - node_3_x, node_4_y - node_3_y, node_4_z - node_3_z,
         ];
-
-        // let node_1_direction_vector = vec![node_1_x, node_1_y, node_1_z];
-        // let node_2_direction_vector = vec![node_2_x, node_2_y, node_2_z];
-        // let node_3_direction_vector = vec![node_3_x, node_3_y, node_3_z];
-        // let node_4_direction_vector = vec![node_4_x, node_4_y, node_4_z];
         
         let node_1_direction = ExtendedMatrix::create(T::from(3u8),
             T::from(1u8), node_1_direction_vector, tolerance)?;
         let node_2_direction = ExtendedMatrix::create(T::from(3u8),
             T::from(1u8), node_2_direction_vector, tolerance)?;
-        // let node_3_direction = ExtendedMatrix::create(T::from(3u8),
-        //     T::from(1u8), node_3_direction_vector, tolerance)?;
         let node_4_direction = ExtendedMatrix::create(T::from(3u8),
             T::from(1u8), node_4_direction_vector, tolerance)?;
 
         let transformed_node_1_direction = shrinked_rotation_matrix.multiply_by_matrix(&node_1_direction)?;
         let transformed_node_2_direction = shrinked_rotation_matrix.multiply_by_matrix(&node_2_direction)?;
-        // let transformed_node_3_direction = shrinked_rotation_matrix.multiply_by_matrix(&node_3_direction)?;
         let transformed_node_4_direction = shrinked_rotation_matrix.multiply_by_matrix(&node_4_direction)?;
 
         let transformed_transformed_node_1_direction_x =
@@ -378,15 +373,6 @@ impl<T, V> QuadMemAuxFunctions<T, V>
         let transformed_transformed_node_2_direction_z =
             transformed_node_2_direction.copy_element_value_or_zero(
                 MatrixElementPosition::create(T::from(2u8), T::from(0u8)))?;
-        // let transformed_transformed_node_3_direction_x =
-        //     transformed_node_3_direction.copy_element_value_or_zero(
-        //         MatrixElementPosition::create(T::from(0u8), T::from(0u8)))?;
-        // let transformed_transformed_node_3_direction_y =
-        //     transformed_node_3_direction.copy_element_value_or_zero(
-        //         MatrixElementPosition::create(T::from(1u8), T::from(0u8)))?;
-        // let transformed_transformed_node_3_direction_z =
-        //     transformed_node_3_direction.copy_element_value_or_zero(
-        //         MatrixElementPosition::create(T::from(2u8), T::from(0u8)))?;
         let transformed_transformed_node_4_direction_x =
             transformed_node_4_direction.copy_element_value_or_zero(
                 MatrixElementPosition::create(T::from(0u8), T::from(0u8)))?;
@@ -397,13 +383,12 @@ impl<T, V> QuadMemAuxFunctions<T, V>
             transformed_node_4_direction.copy_element_value_or_zero(
                 MatrixElementPosition::create(T::from(2u8), T::from(0u8)))?;
 
-        // println!("{:?}, {:?}, {:?}, {:?}", transformed_transformed_node_1_direction_z,
-        //     transformed_transformed_node_2_direction_z, transformed_transformed_node_3_direction_z, 
-        //     transformed_transformed_node_4_direction_z);
-        // println!();
-        println!("{:?}, {:?}, {:?}", transformed_transformed_node_1_direction_z,
-            transformed_transformed_node_2_direction_z, transformed_transformed_node_4_direction_z);
-        println!();
+        if transformed_transformed_node_1_direction_z != transformed_transformed_node_2_direction_z || 
+            transformed_transformed_node_1_direction_z != transformed_transformed_node_4_direction_z ||
+            transformed_transformed_node_2_direction_z != transformed_transformed_node_4_direction_z
+        {
+            return Err("Quad membrane element Jacobian calculation: Incorrect nodes directions transformation!".into());
+        }
         
         let jacobian_elements = vec![
             QuadMemAuxFunctions::<T, V>::dx_dr(
@@ -420,21 +405,6 @@ impl<T, V> QuadMemAuxFunctions<T, V>
                 V::from(0f32), transformed_transformed_node_4_direction_y, r, s),
         ];
 
-        // let jacobian_elements = vec![
-        //     QuadMemAuxFunctions::<T, V>::dx_dr(
-        //         transformed_transformed_node_1_direction_x, transformed_transformed_node_2_direction_x, 
-        //         transformed_transformed_node_3_direction_x, transformed_transformed_node_4_direction_x, r, s),
-        //     QuadMemAuxFunctions::<T, V>::dy_dr(
-        //         transformed_transformed_node_1_direction_y, transformed_transformed_node_2_direction_y, 
-        //         transformed_transformed_node_3_direction_y, transformed_transformed_node_4_direction_y, r, s),
-        //     QuadMemAuxFunctions::<T, V>::dx_ds(
-        //         transformed_transformed_node_1_direction_x, transformed_transformed_node_2_direction_x, 
-        //         transformed_transformed_node_3_direction_x, transformed_transformed_node_4_direction_x, r, s),
-        //     QuadMemAuxFunctions::<T, V>::dy_ds(
-        //         transformed_transformed_node_1_direction_y, transformed_transformed_node_2_direction_y, 
-        //         transformed_transformed_node_3_direction_y, transformed_transformed_node_4_direction_y, r, s),
-        // ];
-
         let jacobian = ExtendedMatrix::create(
             T::from(2u8), T::from(2u8), jacobian_elements, tolerance)?;
 
@@ -442,18 +412,26 @@ impl<T, V> QuadMemAuxFunctions<T, V>
     }
 
 
-    // fn inverse_jacobian(node_1_number: T, node_2_number: T, r: V, nodes: &HashMap<T, FENode<V>>)
-    //     -> V
-    // {
-    //     V::from(1f32) / TrussAuxFunctions::jacobian(node_1_number, node_2_number, r, nodes)
-    // }
+    fn inverse_jacobian(node_1_number: T, node_2_number: T, node_3_number: T, node_4_number: T,
+        r: V, s: V, ref_nodes: &HashMap<T, FENode<V>>, ref_rotation_matrix: &ExtendedMatrix<T, V>,
+        tolerance: V) -> Result<ExtendedMatrix<T, V>, String>
+    {
+        let jacobian = QuadMemAuxFunctions::<T, V>::jacobian(
+            node_1_number, node_2_number, node_3_number, node_4_number, r, s, ref_nodes, ref_rotation_matrix, tolerance)?;
+        let inverse_jacobian = jacobian.inverse()?;
+        Ok(inverse_jacobian)
+    }
 
 
-    // fn determinant_of_jacobian(node_1_number: T, node_2_number: T, r: V,
-    //     nodes: &HashMap<T, FENode<V>>) -> V
-    // {
-    //     TrussAuxFunctions::jacobian(node_1_number, node_2_number, r, nodes)
-    // }
+    fn determinant_of_jacobian(node_1_number: T, node_2_number: T, node_3_number: T, node_4_number: T,
+        r: V, s: V, ref_nodes: &HashMap<T, FENode<V>>, ref_rotation_matrix: &ExtendedMatrix<T, V>,
+        tolerance: V) -> Result<V, String>
+    {
+        let jacobian = QuadMemAuxFunctions::<T, V>::jacobian(
+            node_1_number, node_2_number, node_3_number, node_4_number, r, s, ref_nodes, ref_rotation_matrix, tolerance)?;
+        let determinant_of_jacobian = jacobian.determinant()?;
+        Ok(determinant_of_jacobian)
+    }
 
 
     // fn dh1_dr(r: V) -> V
