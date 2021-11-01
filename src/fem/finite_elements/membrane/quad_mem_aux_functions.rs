@@ -66,22 +66,35 @@ impl<T, V> QuadMemAuxFunctions<T, V>
         let edge_3_4_y = node_4.copy_y() - node_3.copy_y();
         let edge_3_4_z = node_4.copy_z() - node_3.copy_z();
 
-        let edge_3_4_length = QuadMemAuxFunctions::<T, V>::length(node_3_number, node_4_number, nodes);
+        let edge_3_2_x = node_2.copy_x() - node_3.copy_x();
+        let edge_3_2_y = node_2.copy_y() - node_3.copy_y();
+        let edge_3_2_z = node_2.copy_z() - node_3.copy_z();
+        let normal_through_node_3_x = edge_3_4_y * edge_3_2_z - edge_3_4_z * edge_3_2_y;
+        let normal_through_node_3_y = edge_3_4_z * edge_3_2_x - edge_3_4_x * edge_3_2_z;
+        let normal_through_node_3_z = edge_3_4_x * edge_3_2_y - edge_3_4_y * edge_3_2_x;
 
-        let (u, v, w) = (edge_3_4_length, V::from(0f32), V::from(0f32));
-        let alpha = ((edge_3_4_x * u + edge_3_4_y * v + edge_3_4_z * w) / 
-            (edge_3_4_length * edge_3_4_length)).my_acos();
-        let (rotation_axis_coord_x, mut rotation_axis_coord_y,
-            mut rotation_axis_coord_z) = (V::from(0f32), V::from(0f32), V::from(0f32));
-        if edge_3_4_x != V::from(0f32) && edge_3_4_y == V::from(0f32) && edge_3_4_z == V::from(0f32)
-        {
-            rotation_axis_coord_z = edge_3_4_x;
-        }
-        else
-        {
-            rotation_axis_coord_y = edge_3_4_z * edge_3_4_length;
-            rotation_axis_coord_z = V::from(-1f32) * edge_3_4_y * edge_3_4_length;
-        }
+        let normal_through_node_3_length = ((normal_through_node_3_x).my_powi(2) + 
+            (normal_through_node_3_y).my_powi(2) + (normal_through_node_3_z).my_powi(2)).my_sqrt();
+        let (u, v, w) = (V::from(0f32), V::from(0f32), normal_through_node_3_length);
+        let alpha = ((normal_through_node_3_x * u + normal_through_node_3_y * v + normal_through_node_3_z * w) / 
+            (normal_through_node_3_length * normal_through_node_3_length)).my_acos();
+
+        let rotation_axis_coord_x = 
+            {
+                if normal_through_node_3_x == V::from(0f32) && 
+                    normal_through_node_3_y == V::from(0f32) && 
+                    normal_through_node_3_z != V::from(0f32) 
+                {
+                    normal_through_node_3_length
+                }
+                else
+                {
+                    normal_through_node_3_y * w - normal_through_node_3_z * v
+                }
+            };
+        let rotation_axis_coord_y = normal_through_node_3_z * u - normal_through_node_3_x * w;
+        let rotation_axis_coord_z = normal_through_node_3_x * v - normal_through_node_3_y * u;
+
         let norm = V::from(1f32) / (rotation_axis_coord_x.my_powi(2) +
             rotation_axis_coord_y.my_powi(2) + rotation_axis_coord_z.my_powi(2)).my_sqrt();
         let (x_n, y_n, z_n) = (rotation_axis_coord_x * norm,
@@ -97,104 +110,38 @@ impl<T, V> QuadMemAuxFunctions<T, V>
         let q_31 = compare_with_tolerance(t * x_n * z_n - y_n * s, tolerance);
         let q_32 = compare_with_tolerance(t * y_n * z_n + x_n * s, tolerance);
         let q_33 = compare_with_tolerance(t * z_n * z_n + c, tolerance);
-
-        let interim_rotation_matrix = ExtendedMatrix::create(
-            3, 3,
-            vec![q_11, q_12, q_13, q_21, q_22, q_23, q_31, q_32, q_33],
-            tolerance)?;
-
-        let edge_3_2_x = node_2.copy_x() - node_3.copy_x();
-        let edge_3_2_y = node_2.copy_y() - node_3.copy_y();
-        let edge_3_2_z = node_2.copy_z() - node_3.copy_z();
-
-        let normal_through_node_3_x = edge_3_4_y * edge_3_2_z - edge_3_4_z * edge_3_2_y;
-        let normal_through_node_3_y = edge_3_4_z * edge_3_2_x - edge_3_4_x * edge_3_2_z;
-        let normal_through_node_3_z = edge_3_4_x * edge_3_2_y - edge_3_4_y * edge_3_2_x;
-
-        let normal_through_node_3 = ExtendedMatrix::create(
-            3, 1,
-            vec![normal_through_node_3_x, 
-                normal_through_node_3_y, normal_through_node_3_z],
-            tolerance)?;
-
-        let transformed_normal_through_node_3 =
-            interim_rotation_matrix.multiply_by_matrix(&normal_through_node_3)?;
-
-        let transformed_normal_through_node_3_x =
-            transformed_normal_through_node_3.copy_element_value_or_zero(
-                MatrixElementPosition::create(0, 0))?;
-
-        let transformed_normal_through_node_3_y =
-            transformed_normal_through_node_3.copy_element_value_or_zero(
-                MatrixElementPosition::create(1, 0))?;
-
-        let transformed_normal_through_node_3_z =
-            transformed_normal_through_node_3.copy_element_value_or_zero(
-                MatrixElementPosition::create(2, 0))?;
-
-        let angle_between_normal_direction_and_axis_t =
-            (transformed_normal_through_node_3_z /
-            (transformed_normal_through_node_3_x.my_powi(2) +
-            transformed_normal_through_node_3_y.my_powi(2) +
-            transformed_normal_through_node_3_z.my_powi(2))
-                .my_sqrt()
-            ).my_acos();
         
-        let c_x = compare_with_tolerance(edge_3_4_x / edge_3_4_length, tolerance);
-        let c_y = compare_with_tolerance(edge_3_4_y / edge_3_4_length, tolerance);
-        let c_z = compare_with_tolerance(edge_3_4_z / edge_3_4_length, tolerance);
-        let c_xz = compare_with_tolerance(
-            (c_x.my_powi(2) + c_z.my_powi(2)).my_sqrt(), tolerance);
-
-        let c = angle_between_normal_direction_and_axis_t.my_cos();
-        let s = angle_between_normal_direction_and_axis_t.my_sin();
-
-        let r_11 = if c_xz != V::from(0f32) { c_x } else { V::from(0f32) };
-        let r_12 = c_y;
-        let r_13 = if c_xz != V::from(0f32) { c_z } else { V::from(0f32) };
-        let r_21 = if c_xz != V::from(0f32) { (V::from(-1f32) * c_x * c_y * c - c_z * s) / c_xz }
-            else { V::from(-1f32) * c_y * c };
-        let r_22 = if c_xz != V::from(0f32) { c_xz * c } else { V::from(0f32) };
-        let r_23 = if c_xz != V::from(0f32)
-            { (V::from(-1f32) * c_y * c_z * c + c_x * s) / c_xz } else { s };
-        let r_31 = if c_xz != V::from(0f32)
-            { (c_x * c_y * s - c_z * c) / c_xz } else { c_y * s };
-        let r_32 = if c_xz != V::from(0f32)
-            { V::from(-1f32) * c_xz * s } else { V::from(0f32) };
-        let r_33 = if c_xz != V::from(0f32)
-            { (c_y * c_z * s + c_x * c) / c_xz } else { c };
-
         let rotation_matrix = ExtendedMatrix::create(
             QuadMemAuxFunctions::<T, V>::nodes_number() * QuadMemAuxFunctions::<T, V>::node_dof(),
             QuadMemAuxFunctions::<T, V>::nodes_number() * QuadMemAuxFunctions::<T, V>::node_dof(),
             vec![
-                [r_11, r_12, r_13], [V::from(0f32); MEMBRANE_NODE_DOF],
+                [q_11, q_12, q_13], [V::from(0f32); MEMBRANE_NODE_DOF],
                 [V::from(0f32); MEMBRANE_NODE_DOF], [V::from(0f32); MEMBRANE_NODE_DOF],
-                [r_21, r_22, r_23], [V::from(0f32); MEMBRANE_NODE_DOF],
+                [q_21, q_22, q_23], [V::from(0f32); MEMBRANE_NODE_DOF],
                 [V::from(0f32); MEMBRANE_NODE_DOF], [V::from(0f32); MEMBRANE_NODE_DOF],
-                [r_31, r_32, r_33], [V::from(0f32); MEMBRANE_NODE_DOF],
-                [V::from(0f32); MEMBRANE_NODE_DOF], [V::from(0f32); MEMBRANE_NODE_DOF],
-
-                [V::from(0f32); MEMBRANE_NODE_DOF], [r_11, r_12, r_13],
-                [V::from(0f32); MEMBRANE_NODE_DOF], [V::from(0f32); MEMBRANE_NODE_DOF],
-                [V::from(0f32); MEMBRANE_NODE_DOF], [r_21, r_22, r_23],
-                [V::from(0f32); MEMBRANE_NODE_DOF], [V::from(0f32); MEMBRANE_NODE_DOF],
-                [V::from(0f32); MEMBRANE_NODE_DOF], [r_31, r_32, r_33],
+                [q_31, q_32, q_33], [V::from(0f32); MEMBRANE_NODE_DOF],
                 [V::from(0f32); MEMBRANE_NODE_DOF], [V::from(0f32); MEMBRANE_NODE_DOF],
 
+                [V::from(0f32); MEMBRANE_NODE_DOF], [q_11, q_12, q_13],
                 [V::from(0f32); MEMBRANE_NODE_DOF], [V::from(0f32); MEMBRANE_NODE_DOF],
-                [r_11, r_12, r_13], [V::from(0f32); MEMBRANE_NODE_DOF],
+                [V::from(0f32); MEMBRANE_NODE_DOF], [q_21, q_22, q_23],
                 [V::from(0f32); MEMBRANE_NODE_DOF], [V::from(0f32); MEMBRANE_NODE_DOF],
-                [r_21, r_22, r_23], [V::from(0f32); MEMBRANE_NODE_DOF],
+                [V::from(0f32); MEMBRANE_NODE_DOF], [q_31, q_32, q_33],
                 [V::from(0f32); MEMBRANE_NODE_DOF], [V::from(0f32); MEMBRANE_NODE_DOF],
-                [r_31, r_32, r_33], [V::from(0f32); MEMBRANE_NODE_DOF],
 
                 [V::from(0f32); MEMBRANE_NODE_DOF], [V::from(0f32); MEMBRANE_NODE_DOF],
-                [V::from(0f32); MEMBRANE_NODE_DOF], [r_11, r_12, r_13],
+                [q_11, q_12, q_13], [V::from(0f32); MEMBRANE_NODE_DOF],
                 [V::from(0f32); MEMBRANE_NODE_DOF], [V::from(0f32); MEMBRANE_NODE_DOF],
-                [V::from(0f32); MEMBRANE_NODE_DOF], [r_21, r_22, r_23],
+                [q_21, q_22, q_23], [V::from(0f32); MEMBRANE_NODE_DOF],
                 [V::from(0f32); MEMBRANE_NODE_DOF], [V::from(0f32); MEMBRANE_NODE_DOF],
-                [V::from(0f32); MEMBRANE_NODE_DOF], [r_31, r_32, r_33],
+                [q_31, q_32, q_33], [V::from(0f32); MEMBRANE_NODE_DOF],
+
+                [V::from(0f32); MEMBRANE_NODE_DOF], [V::from(0f32); MEMBRANE_NODE_DOF],
+                [V::from(0f32); MEMBRANE_NODE_DOF], [q_11, q_12, q_13],
+                [V::from(0f32); MEMBRANE_NODE_DOF], [V::from(0f32); MEMBRANE_NODE_DOF],
+                [V::from(0f32); MEMBRANE_NODE_DOF], [q_21, q_22, q_23],
+                [V::from(0f32); MEMBRANE_NODE_DOF], [V::from(0f32); MEMBRANE_NODE_DOF],
+                [V::from(0f32); MEMBRANE_NODE_DOF], [q_31, q_32, q_33],
             ].concat(),
             tolerance,
         )?;
@@ -394,15 +341,23 @@ impl<T, V> QuadMemAuxFunctions<T, V>
             node_4_x - node_3_x, node_4_y - node_3_y, node_4_z - node_3_z,
         ];
 
+        // let node_1_direction_vector = vec![node_1_x, node_1_y, node_1_z];
+        // let node_2_direction_vector = vec![node_2_x, node_2_y, node_2_z];
+        // let node_3_direction_vector = vec![node_3_x, node_3_y, node_3_z];
+        // let node_4_direction_vector = vec![node_4_x, node_4_y, node_4_z];
+        
         let node_1_direction = ExtendedMatrix::create(T::from(3u8),
             T::from(1u8), node_1_direction_vector, tolerance)?;
         let node_2_direction = ExtendedMatrix::create(T::from(3u8),
             T::from(1u8), node_2_direction_vector, tolerance)?;
+        // let node_3_direction = ExtendedMatrix::create(T::from(3u8),
+        //     T::from(1u8), node_3_direction_vector, tolerance)?;
         let node_4_direction = ExtendedMatrix::create(T::from(3u8),
             T::from(1u8), node_4_direction_vector, tolerance)?;
 
         let transformed_node_1_direction = shrinked_rotation_matrix.multiply_by_matrix(&node_1_direction)?;
         let transformed_node_2_direction = shrinked_rotation_matrix.multiply_by_matrix(&node_2_direction)?;
+        // let transformed_node_3_direction = shrinked_rotation_matrix.multiply_by_matrix(&node_3_direction)?;
         let transformed_node_4_direction = shrinked_rotation_matrix.multiply_by_matrix(&node_4_direction)?;
 
         let transformed_transformed_node_1_direction_x =
@@ -423,6 +378,15 @@ impl<T, V> QuadMemAuxFunctions<T, V>
         let transformed_transformed_node_2_direction_z =
             transformed_node_2_direction.copy_element_value_or_zero(
                 MatrixElementPosition::create(T::from(2u8), T::from(0u8)))?;
+        // let transformed_transformed_node_3_direction_x =
+        //     transformed_node_3_direction.copy_element_value_or_zero(
+        //         MatrixElementPosition::create(T::from(0u8), T::from(0u8)))?;
+        // let transformed_transformed_node_3_direction_y =
+        //     transformed_node_3_direction.copy_element_value_or_zero(
+        //         MatrixElementPosition::create(T::from(1u8), T::from(0u8)))?;
+        // let transformed_transformed_node_3_direction_z =
+        //     transformed_node_3_direction.copy_element_value_or_zero(
+        //         MatrixElementPosition::create(T::from(2u8), T::from(0u8)))?;
         let transformed_transformed_node_4_direction_x =
             transformed_node_4_direction.copy_element_value_or_zero(
                 MatrixElementPosition::create(T::from(0u8), T::from(0u8)))?;
@@ -433,8 +397,13 @@ impl<T, V> QuadMemAuxFunctions<T, V>
             transformed_node_4_direction.copy_element_value_or_zero(
                 MatrixElementPosition::create(T::from(2u8), T::from(0u8)))?;
 
+        // println!("{:?}, {:?}, {:?}, {:?}", transformed_transformed_node_1_direction_z,
+        //     transformed_transformed_node_2_direction_z, transformed_transformed_node_3_direction_z, 
+        //     transformed_transformed_node_4_direction_z);
+        // println!();
         println!("{:?}, {:?}, {:?}", transformed_transformed_node_1_direction_z,
             transformed_transformed_node_2_direction_z, transformed_transformed_node_4_direction_z);
+        println!();
         
         let jacobian_elements = vec![
             QuadMemAuxFunctions::<T, V>::dx_dr(
@@ -450,6 +419,21 @@ impl<T, V> QuadMemAuxFunctions<T, V>
                 transformed_transformed_node_1_direction_y, transformed_transformed_node_2_direction_y, 
                 V::from(0f32), transformed_transformed_node_4_direction_y, r, s),
         ];
+
+        // let jacobian_elements = vec![
+        //     QuadMemAuxFunctions::<T, V>::dx_dr(
+        //         transformed_transformed_node_1_direction_x, transformed_transformed_node_2_direction_x, 
+        //         transformed_transformed_node_3_direction_x, transformed_transformed_node_4_direction_x, r, s),
+        //     QuadMemAuxFunctions::<T, V>::dy_dr(
+        //         transformed_transformed_node_1_direction_y, transformed_transformed_node_2_direction_y, 
+        //         transformed_transformed_node_3_direction_y, transformed_transformed_node_4_direction_y, r, s),
+        //     QuadMemAuxFunctions::<T, V>::dx_ds(
+        //         transformed_transformed_node_1_direction_x, transformed_transformed_node_2_direction_x, 
+        //         transformed_transformed_node_3_direction_x, transformed_transformed_node_4_direction_x, r, s),
+        //     QuadMemAuxFunctions::<T, V>::dy_ds(
+        //         transformed_transformed_node_1_direction_y, transformed_transformed_node_2_direction_y, 
+        //         transformed_transformed_node_3_direction_y, transformed_transformed_node_4_direction_y, r, s),
+        // ];
 
         let jacobian = ExtendedMatrix::create(
             T::from(2u8), T::from(2u8), jacobian_elements, tolerance)?;
