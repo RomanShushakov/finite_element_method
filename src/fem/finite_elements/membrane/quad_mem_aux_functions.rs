@@ -56,11 +56,11 @@ impl<T, V> QuadMemAuxFunctions<T, V>
 
 
     pub fn rotation_matrix(node_2_number: T, node_3_number: T, node_4_number: T, 
-        tolerance: V, nodes: &HashMap<T, FENode<V>>) -> Result<ExtendedMatrix<T, V>, String>
+        tolerance: V, ref_nodes: &HashMap<T, FENode<V>>) -> Result<ExtendedMatrix<T, V>, String>
     {
-        let node_2 = nodes.get(&node_2_number).unwrap();
-        let node_3 = nodes.get(&node_3_number).unwrap();
-        let node_4 = nodes.get(&node_4_number).unwrap();
+        let node_2 = ref_nodes.get(&node_2_number).unwrap();
+        let node_3 = ref_nodes.get(&node_3_number).unwrap();
+        let node_4 = ref_nodes.get(&node_4_number).unwrap();
 
         let edge_3_4_x = node_4.copy_x() - node_3.copy_x();
         let edge_3_4_y = node_4.copy_y() - node_3.copy_y();
@@ -587,93 +587,88 @@ impl<T, V> QuadMemAuxFunctions<T, V>
     }
 
 
-    // pub fn area(area_1: V, area_2: Option<V>, r: V) -> V
-    // {
-    //     if let Some(area_2) = area_2
-    //     {
-    //         (area_2 - area_1) / V::from(2f32) * r + area_1 -
-    //             (area_2 - area_1) / V::from(2f32) * V::from(-1f32)
-    //     }
-    //     else
-    //     {
-    //         area_1
-    //     }
-    // }
+    pub fn local_stiffness_matrix(node_1_number: T, node_2_number: T, node_3_number: T, node_4_number: T,
+        young_modulus: V, poisson_ratio: V, thickness: V, alpha: V, r: V, s: V, 
+        ref_local_stiffness_matrix: &ExtendedMatrix<T, V>, ref_nodes: &HashMap<T, FENode<V>>, 
+        ref_rotation_matrix: &ExtendedMatrix<T, V>, tolerance: V) -> Result<ExtendedMatrix<T, V>, String>
+    {
+        let c_matrix_multiplier = thickness * young_modulus / (V::from(1f32) - poisson_ratio.my_powi(2));
+        let mut c_matrix = ExtendedMatrix::create(
+            T::from(3u8), T::from(3u8), 
+            vec![
+                V::from(1f32), poisson_ratio, V::from(0f32),
+                poisson_ratio, V::from(1f32), V::from(0f32),
+                V::from(0f32), V::from(0f32), (V::from(1f32) - poisson_ratio) / V::from(2f32),
+            ], 
+            tolerance)?;
+        c_matrix.multiply_by_number(c_matrix_multiplier);
+
+        let mut lhs_matrix = QuadMemAuxFunctions::strain_displacement_matrix(
+            node_1_number, node_2_number, node_3_number, node_4_number, r, s, ref_nodes, 
+            ref_rotation_matrix, tolerance)?;
+        lhs_matrix.transpose();
+
+        let rhs_matrix = QuadMemAuxFunctions::strain_displacement_matrix(
+            node_1_number, node_2_number, node_3_number, node_4_number, r, s, ref_nodes, 
+            ref_rotation_matrix, tolerance)?;
+
+        return match (lhs_matrix.multiply_by_matrix(&c_matrix)?).multiply_by_matrix(&rhs_matrix)
+        {
+            Ok(mut matrix) =>
+                {
+                    matrix.multiply_by_number(QuadMemAuxFunctions::determinant_of_jacobian(
+                        node_1_number, node_2_number, node_3_number, node_4_number, r, s, 
+                        ref_nodes, ref_rotation_matrix, tolerance)? * alpha);
+
+                    match ref_local_stiffness_matrix.add_matrix(&matrix)
+                    {
+                        Ok(matrix) => Ok(matrix),
+                        Err(e) =>
+                            Err(format!("Quad mem aux functions: Local stiffness matrix cannot be \
+                                calculated! Reason: {}", e)),
+                    }
+                },
+            Err(e) => Err(format!("Quad mem aux functions: Local stiffness matrix cannot be \
+                                calculated! Reason: {}", e)),
+        }
+    }
 
 
-    // pub fn local_stiffness_matrix(node_1_number: T, node_2_number: T, young_modulus: V, area_1: V,
-    //     area_2: Option<V>, alpha: V, r: V, local_stiffness_matrix: &ExtendedMatrix<T, V>,
-    //     tolerance: V, nodes: &HashMap<T, FENode<V>>) -> Result<ExtendedMatrix<T, V>, String>
-    // {
-    //     let current_area = TrussAuxFunctions::<T, V>::area(area_1, area_2, r);
-
-    //     let mut lhs_matrix = TrussAuxFunctions::strain_displacement_matrix(
-    //         node_1_number, node_2_number, r, tolerance, nodes)?;
-
-    //     lhs_matrix.transpose();
-
-    //     lhs_matrix.multiply_by_number(young_modulus * current_area);
-
-    //     let rhs_matrix = TrussAuxFunctions::strain_displacement_matrix(
-    //             node_1_number, node_2_number, r, tolerance, nodes)?;
-
-    //     return match lhs_matrix.multiply_by_matrix(&rhs_matrix)
-    //     {
-    //         Ok(mut matrix) =>
-    //             {
-    //                 matrix.multiply_by_number(TrussAuxFunctions::determinant_of_jacobian(
-    //                     node_1_number, node_2_number, r, nodes) * alpha);
-
-    //                 match local_stiffness_matrix.add_matrix(&matrix)
-    //                 {
-    //                     Ok(matrix) => Ok(matrix),
-    //                     Err(e) =>
-    //                         Err(format!("Truss2n2ip: Local stiffness matrix cannot be \
-    //                             calculated! Reason: {}", e)),
-    //                 }
-    //             },
-    //         Err(e) => Err(format!("Truss2n2ip: Local stiffness matrix cannot be \
-    //                             calculated! Reason: {}", e)),
-    //     }
-    // }
+    pub fn compose_node_dof_parameters<'a>(node_number: T)
+        -> Result<Vec<DOFParameterData<T>>, &'a str>
+    {
+        let mut node_dof_parameters = Vec::new();
+        for dof in 0..MEMBRANE_NODE_DOF
+        {
+            let dof_parameter =
+                GlobalDOFParameter::iterator().nth(dof)
+                    .ok_or("Quad mem aux functions: Could not find dof parameter!")?;
+            let dof_parameter = DOFParameterData::create(
+                node_number, *dof_parameter);
+            node_dof_parameters.push(dof_parameter);
+        }
+        Ok(node_dof_parameters)
+    }
 
 
-    // pub fn compose_node_dof_parameters<'a>(node_number: T)
-    //     -> Result<Vec<DOFParameterData<T>>, &'a str>
-    // {
-    //     let mut node_dof_parameters = Vec::new();
-    //     for dof in 0..TRUSS_NODE_DOF
-    //     {
-    //         let dof_parameter =
-    //             GlobalDOFParameter::iterator().nth(dof)
-    //                 .ok_or("Truss2n2ip: Could not find dof parameter!")?;
-    //         let dof_parameter = DOFParameterData::create(
-    //             node_number, *dof_parameter);
-    //         node_dof_parameters.push(dof_parameter);
-    //     }
-    //     Ok(node_dof_parameters)
-    // }
+    pub fn extract_column_matrix_values(column_matrix: &ExtendedMatrix<T, V>)
+        -> Result<Vec<V>, String>
+    {
+        let mut values = Vec::new();
+        let shape = column_matrix.copy_shape();
 
-
-    // pub fn extract_column_matrix_values(column_matrix: &ExtendedMatrix<T, V>)
-    //     -> Result<Vec<V>, String>
-    // {
-    //     let mut values = Vec::new();
-    //     let shape = column_matrix.copy_shape();
-
-    //     let mut row = T::from(0u8);
-    //     while row < shape.0
-    //     {
-    //         let mut column = T::from(0u8);
-    //         while column < shape.1
-    //         {
-    //             let value = column_matrix.copy_element_value_or_zero(
-    //                 MatrixElementPosition::create(row, column))?;;
-    //             values.push(value);
-    //             column += T::from(1u8);
-    //         }
-    //         row += T::from(1u8);
-    //     }
-    //     Ok(values)
-    // }
+        let mut row = T::from(0u8);
+        while row < shape.0
+        {
+            let mut column = T::from(0u8);
+            while column < shape.1
+            {
+                let value = matrix_element_value_extractor(row, column, column_matrix)?;
+                values.push(value);
+                column += T::from(1u8);
+            }
+            row += T::from(1u8);
+        }
+        Ok(values)
+    }
 }
