@@ -4,7 +4,7 @@ use std::fmt::Debug;
 use std::collections::HashMap;
 
 use extended_matrix::extended_matrix::ExtendedMatrix;
-use extended_matrix::matrix_element_position::MatrixElementPosition;
+use extended_matrix::functions::matrix_element_value_extractor;
 
 use crate::my_float::MyFloatTrait;
 
@@ -277,8 +277,7 @@ impl<T, V> TrussAuxFunctions<T, V>
             let mut column = T::from(0u8);
             while column < shape.1
             {
-                let value = column_matrix.copy_element_value_or_zero(
-                    MatrixElementPosition::create(row, column))?;;
+                let value =  matrix_element_value_extractor(row, column, &column_matrix)?;
                 values.push(value);
                 column += T::from(1u8);
             }

@@ -4,7 +4,7 @@ use std::fmt::Debug;
 use std::collections::HashMap;
 
 use extended_matrix::extended_matrix::ExtendedMatrix;
-use extended_matrix::matrix_element_position::MatrixElementPosition;
+use extended_matrix::functions::matrix_element_value_extractor;
 
 use crate::my_float::MyFloatTrait;
 
@@ -356,32 +356,23 @@ impl<T, V> QuadMemAuxFunctions<T, V>
         let transformed_node_4_direction = shrinked_rotation_matrix.multiply_by_matrix(&node_4_direction)?;
 
         let transformed_transformed_node_1_direction_x =
-            transformed_node_1_direction.copy_element_value_or_zero(
-                MatrixElementPosition::create(T::from(0u8), T::from(0u8)))?;
+            matrix_element_value_extractor(T::from(0u8), T::from(0u8), &transformed_node_1_direction)?;
         let transformed_transformed_node_1_direction_y =
-            transformed_node_1_direction.copy_element_value_or_zero(
-                MatrixElementPosition::create(T::from(1u8), T::from(0u8)))?;
+            matrix_element_value_extractor(T::from(1u8), T::from(0u8), &transformed_node_1_direction)?;
         let transformed_transformed_node_1_direction_z =
-            transformed_node_1_direction.copy_element_value_or_zero(
-                MatrixElementPosition::create(T::from(2u8), T::from(0u8)))?;
+            matrix_element_value_extractor(T::from(2u8), T::from(0u8), &transformed_node_1_direction)?;
         let transformed_transformed_node_2_direction_x =
-            transformed_node_2_direction.copy_element_value_or_zero(
-                MatrixElementPosition::create(T::from(0u8), T::from(0u8)))?;
+            matrix_element_value_extractor(T::from(0u8), T::from(0u8), &transformed_node_2_direction)?;
         let transformed_transformed_node_2_direction_y =
-            transformed_node_2_direction.copy_element_value_or_zero(
-                MatrixElementPosition::create(T::from(1u8), T::from(0u8)))?;
+            matrix_element_value_extractor(T::from(1u8), T::from(0u8), &transformed_node_2_direction)?;
         let transformed_transformed_node_2_direction_z =
-            transformed_node_2_direction.copy_element_value_or_zero(
-                MatrixElementPosition::create(T::from(2u8), T::from(0u8)))?;
+            matrix_element_value_extractor(T::from(2u8), T::from(0u8), &transformed_node_2_direction)?;
         let transformed_transformed_node_4_direction_x =
-            transformed_node_4_direction.copy_element_value_or_zero(
-                MatrixElementPosition::create(T::from(0u8), T::from(0u8)))?;
+            matrix_element_value_extractor(T::from(0u8), T::from(0u8), &transformed_node_4_direction)?;
         let transformed_transformed_node_4_direction_y =
-            transformed_node_4_direction.copy_element_value_or_zero(
-                MatrixElementPosition::create(T::from(1u8), T::from(0u8)))?;
+            matrix_element_value_extractor(T::from(1u8), T::from(0u8), &transformed_node_4_direction)?;
         let transformed_transformed_node_4_direction_z =
-            transformed_node_4_direction.copy_element_value_or_zero(
-                MatrixElementPosition::create(T::from(2u8), T::from(0u8)))?;
+            matrix_element_value_extractor(T::from(2u8), T::from(0u8), &transformed_node_4_direction)?;
 
         if transformed_transformed_node_1_direction_z != transformed_transformed_node_2_direction_z || 
             transformed_transformed_node_1_direction_z != transformed_transformed_node_4_direction_z ||
@@ -434,37 +425,166 @@ impl<T, V> QuadMemAuxFunctions<T, V>
     }
 
 
-    // fn dh1_dr(r: V) -> V
-    // {
-    //     TrussAuxFunctions::<T, V>::derivative_x(
-    //         TrussAuxFunctions::<T, V>::power_func_x, V::from(0.5f32), V::from(0f32), 0) -
-    //     TrussAuxFunctions::<T, V>::derivative_x(
-    //         TrussAuxFunctions::<T, V>::power_func_x, V::from(0.5f32), r, 1)
-    // }
+    fn dh1_dr(r: V, s: V) -> V
+    {
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, V::from(0.25f32), V::from(0f32), 0) +
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, V::from(0.25f32) * s, V::from(0f32), 0) + 
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, V::from(0.25f32), r, 1) + 
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, V::from(0.25f32) * s, r, 1)
+    }
 
 
-    // fn dh2_dr(r: V) -> V
-    // {
-    //     TrussAuxFunctions::<T, V>::derivative_x(
-    //         TrussAuxFunctions::<T, V>::power_func_x, V::from(0.5f32), V::from(0f32), 0) +
-    //     TrussAuxFunctions::<T, V>::derivative_x(
-    //         TrussAuxFunctions::<T, V>::power_func_x, V::from(0.5f32), r, 1)
-    // }
+    fn dh2_dr(r: V, s: V) -> V
+    {
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, V::from(0.25f32), V::from(0f32), 0) +
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, V::from(0.25f32) * s, V::from(0f32), 0) - 
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, V::from(0.25f32), r, 1) - 
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, V::from(0.25f32) * s, r, 1)
+    }
 
 
-    // pub fn strain_displacement_matrix(node_1_number: T, node_2_number: T, r: V, tolerance: V,
-    //     nodes: &HashMap<T, FENode<V>>) -> Result<ExtendedMatrix<T, V>, String>
-    // {
-    //     let elements = vec![TrussAuxFunctions::<T, V>::dh1_dr(r), V::from(0f32),
-    //         V::from(0f32), TrussAuxFunctions::<T, V>::dh2_dr(r), V::from(0f32), V::from(0f32)];
-    //     let mut matrix = ExtendedMatrix::create(T::from(1u8),
-    //         TrussAuxFunctions::<T, V>::nodes_number() * TrussAuxFunctions::<T, V>::node_dof(),
-    //         elements, tolerance)?;
-    //     let inverse_jacobian = TrussAuxFunctions::inverse_jacobian(node_1_number, node_2_number,
-    //         r, nodes);
-    //     matrix.multiply_by_number(inverse_jacobian);
-    //     Ok(matrix)
-    // }
+    fn dh3_dr(r: V, s: V) -> V
+    {
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, V::from(0.25f32), V::from(0f32), 0) -
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, V::from(0.25f32) * s, V::from(0f32), 0) - 
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, V::from(0.25f32), r, 1) + 
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, V::from(0.25f32) * s, r, 1)
+    }
+
+
+    fn dh4_dr(r: V, s: V) -> V
+    {
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, V::from(0.25f32), V::from(0f32), 0) -
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, V::from(0.25f32) * s, V::from(0f32), 0) + 
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, V::from(0.25f32), r, 1) - 
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, V::from(0.25f32) * s, r, 1)
+    }
+
+
+    fn dh1_ds(r: V, s: V) -> V
+    {
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, V::from(0.25f32), V::from(0f32), 0) +
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, V::from(0.25f32), s, 1) + 
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, V::from(0.25f32) * r, V::from(0f32), 0) + 
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, V::from(0.25f32) * r, s, 1)
+    }
+
+
+    fn dh2_ds(r: V, s: V) -> V
+    {
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, V::from(0.25f32), V::from(0f32), 0) +
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, V::from(0.25f32), s, 1) - 
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, V::from(0.25f32) * r, V::from(0f32), 0) - 
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, V::from(0.25f32) * r, s, 1)
+    }
+
+
+    fn dh3_ds(r: V, s: V) -> V
+    {
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, V::from(0.25f32), V::from(0f32), 0) -
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, V::from(0.25f32), s, 1) - 
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, V::from(0.25f32) * r, V::from(0f32), 0) + 
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, V::from(0.25f32) * r, s, 1)
+    }
+
+
+    fn dh4_ds(r: V, s: V) -> V
+    {
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, V::from(0.25f32), V::from(0f32), 0) -
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, V::from(0.25f32), s, 1) + 
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, V::from(0.25f32) * r, V::from(0f32), 0) - 
+        QuadMemAuxFunctions::<T, V>::derivative_x(
+            QuadMemAuxFunctions::<T, V>::power_func_x, V::from(0.25f32) * r, s, 1)
+    }
+
+
+    fn dh_dx_dh_dy(node_1_number: T, node_2_number: T, node_3_number: T, node_4_number: T,
+        r: V, s: V, ref_nodes: &HashMap<T, FENode<V>>, ref_rotation_matrix: &ExtendedMatrix<T, V>,
+        tolerance: V) -> Result<ExtendedMatrix<T, V>, String>
+    {
+        let inverse_jacobian = QuadMemAuxFunctions::inverse_jacobian(
+            node_1_number, node_2_number, node_3_number, node_4_number, r, s, ref_nodes, 
+            ref_rotation_matrix, tolerance)?;
+        let dh_dr_dh_ds = ExtendedMatrix::create(
+            T::from(2u8), T::from(4u8), 
+            vec![
+                QuadMemAuxFunctions::<T, V>::dh1_dr(r, s), QuadMemAuxFunctions::<T, V>::dh2_dr(r, s), 
+                QuadMemAuxFunctions::<T, V>::dh3_dr(r, s), QuadMemAuxFunctions::<T, V>::dh4_dr(r, s),
+                QuadMemAuxFunctions::<T, V>::dh1_ds(r, s), QuadMemAuxFunctions::<T, V>::dh2_ds(r, s), 
+                QuadMemAuxFunctions::<T, V>::dh3_ds(r, s), QuadMemAuxFunctions::<T, V>::dh4_ds(r, s),
+            ], 
+            tolerance)?;
+        Ok(inverse_jacobian.multiply_by_matrix(&dh_dr_dh_ds)?)
+
+    }
+
+
+    pub fn strain_displacement_matrix(node_1_number: T, node_2_number: T, node_3_number: T, node_4_number: T,
+        r: V, s: V, ref_nodes: &HashMap<T, FENode<V>>, ref_rotation_matrix: &ExtendedMatrix<T, V>,
+        tolerance: V) -> Result<ExtendedMatrix<T, V>, String>
+    {
+        let dh_dx_dh_dy_matrix = QuadMemAuxFunctions::<T, V>::dh_dx_dh_dy(
+            node_1_number, node_2_number, node_3_number, node_4_number, r, s, ref_nodes, ref_rotation_matrix, tolerance)?;
+
+        let dh1_dx = matrix_element_value_extractor(T::from(0u8), T::from(0u8), &dh_dx_dh_dy_matrix)?;
+        let dh2_dx = matrix_element_value_extractor(T::from(0u8), T::from(1u8), &dh_dx_dh_dy_matrix)?;
+        let dh3_dx = matrix_element_value_extractor(T::from(0u8), T::from(2u8), &dh_dx_dh_dy_matrix)?;
+        let dh4_dx = matrix_element_value_extractor(T::from(0u8), T::from(3u8), &dh_dx_dh_dy_matrix)?;
+
+        let dh1_dy = matrix_element_value_extractor(T::from(1u8), T::from(0u8), &dh_dx_dh_dy_matrix)?;
+        let dh2_dy = matrix_element_value_extractor(T::from(1u8), T::from(1u8), &dh_dx_dh_dy_matrix)?;
+        let dh3_dy = matrix_element_value_extractor(T::from(1u8), T::from(2u8), &dh_dx_dh_dy_matrix)?;
+        let dh4_dy = matrix_element_value_extractor(T::from(1u8), T::from(3u8), &dh_dx_dh_dy_matrix)?;
+
+        let elements = vec![
+            dh1_dx, V::from(0f32), V::from(0f32), dh2_dx, V::from(0f32), V::from(0f32), 
+            dh3_dx, V::from(0f32), V::from(0f32), dh4_dx, V::from(0f32), V::from(0f32), 
+
+            V::from(0f32), dh1_dy, V::from(0f32), V::from(0f32), dh2_dy, V::from(0f32),
+            V::from(0f32), dh3_dy, V::from(0f32), V::from(0f32), dh4_dy, V::from(0f32),
+
+            dh1_dy, dh1_dx, V::from(0f32), dh2_dy, dh2_dx, V::from(0f32), 
+            dh3_dy, dh3_dx, V::from(0f32), dh4_dy, dh4_dx, V::from(0f32),
+        ];
+
+        let matrix = ExtendedMatrix::create(
+            T::from(3u8), 
+            QuadMemAuxFunctions::<T, V>::nodes_number() * QuadMemAuxFunctions::<T, V>::node_dof(), 
+            elements, tolerance)?;
+
+        Ok(matrix)
+    }
 
 
     // pub fn area(area_1: V, area_2: Option<V>, r: V) -> V

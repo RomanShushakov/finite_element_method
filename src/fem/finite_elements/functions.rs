@@ -4,7 +4,7 @@ use std::hash::Hash;
 
 use crate::my_float::MyFloatTrait;
 use extended_matrix::extended_matrix::ExtendedMatrix;
-use extended_matrix::matrix_element_position::MatrixElementPosition;
+use extended_matrix::functions::matrix_element_value_extractor;
 
 
 pub fn compare_with_tolerance<V>(value: V, tolerance: V) -> V
@@ -30,23 +30,14 @@ pub fn extract_unique_elements_of_rotation_matrix<T, V>(rotation_matrix: &Extend
              Debug + AddAssign + SubAssign + MulAssign + PartialEq + From<f32> + Into<f64> +
              PartialOrd + 'static
 {
-    let r11 = rotation_matrix.copy_element_value_or_zero(
-        MatrixElementPosition::create(T::from(0u8), T::from(0u8)))?;
-    let r12 = rotation_matrix.copy_element_value_or_zero(
-        MatrixElementPosition::create(T::from(0u8), T::from(1u8)))?;
-    let r13 = rotation_matrix.copy_element_value_or_zero(
-        MatrixElementPosition::create(T::from(0u8), T::from(2u8)))?;
-    let r21 = rotation_matrix.copy_element_value_or_zero(
-        MatrixElementPosition::create(T::from(1u8), T::from(0u8)))?;
-    let r22 = rotation_matrix.copy_element_value_or_zero(
-        MatrixElementPosition::create(T::from(1u8), T::from(1u8)))?;
-    let r23 = rotation_matrix.copy_element_value_or_zero(
-        MatrixElementPosition::create(T::from(1u8), T::from(2u8)))?;
-    let r31 = rotation_matrix.copy_element_value_or_zero(
-        MatrixElementPosition::create(T::from(2u8), T::from(0u8)))?;
-    let r32 = rotation_matrix.copy_element_value_or_zero(
-        MatrixElementPosition::create(T::from(2u8), T::from(1u8)))?;
-    let r33 = rotation_matrix.copy_element_value_or_zero(
-        MatrixElementPosition::create(T::from(2u8), T::from(2u8)))?;
+    let r11 = matrix_element_value_extractor(T::from(0u8), T::from(0u8), &rotation_matrix)?;
+    let r12 = matrix_element_value_extractor(T::from(0u8), T::from(1u8), &rotation_matrix)?;
+    let r13 = matrix_element_value_extractor(T::from(0u8), T::from(2u8), &rotation_matrix)?;
+    let r21 = matrix_element_value_extractor(T::from(1u8), T::from(0u8), &rotation_matrix)?;
+    let r22 = matrix_element_value_extractor(T::from(1u8), T::from(1u8), &rotation_matrix)?;
+    let r23 = matrix_element_value_extractor(T::from(1u8), T::from(2u8), &rotation_matrix)?;
+    let r31 = matrix_element_value_extractor(T::from(2u8), T::from(0u8), &rotation_matrix)?;
+    let r32 = matrix_element_value_extractor(T::from(2u8), T::from(1u8), &rotation_matrix)?;
+    let r33 = matrix_element_value_extractor(T::from(2u8), T::from(2u8), &rotation_matrix)?;
     Ok(vec![r11, r12, r13, r21, r22, r23, r31, r32, r33])
 }

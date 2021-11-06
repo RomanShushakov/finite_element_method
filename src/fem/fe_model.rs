@@ -7,7 +7,7 @@ use std::iter::FromIterator;
 use extended_matrix::extended_matrix::ExtendedMatrix;
 use extended_matrix::matrix_element_position::MatrixElementPosition;
 use extended_matrix::extended_matrix::Operation;
-use extended_matrix::functions::{conversion_uint_into_usize};
+use extended_matrix::functions::{conversion_uint_into_usize, matrix_element_value_extractor};
 
 use crate::fem::finite_elements::fe_node::{FENode, DeletedFENodeData};
 use crate::fem::finite_elements::finite_element::{FiniteElement, FEType, DeletedFEData};
@@ -770,8 +770,7 @@ impl<T, V> FEModel<T, V>
         let mut index = 0usize;
         while index < ua_ra_rows_numbers.len()
         {
-            let displacement_value = ua_matrix.copy_element_value_or_zero(
-                MatrixElementPosition::create(i, T::from(0u8)))?;
+            let displacement_value = matrix_element_value_extractor(i, T::from(0u8), &ua_matrix)?;
             let converted_index = conversion_uint_into_usize(ua_ra_rows_numbers[index]);
             all_displacements_values[converted_index] = displacement_value;
             i += T::from(1u8);
@@ -782,8 +781,7 @@ impl<T, V> FEModel<T, V>
         let mut index = 0usize;
         while index < ub_rb_rows_numbers.len()
         {
-            let displacement_value = ub_matrix.copy_element_value_or_zero(
-                MatrixElementPosition::create(j, T::from(0u8)))?;
+            let displacement_value = matrix_element_value_extractor(j, T::from(0u8), &ub_matrix)?;
             let converted_index = conversion_uint_into_usize(ub_rb_rows_numbers[index]);
             all_displacements_values[converted_index] = displacement_value;
             j += T::from(1u8);
@@ -859,8 +857,7 @@ impl<T, V> FEModel<T, V>
             let mut column = T::from(0u8);
             while column < reactions_values_matrix_shape.1
             {
-                let reaction_value = reactions_values_matrix.copy_element_value_or_zero(
-                    MatrixElementPosition::create(row, column))?;
+                let reaction_value = matrix_element_value_extractor(row, column, &reactions_values_matrix)?;
                 reactions_values.push(reaction_value);
                 column += T::from(1u8);
             }
@@ -888,8 +885,7 @@ impl<T, V> FEModel<T, V>
             let mut column = T::from(0u8);
             while column < displacements_values_matrix_shape.1
             {
-                let displacement_value = displacements_values_matrix.copy_element_value_or_zero(
-                    MatrixElementPosition::create(row, column))?;
+                let displacement_value = matrix_element_value_extractor(row, column, &displacements_values_matrix)?;
                 displacements_values.push(displacement_value);
                 column += T::from(1u8);
             }
