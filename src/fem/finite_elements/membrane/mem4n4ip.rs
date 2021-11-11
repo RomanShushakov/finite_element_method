@@ -189,7 +189,7 @@ impl<T, V> Mem4n4ip<T, V>
 }
 
 
-impl<T, V> FiniteElementTrait<T, V> for Truss2n1ip<T, V>
+impl<T, V> FiniteElementTrait<T, V> for Mem4n4ip<T, V>
     where T: Copy + Add<Output = T> + Sub<Output = T> + Div<Output = T> + Rem<Output = T> +
              Mul<Output = T> + Eq + Hash + Debug + SubAssign + PartialOrd + AddAssign +
              From<u8> + Ord + 'static,
@@ -198,49 +198,65 @@ impl<T, V> FiniteElementTrait<T, V> for Truss2n1ip<T, V>
              MyFloatTrait + PartialOrd + From<f32> + 'static,
 {
     fn update(&mut self, nodes_numbers: Vec<T>, properties: Vec<V>, tolerance: V,
-        nodes: &HashMap<T, FENode<V>>) -> Result<(), String>
+        ref_nodes: &HashMap<T, FENode<V>>) -> Result<(), String>
     {
         let node_1_number = nodes_numbers[0];
 
         let node_2_number = nodes_numbers[1];
 
+        let node_3_number = nodes_numbers[2];
+
+        let node_4_number = nodes_numbers[3];
+
         let young_modulus = properties[0];
 
-        let area = properties[1];
+        let poisson_ratio = properties[1];
 
-        let area_2 =
-            if properties.len() == 3 { Some(properties[2]) } else { None };
+        let thickness = properties[2];
 
-        let rotation_matrix = TrussAuxFunctions::rotation_matrix(
-            node_1_number, node_2_number, tolerance, nodes)?;
+        let rotation_matrix = QuadMemAuxFunctions::rotation_matrix(
+            node_2_number, node_3_number, node_4_number, tolerance, ref_nodes)?;
 
         let mut local_stiffness_matrix = ExtendedMatrix::create(
-            TrussAuxFunctions::<T, V>::nodes_number() * TrussAuxFunctions::<T, V>::node_dof(),
-            TrussAuxFunctions::<T, V>::nodes_number() * TrussAuxFunctions::<T, V>::node_dof(),
-            vec![V::from(0f32); (TRUSS2N1IP_NODES_NUMBER * TRUSS_NODE_DOF).pow(2)], tolerance)?;
+            QuadMemAuxFunctions::<T, V>::nodes_number() * QuadMemAuxFunctions::<T, V>::node_dof(),
+            QuadMemAuxFunctions::<T, V>::nodes_number() * QuadMemAuxFunctions::<T, V>::node_dof(),
+            vec![V::from(0f32); (MEM4N4IP_NODES_NUMBER * MEMBRANE_NODE_DOF).pow(2)], tolerance)?;
 
-        for integration_point in &self.state.integration_points
+        for i in 0..self.state.integration_points.len()
         {
-            let matrix = TrussAuxFunctions::local_stiffness_matrix(
-                node_1_number, node_2_number, young_modulus, area, area_2,
-                integration_point.weight, integration_point.r, &local_stiffness_matrix,
-                tolerance, nodes)?;
-            local_stiffness_matrix = matrix;
+            for j in 0..self.state.integration_points.len()
+            {
+                let r = self.state.integration_points[i].r;
+                let s = self.state.integration_points[j].s;
+                let alpha = self.state.integration_points[i].weight_r * self.state.integration_points[j].weight_s;
+                let matrix = QuadMemAuxFunctions::local_stiffness_matrix(
+                    node_1_number, node_2_number, node_3_number, node_4_number, young_modulus, poisson_ratio, 
+                    thickness, alpha, r, s, &local_stiffness_matrix, ref_nodes, 
+                    &rotation_matrix, tolerance)?;
+                local_stiffness_matrix = matrix;
+            }
         }
 
         let mut nodes_dof_parameters =
-            TrussAuxFunctions::<T, V>::compose_node_dof_parameters(node_1_number)?;
-
+            QuadMemAuxFunctions::<T, V>::compose_node_dof_parameters(node_1_number)?;
         let node_2_dof_parameters =
-            TrussAuxFunctions::<T, V>::compose_node_dof_parameters(node_2_number)?;
+            QuadMemAuxFunctions::<T, V>::compose_node_dof_parameters(node_2_number)?;
+        let node_3_dof_parameters =
+            QuadMemAuxFunctions::<T, V>::compose_node_dof_parameters(node_3_number)?;
+        let node_4_dof_parameters =
+            QuadMemAuxFunctions::<T, V>::compose_node_dof_parameters(node_4_number)?;
 
         nodes_dof_parameters.extend(node_2_dof_parameters);
+        nodes_dof_parameters.extend(node_3_dof_parameters);
+        nodes_dof_parameters.extend(node_4_dof_parameters);
 
         self.node_1_number = node_1_number;
         self.node_2_number = node_2_number;
+        self.node_3_number = node_3_number;
+        self.node_4_number = node_4_number;
         self.young_modulus = young_modulus;
-        self.area = area;
-        self.area_2 = area_2;
+        self.poisson_ratio = poisson_ratio;
+        self.thickness = thickness;
         self.state.rotation_matrix = rotation_matrix;
         self.state.local_stiffness_matrix = local_stiffness_matrix;
         self.state.nodes_dof_parameters_global = nodes_dof_parameters;
@@ -262,64 +278,183 @@ impl<T, V> FiniteElementTrait<T, V> for Truss2n1ip<T, V>
                 return Ok(matrix);
             }
         }
-        Err("Truss2n2ip: Stiffness matrix cannot be extracted!")
+        Err("Mem4n4ip: Stiffness matrix cannot be extracted!")
     }
 
 
     fn extract_stiffness_groups(&self) -> Vec<StiffnessGroup<T>>
     {
         let (rows_number, columns_number) =
-            (TrussAuxFunctions::<T, V>::nodes_number() * TrussAuxFunctions::<T, V>::node_dof(),
-             TrussAuxFunctions::<T, V>::nodes_number() * TrussAuxFunctions::<T, V>::node_dof());
+            (QuadMemAuxFunctions::<T, V>::nodes_number() * QuadMemAuxFunctions::<T, V>::node_dof(),
+             QuadMemAuxFunctions::<T, V>::nodes_number() * QuadMemAuxFunctions::<T, V>::node_dof());
 
-        let mut positions_1_1 = Vec::new();
-        let mut positions_1_2 = Vec::new();
-        let mut positions_2_1 = Vec::new();
-        let mut positions_2_2 = Vec::new();
+            let mut positions_kuu_1_1 = Vec::new();
+            let mut positions_kuu_1_2 = Vec::new();
+            let mut positions_kuu_1_3 = Vec::new();
+            let mut positions_kuu_1_4 = Vec::new();
 
-        let mut i = T::from(0u8);
-        while i < rows_number * columns_number
-        {
-            let position = MatrixElementPosition::create(
-                i / columns_number, i % columns_number);
+            let mut positions_kuu_2_1 = Vec::new();
+            let mut positions_kuu_2_2 = Vec::new();
+            let mut positions_kuu_2_3 = Vec::new();
+            let mut positions_kuu_2_4 = Vec::new();
 
-            let row = i / columns_number;
-            let column = i % columns_number;
+            let mut positions_kuu_3_1 = Vec::new();
+            let mut positions_kuu_3_2 = Vec::new();
+            let mut positions_kuu_3_3 = Vec::new();
+            let mut positions_kuu_3_4 = Vec::new();
 
-            if row < TrussAuxFunctions::<T, V>::node_dof() && column < TrussAuxFunctions::<T, V>::node_dof()
+            let mut positions_kuu_4_1 = Vec::new();
+            let mut positions_kuu_4_2 = Vec::new();
+            let mut positions_kuu_4_3 = Vec::new();
+            let mut positions_kuu_4_4 = Vec::new();
+    
+            let mut i = T::from(0u8);
+            while i < rows_number * columns_number
             {
-                positions_1_1.push(position);
+                let position = MatrixElementPosition::create(
+                    i / columns_number, i % columns_number);
+    
+                let row = i / columns_number;
+                let column = i % columns_number;
+    
+                if row < QuadMemAuxFunctions::<T, V>::node_dof() &&
+                    column < QuadMemAuxFunctions::<T, V>::node_dof()
+                {
+                    positions_kuu_1_1.push(position);
+                }
+                else if row < QuadMemAuxFunctions::<T, V>::node_dof() &&
+                    column >= QuadMemAuxFunctions::<T, V>::node_dof() &&
+                    column < QuadMemAuxFunctions::<T, V>::node_dof() * T::from(2u8)
+                {
+                    positions_kuu_1_2.push(position);
+                }
+                else if row < QuadMemAuxFunctions::<T, V>::node_dof() &&
+                    column >= QuadMemAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
+                    column < QuadMemAuxFunctions::<T, V>::node_dof() * T::from(3u8)
+                {
+                    positions_kuu_1_3.push(position);
+                }
+                else if row < QuadMemAuxFunctions::<T, V>::node_dof() &&
+                    column >= QuadMemAuxFunctions::<T, V>::node_dof() * T::from(3u8)
+                {
+                    positions_kuu_1_4.push(position);
+                }
+                else if row >= QuadMemAuxFunctions::<T, V>::node_dof() &&
+                    row < QuadMemAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
+                    column < QuadMemAuxFunctions::<T, V>::node_dof()
+                {
+                    positions_kuu_2_1.push(position);
+                }
+                else if row >= QuadMemAuxFunctions::<T, V>::node_dof() &&
+                    row < QuadMemAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
+                    column >= QuadMemAuxFunctions::<T, V>::node_dof() &&
+                    column < QuadMemAuxFunctions::<T, V>::node_dof() * T::from(2u8)
+                {
+                    positions_kuu_2_2.push(position);
+                }
+                else if row >= QuadMemAuxFunctions::<T, V>::node_dof() &&
+                    row < QuadMemAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
+                    column >= QuadMemAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
+                    column < QuadMemAuxFunctions::<T, V>::node_dof() * T::from(3u8)
+                {
+                    positions_kuu_2_3.push(position);
+                }
+                else if row >= QuadMemAuxFunctions::<T, V>::node_dof() &&
+                    row < QuadMemAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
+                    column >= QuadMemAuxFunctions::<T, V>::node_dof() * T::from(3u8)
+                {
+                    positions_kuu_2_4.push(position);
+                }
+                else if row >= QuadMemAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
+                    row < QuadMemAuxFunctions::<T, V>::node_dof() * T::from(3u8) &&
+                    column < QuadMemAuxFunctions::<T, V>::node_dof()
+                {
+                    positions_kuu_3_1.push(position);
+                }
+                else if row >= QuadMemAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
+                    row < QuadMemAuxFunctions::<T, V>::node_dof() * T::from(3u8) &&
+                    column >= QuadMemAuxFunctions::<T, V>::node_dof() &&
+                    column < QuadMemAuxFunctions::<T, V>::node_dof() * T::from(2u8)
+                {
+                    positions_kuu_3_2.push(position);
+                }
+                else if row >= QuadMemAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
+                    row < QuadMemAuxFunctions::<T, V>::node_dof() * T::from(3u8) &&
+                    column >= QuadMemAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
+                    column < QuadMemAuxFunctions::<T, V>::node_dof() * T::from(3u8)
+                {
+                    positions_kuu_3_3.push(position);
+                }
+                else if row >= QuadMemAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
+                    row < QuadMemAuxFunctions::<T, V>::node_dof() * T::from(3u8) &&
+                    column >= QuadMemAuxFunctions::<T, V>::node_dof() * T::from(3u8)
+                {
+                    positions_kuu_3_4.push(position);
+                }
+                else if row >= QuadMemAuxFunctions::<T, V>::node_dof() * T::from(3u8) &&
+                    column < QuadMemAuxFunctions::<T, V>::node_dof()
+                {
+                    positions_kuu_4_1.push(position);
+                }
+                else if row >= QuadMemAuxFunctions::<T, V>::node_dof() * T::from(3u8) &&
+                    column >= QuadMemAuxFunctions::<T, V>::node_dof() &&
+                    column < QuadMemAuxFunctions::<T, V>::node_dof() * T::from(2u8)
+                {
+                    positions_kuu_4_2.push(position);
+                }
+                else if row >= QuadMemAuxFunctions::<T, V>::node_dof() * T::from(3u8) &&
+                    column >= QuadMemAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
+                    column < QuadMemAuxFunctions::<T, V>::node_dof() * T::from(3u8)
+                {
+                    positions_kuu_4_3.push(position);
+                }
+                else
+                {
+                    positions_kuu_4_4.push(position);
+                }
+                i += T::from(1u8);
             }
-            else if row < TrussAuxFunctions::<T, V>::node_dof() && column >= TrussAuxFunctions::<T, V>::node_dof()
-            {
-                positions_1_2.push(position);
-            }
-            else if row >= TrussAuxFunctions::<T, V>::node_dof() && column < TrussAuxFunctions::<T, V>::node_dof()
-            {
-                positions_2_1.push(position);
-            }
-            else
-            {
-                positions_2_2.push(position);
-            }
-            i += T::from(1u8);
-        }
-
-        vec![StiffnessGroup { stiffness_type: StiffnessType::Kuu, number_1: self.node_1_number,
-                number_2: self.node_1_number, positions: positions_1_1, },
-             StiffnessGroup { stiffness_type: StiffnessType::Kuu, number_1: self.node_1_number,
-                number_2: self.node_2_number, positions: positions_1_2, },
-             StiffnessGroup { stiffness_type: StiffnessType::Kuu, number_1: self.node_2_number,
-                number_2: self.node_1_number, positions: positions_2_1 },
-             StiffnessGroup { stiffness_type: StiffnessType::Kuu, number_1: self.node_2_number,
-                number_2: self.node_2_number, positions: positions_2_2 },
-        ]
+    
+            vec![StiffnessGroup { stiffness_type: StiffnessType::Kuu, number_1: self.node_1_number,
+                    number_2: self.node_1_number, positions: positions_kuu_1_1, },
+                StiffnessGroup { stiffness_type: StiffnessType::Kuu, number_1: self.node_1_number,
+                    number_2: self.node_2_number, positions: positions_kuu_1_2, },
+                StiffnessGroup { stiffness_type: StiffnessType::Kuu, number_1: self.node_1_number,
+                    number_2: self.node_3_number, positions: positions_kuu_1_3, },
+                StiffnessGroup { stiffness_type: StiffnessType::Kuu, number_1: self.node_1_number,
+                    number_2: self.node_4_number, positions: positions_kuu_1_4, },
+                StiffnessGroup { stiffness_type: StiffnessType::Kuu, number_1: self.node_2_number,
+                    number_2: self.node_1_number, positions: positions_kuu_2_1, },
+                StiffnessGroup { stiffness_type: StiffnessType::Kuu, number_1: self.node_2_number,
+                    number_2: self.node_2_number, positions: positions_kuu_2_2, },
+                StiffnessGroup { stiffness_type: StiffnessType::Kuu, number_1: self.node_2_number,
+                    number_2: self.node_3_number, positions: positions_kuu_2_3, },
+                StiffnessGroup { stiffness_type: StiffnessType::Kuu, number_1: self.node_2_number,
+                    number_2: self.node_4_number, positions: positions_kuu_2_4, },
+                StiffnessGroup { stiffness_type: StiffnessType::Kuu, number_1: self.node_3_number,
+                    number_2: self.node_1_number, positions: positions_kuu_3_1 },
+                StiffnessGroup { stiffness_type: StiffnessType::Kuu, number_1: self.node_3_number,
+                    number_2: self.node_2_number, positions: positions_kuu_3_2 },
+                StiffnessGroup { stiffness_type: StiffnessType::Kuu, number_1: self.node_3_number,
+                    number_2: self.node_3_number, positions: positions_kuu_3_3 },
+                StiffnessGroup { stiffness_type: StiffnessType::Kuu, number_1: self.node_3_number,
+                    number_2: self.node_4_number, positions: positions_kuu_3_4 },
+                StiffnessGroup { stiffness_type: StiffnessType::Kuu, number_1: self.node_4_number,
+                    number_2: self.node_1_number, positions: positions_kuu_4_1 },
+                StiffnessGroup { stiffness_type: StiffnessType::Kuu, number_1: self.node_4_number,
+                    number_2: self.node_2_number, positions: positions_kuu_4_2 },
+                StiffnessGroup { stiffness_type: StiffnessType::Kuu, number_1: self.node_4_number,
+                    number_2: self.node_3_number, positions: positions_kuu_4_3 },
+                StiffnessGroup { stiffness_type: StiffnessType::Kuu, number_1: self.node_4_number,
+                    number_2: self.node_4_number, positions: positions_kuu_4_4 },
+            ]
     }
 
 
     fn is_node_belongs_to_element(&self, node_number: T) -> bool
     {
-        self.node_1_number == node_number || self.node_2_number == node_number
+        self.node_1_number == node_number || self.node_2_number == node_number ||
+        self.node_3_number == node_number || self.node_4_number == node_number
     }
 
 
