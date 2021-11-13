@@ -623,6 +623,7 @@ impl<T, V> FiniteElementTrait<T, V> for Mem4n4ip<T, V>
     }
 
 
+    
     fn copy_nodes_numbers(&self) -> Vec<T>
     {
         vec![self.node_1_number, self.node_2_number, self.node_3_number, self.node_4_number]
