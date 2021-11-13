@@ -602,7 +602,8 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
         nodal_forces.insert(self.node_2_number, nodal_forces_for_node_2);
 
         let element_analysis_data = ElementAnalysisData::create(
-            None, None, Some(element_forces), Some(nodal_forces));
+            None, None, 
+            Some(element_forces), Some(nodal_forces));
         Ok(element_analysis_data)
 
     }

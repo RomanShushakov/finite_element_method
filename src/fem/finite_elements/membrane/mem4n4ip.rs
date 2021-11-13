@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use extended_matrix::matrix_element_position::MatrixElementPosition;
 use extended_matrix::extended_matrix::ExtendedMatrix;
 
+use crate::fem::element_analysis::fe_stress_strain_components::StressStrainComponent;
 use crate::fem::finite_elements::finite_element::{FiniteElementTrait, FEType};
 use crate::fem::finite_elements::fe_node::FENode;
 use crate::fem::finite_elements::membrane::quad_mem_aux_functions::QuadMemAuxFunctions;
@@ -17,7 +18,7 @@ use crate::fem::global_analysis::fe_global_analysis_result::Displacements;
 use crate::fem::element_analysis::fe_force_moment_components::ForceComponent;
 use crate::fem::element_analysis::fe_element_analysis_result::
 {
-    ElementAnalysisData, ElementForces
+    ElementAnalysisData, ElementForces, ElementStrains, ElementStresses
 };
 
 use crate::my_float::MyFloatTrait;
@@ -97,7 +98,7 @@ impl<T, V> Mem4n4ip<T, V>
             weight_r: V::from(1f32), weight_s: V::from(1f32),
         };
         let integration_point_4 = IntegrationPoint {
-            r: V::from(1f32 / 3f32).my_sqrt() * V::from(-1f32), 
+            r: V::from(1f32 / 3f32).my_sqrt() * V::from(1f32), 
             s: V::from(1f32 / 3f32).my_sqrt() * V::from(-1f32),
             weight_r: V::from(1f32), weight_s: V::from(1f32),
         };
@@ -116,17 +117,14 @@ impl<T, V> Mem4n4ip<T, V>
 
         for i in 0..integration_points.len()
         {
-            for j in 0..integration_points.len()
-            {
-                let r = integration_points[i].r;
-                let s = integration_points[j].s;
-                let alpha = integration_points[i].weight_r * integration_points[j].weight_s;
-                let matrix = QuadMemAuxFunctions::local_stiffness_matrix(
-                    node_1_number, node_2_number, node_3_number, node_4_number, young_modulus, poisson_ratio, 
-                    thickness, alpha, r, s, &local_stiffness_matrix, ref_nodes, 
-                    &rotation_matrix, tolerance)?;
-                local_stiffness_matrix = matrix;
-            }
+            let r = integration_points[i].r;
+            let s = integration_points[i].s;
+            let alpha = integration_points[i].weight_r * integration_points[i].weight_s;
+            let matrix = QuadMemAuxFunctions::local_stiffness_matrix(
+                node_1_number, node_2_number, node_3_number, node_4_number, young_modulus, poisson_ratio, 
+                thickness, alpha, r, s, &local_stiffness_matrix, ref_nodes, 
+                &rotation_matrix, tolerance)?;
+            local_stiffness_matrix = matrix;
         }
 
         let mut nodes_dof_parameters =
@@ -224,17 +222,14 @@ impl<T, V> FiniteElementTrait<T, V> for Mem4n4ip<T, V>
 
         for i in 0..self.state.integration_points.len()
         {
-            for j in 0..self.state.integration_points.len()
-            {
-                let r = self.state.integration_points[i].r;
-                let s = self.state.integration_points[j].s;
-                let alpha = self.state.integration_points[i].weight_r * self.state.integration_points[j].weight_s;
-                let matrix = QuadMemAuxFunctions::local_stiffness_matrix(
-                    node_1_number, node_2_number, node_3_number, node_4_number, young_modulus, poisson_ratio, 
-                    thickness, alpha, r, s, &local_stiffness_matrix, ref_nodes, 
-                    &rotation_matrix, tolerance)?;
-                local_stiffness_matrix = matrix;
-            }
+            let r = self.state.integration_points[i].r;
+            let s = self.state.integration_points[i].s;
+            let alpha = self.state.integration_points[i].weight_r * self.state.integration_points[i].weight_s;
+            let matrix = QuadMemAuxFunctions::local_stiffness_matrix(
+                node_1_number, node_2_number, node_3_number, node_4_number, young_modulus, poisson_ratio, 
+                thickness, alpha, r, s, &local_stiffness_matrix, ref_nodes, 
+                &rotation_matrix, tolerance)?;
+            local_stiffness_matrix = matrix;
         }
 
         let mut nodes_dof_parameters =
@@ -458,22 +453,26 @@ impl<T, V> FiniteElementTrait<T, V> for Mem4n4ip<T, V>
     }
 
 
-    fn refresh(&mut self, tolerance: V, nodes: &HashMap<T, FENode<V>>) -> Result<(), String>
+    fn refresh(&mut self, tolerance: V, ref_nodes: &HashMap<T, FENode<V>>) -> Result<(), String>
     {
-        let rotation_matrix = TrussAuxFunctions::rotation_matrix(
-            self.node_1_number, self.node_2_number, tolerance, nodes)?;
+        let rotation_matrix = QuadMemAuxFunctions::rotation_matrix(
+            self.node_2_number, self.node_3_number, self.node_4_number, tolerance, ref_nodes)?;
 
         let mut local_stiffness_matrix = ExtendedMatrix::create(
-            TrussAuxFunctions::<T, V>::nodes_number() * TrussAuxFunctions::<T, V>::node_dof(),
-            TrussAuxFunctions::<T, V>::nodes_number() * TrussAuxFunctions::<T, V>::node_dof(),
-            vec![V::from(0f32); (TRUSS2N1IP_NODES_NUMBER * TRUSS_NODE_DOF).pow(2)], tolerance)?;
+            QuadMemAuxFunctions::<T, V>::nodes_number() * QuadMemAuxFunctions::<T, V>::node_dof(),
+            QuadMemAuxFunctions::<T, V>::nodes_number() * QuadMemAuxFunctions::<T, V>::node_dof(),
+            vec![V::from(0f32); (MEM4N4IP_NODES_NUMBER * MEMBRANE_NODE_DOF).pow(2)], tolerance)?;
 
-        for integration_point in self.state.integration_points.iter()
+        for i in 0..self.state.integration_points.len()
         {
-            let matrix = TrussAuxFunctions::local_stiffness_matrix(
-                self.node_1_number, self.node_2_number, self.young_modulus, self.area,
-                self.area_2, integration_point.weight, integration_point.r,
-                &local_stiffness_matrix, tolerance, nodes)?;
+            let r = self.state.integration_points[i].r;
+            let s = self.state.integration_points[i].s;
+            let alpha = self.state.integration_points[i].weight_r * self.state.integration_points[i].weight_s;
+            let matrix = QuadMemAuxFunctions::local_stiffness_matrix(
+                self.node_1_number, self.node_2_number, self.node_3_number, self.node_4_number, 
+                self.young_modulus, self.poisson_ratio, self.thickness, alpha, r, s, 
+                &local_stiffness_matrix, ref_nodes, 
+                &rotation_matrix, tolerance)?;
             local_stiffness_matrix = matrix;
         }
 
@@ -485,82 +484,148 @@ impl<T, V> FiniteElementTrait<T, V> for Mem4n4ip<T, V>
 
     fn is_nodes_numbers_same(&self, nodes_numbers: Vec<T>) -> bool
     {
-        (nodes_numbers[0] == self.node_1_number && nodes_numbers[1] == self.node_2_number) ||
-        (nodes_numbers[0] == self.node_2_number && nodes_numbers[1] == self.node_1_number)
+        nodes_numbers.iter().all(|node_number| self.is_node_belongs_to_element(*node_number))
     }
 
 
     fn extract_element_analysis_data(&self, global_displacements: &Displacements<T, V>,
-        tolerance: V, nodes: &HashMap<T, FENode<V>>) -> Result<ElementAnalysisData<T, V>, String>
+        tolerance: V, ref_nodes: &HashMap<T, FENode<V>>) -> Result<ElementAnalysisData<T, V>, String>
     {
         let element_local_displacements =
             self.extract_local_displacements(global_displacements, tolerance)?;
-        if self.area_2.is_some()
-        {
-            let mut forces_components = Vec::new();
-            let mut forces_values = Vec::new();
-            let mut axial_force = V::from(0f32);
-            for ip in self.state.integration_points.iter()
-            {
-                let strain_displacement_matrix =
-                    TrussAuxFunctions::strain_displacement_matrix(self.node_1_number,
-                        self.node_2_number, ip.r, tolerance, nodes)?;
+        
+        let r_1 = V::from(1f32);
+        let s_1 = V::from(1f32);
+        let r_2 = V::from(-1f32);
+        let s_2 = V::from(1f32);
+        let r_3 = V::from(-1f32);
+        let s_3 = V::from(-1f32);
+        let r_4 = V::from(1f32);
+        let s_4 = V::from(-1f32);
 
-                let strains_matrix =
-                    strain_displacement_matrix.multiply_by_matrix(
-                        &element_local_displacements)?;
+        let c_matrix_multiplier = self.young_modulus / (V::from(1f32) - self.poisson_ratio.my_powi(2));
+        let mut c_matrix = ExtendedMatrix::create(
+            T::from(3u8), T::from(3u8), 
+            vec![
+                V::from(1f32), self.poisson_ratio, V::from(0f32),
+                self.poisson_ratio, V::from(1f32), V::from(0f32),
+                V::from(0f32), V::from(0f32), (V::from(1f32) - self.poisson_ratio) / V::from(2f32),
+            ], 
+            tolerance)?;
+        c_matrix.multiply_by_number(c_matrix_multiplier);
 
-                let area = TrussAuxFunctions::<T, V>::area(self.area, self.area_2, ip.r);
+        let mut strains_values = Vec::new();
+        let mut strains_components = Vec::new();
+        
+        let strain_displacement_matrix_at_node_1 = 
+            QuadMemAuxFunctions::strain_displacement_matrix(self.node_1_number, self.node_2_number, 
+            self.node_3_number, self.node_4_number, r_1, s_1, ref_nodes, &self.state.rotation_matrix, tolerance)?;
+        let strains_matrix_at_node_1 = 
+            strain_displacement_matrix_at_node_1.multiply_by_matrix(&element_local_displacements)?;
 
-                let force_x = TrussAuxFunctions::extract_column_matrix_values(
-                    &strains_matrix)?[0] * area * self.young_modulus;
+        let strains_at_node_1 = QuadMemAuxFunctions::extract_column_matrix_values(&strains_matrix_at_node_1)?;
+        strains_values.push(strains_at_node_1[0]);
+        strains_components.push(StressStrainComponent::XX);
+        strains_values.push(strains_at_node_1[1]);
+        strains_components.push(StressStrainComponent::YY);
+        strains_values.push(strains_at_node_1[2]);
+        strains_components.push(StressStrainComponent::XY);
 
-                axial_force += force_x;
-            }
+        let strain_displacement_matrix_at_node_2 = 
+            QuadMemAuxFunctions::strain_displacement_matrix(self.node_1_number, self.node_2_number, 
+            self.node_3_number, self.node_4_number, r_2, s_2, ref_nodes, &self.state.rotation_matrix, tolerance)?;
+        let strains_matrix_at_node_2 = 
+            strain_displacement_matrix_at_node_2.multiply_by_matrix(&element_local_displacements)?;
 
-            let mut coeff = V::from(0f32);
-            (0..self.state.integration_points.len()).for_each(|_| coeff += V::from(1f32));
-            let integral_axial_force = axial_force / coeff;
+        let strains_at_node_2 = QuadMemAuxFunctions::extract_column_matrix_values(&strains_matrix_at_node_2)?;
+        strains_values.push(strains_at_node_2[0]);
+        strains_components.push(StressStrainComponent::XX);
+        strains_values.push(strains_at_node_2[1]);
+        strains_components.push(StressStrainComponent::YY);
+        strains_values.push(strains_at_node_2[2]);
+        strains_components.push(StressStrainComponent::XY);
 
-            forces_components.push(ForceComponent::ForceX);
-            forces_values.push(integral_axial_force);
+        let strain_displacement_matrix_at_node_3 = 
+            QuadMemAuxFunctions::strain_displacement_matrix(self.node_1_number, self.node_2_number, 
+            self.node_3_number, self.node_4_number, r_3, s_3, ref_nodes, &self.state.rotation_matrix, tolerance)?;
+        let strains_matrix_at_node_3 = 
+            strain_displacement_matrix_at_node_3.multiply_by_matrix(&element_local_displacements)?;
 
-            let element_forces = ElementForces::create(forces_values,
-                forces_components);
+        let strains_at_node_3 = QuadMemAuxFunctions::extract_column_matrix_values(&strains_matrix_at_node_3)?;
+        strains_values.push(strains_at_node_3[0]);
+        strains_components.push(StressStrainComponent::XX);
+        strains_values.push(strains_at_node_3[1]);
+        strains_components.push(StressStrainComponent::YY);
+        strains_values.push(strains_at_node_3[2]);
+        strains_components.push(StressStrainComponent::XY);
 
-            let element_analysis_data = ElementAnalysisData::create(
-                None, None, Some(element_forces), None);
-            Ok(element_analysis_data)
-        }
-        else
-        {
-            let r = self.state.integration_points[0].r;
-            let mut forces_values = Vec::new();
-            let mut forces_components = Vec::new();
+        let strain_displacement_matrix_at_node_4 = 
+            QuadMemAuxFunctions::strain_displacement_matrix(self.node_1_number, self.node_2_number, 
+            self.node_3_number, self.node_4_number, r_4, s_4, ref_nodes, &self.state.rotation_matrix, tolerance)?;
+        let strains_matrix_at_node_4 = 
+            strain_displacement_matrix_at_node_4.multiply_by_matrix(&element_local_displacements)?;
 
-            let strain_displacement_matrix =
-                TrussAuxFunctions::strain_displacement_matrix(
-                    self.node_1_number, self.node_2_number, r, tolerance, nodes)?;
-            let strains_matrix = strain_displacement_matrix.multiply_by_matrix(
-                &element_local_displacements)?;
-            let force_x = TrussAuxFunctions::extract_column_matrix_values(
-                &strains_matrix)?[0] * self.area * self.young_modulus;
-            forces_components.push(ForceComponent::ForceX);
-            forces_values.push(force_x);
+        let strains_at_node_4 = QuadMemAuxFunctions::extract_column_matrix_values(&strains_matrix_at_node_4)?;
+        strains_values.push(strains_at_node_4[0]);
+        strains_components.push(StressStrainComponent::XX);
+        strains_values.push(strains_at_node_4[1]);
+        strains_components.push(StressStrainComponent::YY);
+        strains_values.push(strains_at_node_4[2]);
+        strains_components.push(StressStrainComponent::XY);
 
-            let element_forces = ElementForces::create(forces_values,
-                forces_components);
+        let element_strains = ElementStrains::create(strains_values, strains_components);
+        
+        let mut stresses_values = Vec::new();
+        let mut stresses_components = Vec::new();
 
-            let element_analysis_data = ElementAnalysisData::create(
-                None, None, Some(element_forces), None);
-            Ok(element_analysis_data)
-        }
+        let stresses_matrix_at_node_1 = c_matrix.multiply_by_matrix(&strains_matrix_at_node_1)?;
+        let stresses_at_node_1 = QuadMemAuxFunctions::extract_column_matrix_values(&stresses_matrix_at_node_1)?;
+        stresses_values.push(stresses_at_node_1[0]);
+        stresses_components.push(StressStrainComponent::XX);
+        stresses_values.push(stresses_at_node_1[1]);
+        stresses_components.push(StressStrainComponent::YY);
+        stresses_values.push(stresses_at_node_1[2]);
+        stresses_components.push(StressStrainComponent::XY);
+
+        let stresses_matrix_at_node_2 = c_matrix.multiply_by_matrix(&strains_matrix_at_node_2)?;
+        let stresses_at_node_2 = QuadMemAuxFunctions::extract_column_matrix_values(&stresses_matrix_at_node_2)?;
+        stresses_values.push(stresses_at_node_2[0]);
+        stresses_components.push(StressStrainComponent::XX);
+        stresses_values.push(stresses_at_node_2[1]);
+        stresses_components.push(StressStrainComponent::YY);
+        stresses_values.push(stresses_at_node_2[2]);
+        stresses_components.push(StressStrainComponent::XY);
+
+        let stresses_matrix_at_node_3 = c_matrix.multiply_by_matrix(&strains_matrix_at_node_3)?;
+        let stresses_at_node_3 = QuadMemAuxFunctions::extract_column_matrix_values(&stresses_matrix_at_node_3)?;
+        stresses_values.push(stresses_at_node_3[0]);
+        stresses_components.push(StressStrainComponent::XX);
+        stresses_values.push(stresses_at_node_3[1]);
+        stresses_components.push(StressStrainComponent::YY);
+        stresses_values.push(stresses_at_node_3[2]);
+        stresses_components.push(StressStrainComponent::XY);
+
+        let stresses_matrix_at_node_4 = c_matrix.multiply_by_matrix(&strains_matrix_at_node_4)?;
+        let stresses_at_node_4 = QuadMemAuxFunctions::extract_column_matrix_values(&stresses_matrix_at_node_4)?;
+        stresses_values.push(stresses_at_node_4[0]);
+        stresses_components.push(StressStrainComponent::XX);
+        stresses_values.push(stresses_at_node_4[1]);
+        stresses_components.push(StressStrainComponent::YY);
+        stresses_values.push(stresses_at_node_4[2]);
+        stresses_components.push(StressStrainComponent::XY);
+
+        let element_stresses = ElementStresses::create(stresses_values, stresses_components);
+
+        let element_analysis_data = ElementAnalysisData::create(
+            Some(element_strains), Some(element_stresses),
+            None, None);
+        Ok(element_analysis_data)
     }
 
 
     fn copy_nodes_numbers(&self) -> Vec<T>
     {
-        vec![self.node_1_number, self.node_2_number]
+        vec![self.node_1_number, self.node_2_number, self.node_3_number, self.node_4_number]
     }
 
 
@@ -569,16 +634,9 @@ impl<T, V> FiniteElementTrait<T, V> for Mem4n4ip<T, V>
         extract_unique_elements_of_rotation_matrix(&self.state.rotation_matrix)
     }
 
-
+    
     fn copy_properties(&self) -> Vec<V>
     {
-        if let Some(area_2) = self.area_2
-        {
-            vec![self.young_modulus, self.area, area_2]
-        }
-        else
-        {
-            vec![self.young_modulus, self.area]
-        }
+        vec![self.young_modulus, self.poisson_ratio, self.thickness]
     }
 }

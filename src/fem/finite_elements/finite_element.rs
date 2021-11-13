@@ -12,6 +12,7 @@ use crate::fem::finite_elements::fe_node::FENode;
 use crate::fem::finite_elements::truss::truss2n1ip::Truss2n1ip;
 use crate::fem::finite_elements::truss::truss2n2ip::Truss2n2ip;
 use crate::fem::finite_elements::beam::beam2n1ipt::Beam2n1ipT;
+use crate::fem::finite_elements::membrane::mem4n4ip::Mem4n4ip;
 use crate::fem::global_analysis::fe_stiffness::StiffnessGroup;
 use crate::fem::element_analysis::fe_element_analysis_result::ElementAnalysisData;
 use crate::fem::global_analysis::fe_global_analysis_result::Displacements;
@@ -26,6 +27,7 @@ pub enum FEType
     Truss2n1ip,
     Truss2n2ip,
     Beam2n1ipT,
+    Mem4n4ip,
 }
 
 
@@ -38,15 +40,16 @@ impl FEType
             FEType::Truss2n1ip => "Truss2n1ip",
             FEType::Truss2n2ip => "Truss2n2ip",
             FEType::Beam2n1ipT => "Beam2n1ipT",
+            &FEType::Mem4n4ip => "Mem4n4ip",
         }
     }
 
 
     pub(super) fn iterator() -> Iter<'static, FEType>
     {
-        const TYPES: [FEType; 3] =
+        const TYPES: [FEType; 4] =
             [
-                Truss2n1ip, Truss2n2ip, Beam2n1ipT,
+                Truss2n1ip, Truss2n2ip, Beam2n1ipT, Mem4n4ip,
             ];
         TYPES.iter()
     }
@@ -82,7 +85,7 @@ impl<T, V> FECreator<T, V>
              Into<f64> + From<f32> + MyFloatTrait<Other = V> + 'static,
 {
     fn create(fe_type: FEType, nodes_numbers: Vec<T>, properties: Vec<V>, tolerance: V,
-        nodes: &HashMap<T, FENode<V>>) -> Result<Box<dyn FiniteElementTrait<T, V>>, String>
+        ref_nodes: &HashMap<T, FENode<V>>) -> Result<Box<dyn FiniteElementTrait<T, V>>, String>
     {
         match fe_type
         {
@@ -94,7 +97,7 @@ impl<T, V> FECreator<T, V>
                             nodes_numbers[0],
                             nodes_numbers[1],
                             properties[0], properties[1],
-                            Some(properties[2]), tolerance, nodes)?;
+                            Some(properties[2]), tolerance, ref_nodes)?;
 
                         Ok(Box::new(truss_element))
                     }
@@ -104,7 +107,7 @@ impl<T, V> FECreator<T, V>
                             nodes_numbers[0],
                             nodes_numbers[1],
                             properties[0], properties[1],
-                            None, tolerance, nodes)?;
+                            None, tolerance, ref_nodes)?;
 
                         Ok(Box::new(truss_element))
                     }
@@ -117,7 +120,7 @@ impl<T, V> FECreator<T, V>
                             nodes_numbers[0],
                             nodes_numbers[1],
                             properties[0], properties[1],
-                            Some(properties[2]), tolerance, nodes)?;
+                            Some(properties[2]), tolerance, ref_nodes)?;
 
                         Ok(Box::new(truss_element))
                     }
@@ -127,7 +130,7 @@ impl<T, V> FECreator<T, V>
                             nodes_numbers[0],
                             nodes_numbers[1],
                             properties[0], properties[1],
-                            None, tolerance, nodes)?;
+                            None, tolerance, ref_nodes)?;
 
                         Ok(Box::new(truss_element))
                     }
@@ -143,10 +146,24 @@ impl<T, V> FECreator<T, V>
                     properties[6],
                     properties[7],
                     [properties[8], properties[9], properties[10]],
-                    tolerance, nodes)?;
+                    tolerance, ref_nodes)?;
 
                     Ok(Box::new(beam_element))
                 },
+            FEType::Mem4n4ip => 
+                {
+                    let membrane_element = Mem4n4ip::create(
+                        nodes_numbers[0],
+                        nodes_numbers[1], 
+                        nodes_numbers[2], 
+                        nodes_numbers[3], 
+                        properties[0], 
+                        properties[1], 
+                        properties[2], 
+                        tolerance, ref_nodes)?;
+                    
+                    Ok(Box::new(membrane_element))
+                }
         }
     }
 }

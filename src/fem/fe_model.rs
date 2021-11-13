@@ -349,6 +349,29 @@ impl<T, V> FEModel<T, V>
 
         match element_type
         {
+            FEType::Truss2n1ip | FEType::Truss2n2ip =>
+                {
+                    if nodes_numbers.len() != 2
+                    {
+                        return Err(format!("FEModel: Element {:?} could not be added! \
+                            Incorrect number of nodes!", element_number));
+                    }
+
+                    if properties.len() < 2 || properties.len() > 3
+                    {
+                        return Err(format!("FEModel: Element {:?} could not be added! \
+                            Incorrect length of properties data!", element_number));
+                    }
+
+                    for value in properties.iter()
+                    {
+                        if *value <= V::from(0f32)
+                        {
+                            return Err(format!("FEModel: All properties values for element {:?} \
+                                should be greater than zero!", element_number));
+                        }
+                    }
+                },
             FEType::Beam2n1ipT =>
                 {
                     if nodes_numbers.len() != 2
@@ -372,15 +395,15 @@ impl<T, V> FEModel<T, V>
                         }
                     }
                 },
-            _ =>
+            FEType::Mem4n4ip => 
                 {
-                    if nodes_numbers.len() != 2
+                    if nodes_numbers.len() != 4
                     {
                         return Err(format!("FEModel: Element {:?} could not be added! \
                             Incorrect number of nodes!", element_number));
                     }
 
-                    if properties.len() < 2 || properties.len() > 3
+                    if properties.len() != 3
                     {
                         return Err(format!("FEModel: Element {:?} could not be added! \
                             Incorrect length of properties data!", element_number));
@@ -394,7 +417,7 @@ impl<T, V> FEModel<T, V>
                                 should be greater than zero!", element_number));
                         }
                     }
-                }
+                },
         }
 
         if self.elements.values().position(|element|
