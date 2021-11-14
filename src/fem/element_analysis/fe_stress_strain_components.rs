@@ -20,7 +20,7 @@ pub enum StressStrainComponent
 
 impl StressStrainComponent
 {
-    pub(super) fn iterator() -> Iter<'static, StressStrainComponent>
+    pub(crate) fn iterator() -> Iter<'static, StressStrainComponent>
      {
         const COMPONENTS: [StressStrainComponent; STRESS_STRAIN_COMPONENTS_NUMBER] =
             [

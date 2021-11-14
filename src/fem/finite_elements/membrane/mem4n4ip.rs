@@ -493,15 +493,15 @@ impl<T, V> FiniteElementTrait<T, V> for Mem4n4ip<T, V>
     {
         let element_local_displacements =
             self.extract_local_displacements(global_displacements, tolerance)?;
-        
-        let r_1 = V::from(1f32);
-        let s_1 = V::from(1f32);
-        let r_2 = V::from(-1f32);
-        let s_2 = V::from(1f32);
-        let r_3 = V::from(-1f32);
-        let s_3 = V::from(-1f32);
-        let r_4 = V::from(1f32);
-        let s_4 = V::from(-1f32);
+
+        // let element_stiffness_matrix = self.state.local_stiffness_matrix.clone();
+
+        // let element_forces = element_stiffness_matrix.multiply_by_matrix(&element_local_displacements)?;
+
+        // let f = |data: &str| println!("{}", data);
+
+        // element_forces.show_matrix(f);
+        // println!();
 
         let c_matrix_multiplier = self.young_modulus / (V::from(1f32) - self.poisson_ratio.my_powi(2));
         let mut c_matrix = ExtendedMatrix::create(
@@ -516,103 +516,42 @@ impl<T, V> FiniteElementTrait<T, V> for Mem4n4ip<T, V>
 
         let mut strains_values = Vec::new();
         let mut strains_components = Vec::new();
-        
-        let strain_displacement_matrix_at_node_1 = 
-            QuadMemAuxFunctions::strain_displacement_matrix(self.node_1_number, self.node_2_number, 
-            self.node_3_number, self.node_4_number, r_1, s_1, ref_nodes, &self.state.rotation_matrix, tolerance)?;
-        let strains_matrix_at_node_1 = 
-            strain_displacement_matrix_at_node_1.multiply_by_matrix(&element_local_displacements)?;
 
-        let strains_at_node_1 = QuadMemAuxFunctions::extract_column_matrix_values(&strains_matrix_at_node_1)?;
-        strains_values.push(strains_at_node_1[0]);
-        strains_components.push(StressStrainComponent::XX);
-        strains_values.push(strains_at_node_1[1]);
-        strains_components.push(StressStrainComponent::YY);
-        strains_values.push(strains_at_node_1[2]);
-        strains_components.push(StressStrainComponent::XY);
-
-        let strain_displacement_matrix_at_node_2 = 
-            QuadMemAuxFunctions::strain_displacement_matrix(self.node_1_number, self.node_2_number, 
-            self.node_3_number, self.node_4_number, r_2, s_2, ref_nodes, &self.state.rotation_matrix, tolerance)?;
-        let strains_matrix_at_node_2 = 
-            strain_displacement_matrix_at_node_2.multiply_by_matrix(&element_local_displacements)?;
-
-        let strains_at_node_2 = QuadMemAuxFunctions::extract_column_matrix_values(&strains_matrix_at_node_2)?;
-        strains_values.push(strains_at_node_2[0]);
-        strains_components.push(StressStrainComponent::XX);
-        strains_values.push(strains_at_node_2[1]);
-        strains_components.push(StressStrainComponent::YY);
-        strains_values.push(strains_at_node_2[2]);
-        strains_components.push(StressStrainComponent::XY);
-
-        let strain_displacement_matrix_at_node_3 = 
-            QuadMemAuxFunctions::strain_displacement_matrix(self.node_1_number, self.node_2_number, 
-            self.node_3_number, self.node_4_number, r_3, s_3, ref_nodes, &self.state.rotation_matrix, tolerance)?;
-        let strains_matrix_at_node_3 = 
-            strain_displacement_matrix_at_node_3.multiply_by_matrix(&element_local_displacements)?;
-
-        let strains_at_node_3 = QuadMemAuxFunctions::extract_column_matrix_values(&strains_matrix_at_node_3)?;
-        strains_values.push(strains_at_node_3[0]);
-        strains_components.push(StressStrainComponent::XX);
-        strains_values.push(strains_at_node_3[1]);
-        strains_components.push(StressStrainComponent::YY);
-        strains_values.push(strains_at_node_3[2]);
-        strains_components.push(StressStrainComponent::XY);
-
-        let strain_displacement_matrix_at_node_4 = 
-            QuadMemAuxFunctions::strain_displacement_matrix(self.node_1_number, self.node_2_number, 
-            self.node_3_number, self.node_4_number, r_4, s_4, ref_nodes, &self.state.rotation_matrix, tolerance)?;
-        let strains_matrix_at_node_4 = 
-            strain_displacement_matrix_at_node_4.multiply_by_matrix(&element_local_displacements)?;
-
-        let strains_at_node_4 = QuadMemAuxFunctions::extract_column_matrix_values(&strains_matrix_at_node_4)?;
-        strains_values.push(strains_at_node_4[0]);
-        strains_components.push(StressStrainComponent::XX);
-        strains_values.push(strains_at_node_4[1]);
-        strains_components.push(StressStrainComponent::YY);
-        strains_values.push(strains_at_node_4[2]);
-        strains_components.push(StressStrainComponent::XY);
-
-        let element_strains = ElementStrains::create(strains_values, strains_components);
-        
         let mut stresses_values = Vec::new();
         let mut stresses_components = Vec::new();
 
-        let stresses_matrix_at_node_1 = c_matrix.multiply_by_matrix(&strains_matrix_at_node_1)?;
-        let stresses_at_node_1 = QuadMemAuxFunctions::extract_column_matrix_values(&stresses_matrix_at_node_1)?;
-        stresses_values.push(stresses_at_node_1[0]);
-        stresses_components.push(StressStrainComponent::XX);
-        stresses_values.push(stresses_at_node_1[1]);
-        stresses_components.push(StressStrainComponent::YY);
-        stresses_values.push(stresses_at_node_1[2]);
-        stresses_components.push(StressStrainComponent::XY);
+        let local_nodes_coordinates = vec![
+            (V::from(1f32), V::from(1f32)), 
+            (V::from(-1f32), V::from(1f32)),
+            (V::from(-1f32), V::from(-1f32)), 
+            (V::from(1f32), V::from(-1f32))
+        ];
 
-        let stresses_matrix_at_node_2 = c_matrix.multiply_by_matrix(&strains_matrix_at_node_2)?;
-        let stresses_at_node_2 = QuadMemAuxFunctions::extract_column_matrix_values(&stresses_matrix_at_node_2)?;
-        stresses_values.push(stresses_at_node_2[0]);
-        stresses_components.push(StressStrainComponent::XX);
-        stresses_values.push(stresses_at_node_2[1]);
-        stresses_components.push(StressStrainComponent::YY);
-        stresses_values.push(stresses_at_node_2[2]);
-        stresses_components.push(StressStrainComponent::XY);
+        for i in 0..local_nodes_coordinates.len()
+        {
+            let r = local_nodes_coordinates[i].0;
+            let s = local_nodes_coordinates[i].1;
 
-        let stresses_matrix_at_node_3 = c_matrix.multiply_by_matrix(&strains_matrix_at_node_3)?;
-        let stresses_at_node_3 = QuadMemAuxFunctions::extract_column_matrix_values(&stresses_matrix_at_node_3)?;
-        stresses_values.push(stresses_at_node_3[0]);
-        stresses_components.push(StressStrainComponent::XX);
-        stresses_values.push(stresses_at_node_3[1]);
-        stresses_components.push(StressStrainComponent::YY);
-        stresses_values.push(stresses_at_node_3[2]);
-        stresses_components.push(StressStrainComponent::XY);
-
-        let stresses_matrix_at_node_4 = c_matrix.multiply_by_matrix(&strains_matrix_at_node_4)?;
-        let stresses_at_node_4 = QuadMemAuxFunctions::extract_column_matrix_values(&stresses_matrix_at_node_4)?;
-        stresses_values.push(stresses_at_node_4[0]);
-        stresses_components.push(StressStrainComponent::XX);
-        stresses_values.push(stresses_at_node_4[1]);
-        stresses_components.push(StressStrainComponent::YY);
-        stresses_values.push(stresses_at_node_4[2]);
-        stresses_components.push(StressStrainComponent::XY);
+            let strain_displacement_matrix_at_ip = 
+                QuadMemAuxFunctions::strain_displacement_matrix(self.node_1_number, self.node_2_number, 
+                    self.node_3_number, self.node_4_number, r, s, ref_nodes, &self.state.rotation_matrix, tolerance)?;
+            let strains_matrix_at_ip = strain_displacement_matrix_at_ip.multiply_by_matrix(&element_local_displacements)?;
+            let strains_at_ip = QuadMemAuxFunctions::extract_column_matrix_values(&strains_matrix_at_ip)?;
+            let stresses_matrix_at_ip = c_matrix.multiply_by_matrix(&strains_matrix_at_ip)?;
+            let stresses_at_ip = QuadMemAuxFunctions::extract_column_matrix_values(&stresses_matrix_at_ip)?;
+            for (j, k) in (0..3).into_iter().zip([0, 4, 1].into_iter())
+            {
+                let stress_strain_component = 
+                    StressStrainComponent::iterator().nth(k).ok_or("Mem4n4ip: Unknown stress/strain component number!")?;
+                strains_values.push(strains_at_ip[j]);
+                strains_components.push(*stress_strain_component);
+                stresses_values.push(stresses_at_ip[j]);
+                stresses_components.push(*stress_strain_component);
+            }
+            
+        }
+    
+        let element_strains = ElementStrains::create(strains_values, strains_components);
 
         let element_stresses = ElementStresses::create(stresses_values, stresses_components);
 

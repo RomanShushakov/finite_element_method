@@ -592,7 +592,7 @@ impl<T, V> QuadMemAuxFunctions<T, V>
         ref_local_stiffness_matrix: &ExtendedMatrix<T, V>, ref_nodes: &HashMap<T, FENode<V>>, 
         ref_rotation_matrix: &ExtendedMatrix<T, V>, tolerance: V) -> Result<ExtendedMatrix<T, V>, String>
     {
-        let c_matrix_multiplier = thickness * young_modulus / (V::from(1f32) - poisson_ratio.my_powi(2));
+        let c_matrix_multiplier = young_modulus / (V::from(1f32) - poisson_ratio.my_powi(2));
         let mut c_matrix = ExtendedMatrix::create(
             T::from(3u8), T::from(3u8), 
             vec![
@@ -618,7 +618,7 @@ impl<T, V> QuadMemAuxFunctions<T, V>
                 {
                     matrix.multiply_by_number(QuadMemAuxFunctions::determinant_of_jacobian(
                         node_1_number, node_2_number, node_3_number, node_4_number, r, s, 
-                        ref_nodes, ref_rotation_matrix, tolerance)? * alpha);
+                        ref_nodes, ref_rotation_matrix, tolerance)? * alpha * thickness);
 
                     match ref_local_stiffness_matrix.add_matrix(&matrix)
                     {
