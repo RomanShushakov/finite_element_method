@@ -494,15 +494,6 @@ impl<T, V> FiniteElementTrait<T, V> for Mem4n4ip<T, V>
         let element_local_displacements =
             self.extract_local_displacements(global_displacements, tolerance)?;
 
-        // let element_stiffness_matrix = self.state.local_stiffness_matrix.clone();
-
-        // let element_forces = element_stiffness_matrix.multiply_by_matrix(&element_local_displacements)?;
-
-        // let f = |data: &str| println!("{}", data);
-
-        // element_forces.show_matrix(f);
-        // println!();
-
         let c_matrix_multiplier = self.young_modulus / (V::from(1f32) - self.poisson_ratio.my_powi(2));
         let mut c_matrix = ExtendedMatrix::create(
             T::from(3u8), T::from(3u8), 
@@ -519,6 +510,13 @@ impl<T, V> FiniteElementTrait<T, V> for Mem4n4ip<T, V>
 
         let mut stresses_values = Vec::new();
         let mut stresses_components = Vec::new();
+
+        let mut forces_values = Vec::new();
+        let mut forces_components = Vec::new();
+
+        let mut force_x = V::from(0f32);
+        let mut force_y = V::from(0f32);
+        let mut force_xy = V::from(0f32);
 
         let local_nodes_coordinates = vec![
             (V::from(1f32), V::from(1f32)), 
@@ -547,17 +545,31 @@ impl<T, V> FiniteElementTrait<T, V> for Mem4n4ip<T, V>
                 strains_components.push(*stress_strain_component);
                 stresses_values.push(stresses_at_ip[j]);
                 stresses_components.push(*stress_strain_component);
+
+                match k
+                {
+                    0 => force_x += stresses_at_ip[j] * self.thickness,
+                    4 => force_y += stresses_at_ip[j] * self.thickness,
+                    1 => force_xy += stresses_at_ip[j] * self.thickness,
+                    _ => (),
+                }
             }
-            
         }
+
+        forces_values.push(force_x);
+        forces_components.push(ForceComponent::ForceX);
+        forces_values.push(force_y);
+        forces_components.push(ForceComponent::ForceY);
+        forces_values.push(force_xy);
+        forces_components.push(ForceComponent::ForceXY);
     
         let element_strains = ElementStrains::create(strains_values, strains_components);
-
         let element_stresses = ElementStresses::create(stresses_values, stresses_components);
+        let element_forces = ElementForces::create(forces_values, forces_components);
 
         let element_analysis_data = ElementAnalysisData::create(
             Some(element_strains), Some(element_stresses),
-            None, None);
+            Some(element_forces), None);
         Ok(element_analysis_data)
     }
 

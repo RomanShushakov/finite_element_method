@@ -9,9 +9,11 @@ pub enum ForceComponent
     ForceX,
     ForceY,
     ForceZ,
+    ForceXY,
     MomentX,
     MomentY,
     MomentZ,
+    MomentXY,
 }
 
 
@@ -24,9 +26,11 @@ impl ForceComponent
             ForceComponent::ForceX => "ForceX",
             ForceComponent::ForceY => "ForceY",
             ForceComponent::ForceZ => "ForceZ",
+            ForceComponent::ForceXY => "ForceXY",
             ForceComponent::MomentX => "MomentX",
             ForceComponent::MomentY => "MomentY",
             ForceComponent::MomentZ => "MomentZ",
+            ForceComponent::MomentXY => "MomentXY",
         }
     }
 }
