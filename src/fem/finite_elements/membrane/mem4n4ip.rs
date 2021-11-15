@@ -557,11 +557,11 @@ impl<T, V> FiniteElementTrait<T, V> for Mem4n4ip<T, V>
         }
 
         forces_values.push(force_x);
-        forces_components.push(ForceComponent::ForceX);
+        forces_components.push(ForceComponent::MembraneForceX);
         forces_values.push(force_y);
-        forces_components.push(ForceComponent::ForceY);
+        forces_components.push(ForceComponent::MembraneForceY);
         forces_values.push(force_xy);
-        forces_components.push(ForceComponent::ForceXY);
+        forces_components.push(ForceComponent::MembraneForceXY);
     
         let element_strains = ElementStrains::create(strains_values, strains_components);
         let element_stresses = ElementStresses::create(stresses_values, stresses_components);
