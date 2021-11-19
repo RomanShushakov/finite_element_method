@@ -25,6 +25,8 @@ use crate::fem::functions::{separate, add_new_stiffness_sub_groups};
 
 use crate::my_float::MyFloatTrait;
 
+use std::time::{Duration, Instant};
+
 
 struct State<T, V>
 {
@@ -553,7 +555,8 @@ impl<T, V> FEModel<T, V>
     }
 
 
-    fn compose_global_stiffness_matrix(&self) -> Result<ExtendedMatrix<T, V>, String>
+    fn compose_global_stiffness_matrix(&self) 
+        -> Result<(ExtendedMatrix<T, V>, Vec<T>, Vec<T>), String>
     {
         if self.elements.is_empty()
         {
@@ -571,6 +574,16 @@ impl<T, V> FEModel<T, V>
 
         let mut nodes_len_value = T::from(0u8);
         (0..self.nodes.len()).for_each(|_| nodes_len_value += T::from(1u8));
+
+        let mut row_column_number = T::from(0u8);
+        let mut zero_rows_numbers = Vec::new();
+        let mut zero_columns_numbers = Vec::new();
+        while row_column_number < nodes_len_value * global_dof::<T>()
+        {
+            zero_rows_numbers.push(row_column_number);
+            zero_columns_numbers.push(row_column_number);
+            row_column_number += T::from(1u8);
+        }
 
         let mut global_stiffness_matrix = ExtendedMatrix::<T, V>::create(
             nodes_len_value * global_dof::<T>(),
@@ -590,9 +603,31 @@ impl<T, V> FEModel<T, V>
                     stiffness_type: element_stiffness_group.stiffness_type,
                     number_1: element_stiffness_group.number_1,
                     number_2: element_stiffness_group.number_2 };
+                let element_matrix_elements_positions = element_stiffness_group.positions.clone();
                 if let Some(matrix_elements_positions) =
                     self.state.stiffness_groups.get(&stiffness_group_key)
                 {
+                    for (matrix_element_position, element_matrix_element_position) in 
+                        matrix_elements_positions.iter().zip(element_matrix_elements_positions.into_iter())
+                    {
+                        let element_value = element_stiffness_matrix
+                            .copy_element_value_or_zero(element_matrix_element_position)?;
+
+                        let nonzero_row_number = matrix_element_position.ref_row();
+                        if let Some(position) = zero_rows_numbers.iter().position(|row_number| 
+                            row_number == nonzero_row_number && element_value != V::from(0f32))
+                        {
+                            zero_rows_numbers.remove(position);
+                        }
+
+                        let nonzero_column_number = matrix_element_position.ref_column();
+                        if let Some(position) = zero_columns_numbers.iter().position(|column_number| 
+                            column_number == nonzero_column_number && element_value != V::from(0f32))
+                        {
+                            zero_columns_numbers.remove(position);
+                        }
+                    }
+
                     global_stiffness_matrix.add_submatrix_to_assemblage(
                         &mut element_stiffness_matrix,
                         matrix_elements_positions,
@@ -600,7 +635,8 @@ impl<T, V> FEModel<T, V>
                 }
             }
         }
-        Ok(global_stiffness_matrix)
+
+        Ok((global_stiffness_matrix, zero_rows_numbers, zero_columns_numbers))
     }
 
 
@@ -825,7 +861,13 @@ impl<T, V> FEModel<T, V>
     pub fn global_analysis(&mut self , colsol_usage: bool)
         -> Result<GlobalAnalysisResult<T, V>, String>
     {
+        let start = Instant::now();
+        println!("Global analysis started!");
+
         self.update_nodes_dof_parameters_global()?;
+
+        let duration = start.elapsed();
+        println!("Nodes dof parameters was updated. Elapsed time: {:?}", duration);
 
         if self.boundary_conditions.iter().position(|bc|
             bc.is_type_same(BCType::Displacement)).is_none()
@@ -834,12 +876,34 @@ impl<T, V> FEModel<T, V>
                 applied!".into())
         }
 
-        let mut global_stiffness_matrix =
+        let (mut global_stiffness_matrix, zero_rows_numbers, zero_columns_numbers) =
             self.compose_global_stiffness_matrix()?;
 
-        let removed_zeros_rows_columns =
-            global_stiffness_matrix.remove_zeros_rows_columns();
+        // println!("{:?}, {:?}", zero_rows_numbers, zero_columns_numbers);
+
+        let duration = start.elapsed();
+        println!("Global stiffness matrix was composed. Elapsed time: {:?}", duration);
+
+        let mut removed_zeros_rows_columns = Vec::new();
+        for (zero_row_number, zero_column_number) in zero_rows_numbers
+            .iter().rev().zip(zero_columns_numbers.iter().rev())
+        {
+            global_stiffness_matrix.remove_selected_column(*zero_column_number);
+            global_stiffness_matrix.remove_selected_row(*zero_row_number);
+            let matrix_element_position = 
+                MatrixElementPosition::create(*zero_row_number, *zero_column_number);
+            removed_zeros_rows_columns.push(matrix_element_position);
+        }
+
+        // let removed_zeros_rows_columns =
+        //     global_stiffness_matrix.remove_zeros_rows_columns();
+
+        let duration = start.elapsed();
+        println!("Zero rows columns were removed. Elapsed time: {:?}", duration);
         self.shrink_of_nodes_dof_parameters(&removed_zeros_rows_columns)?;
+
+        let duration = start.elapsed();
+        println!("Nodes dof parameters were shrinked. Elapsed time: {:?}", duration);
 
         let mut ub_rb_rows_numbers = Vec::new();
         let mut separation_positions = Vec::new();
@@ -919,6 +983,10 @@ impl<T, V> FEModel<T, V>
             GlobalAnalysisResult::create(
                 reactions_values, reactions_dof_parameters_data,
                 displacements_values, displacements_dof_parameters_data);
+
+        let duration = start.elapsed();
+        println!("Global analysis was finished. Elapsed time: {:?}", duration);
+
         Ok(global_analysis_result)
     }
 
