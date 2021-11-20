@@ -60,7 +60,7 @@ pub(super) trait FiniteElementTrait<T, V>
 {
     fn update(&mut self, nodes_numbers: Vec<T>, properties: Vec<V>, tolerance: V,
         nodes: &HashMap<T, FENode<V>>) -> Result<(), String>;
-    fn extract_stiffness_matrix(&self) -> Result<ExtendedMatrix<T, V>, &str>;
+    fn extract_stiffness_matrix(&self) -> Result<ExtendedMatrix<T, V>, String>;
     fn extract_stiffness_groups(&self) -> Vec<StiffnessGroup<T>>;
     fn is_node_belongs_to_element(&self, node_number: T) -> bool;
     fn refresh(&mut self, tolerance: V, nodes: &HashMap<T, FENode<V>>) -> Result<(), String>;
@@ -201,7 +201,7 @@ impl<T, V> FiniteElement<T, V>
     }
 
 
-    pub fn extract_stiffness_matrix(&self) -> Result<ExtendedMatrix<T, V>, &str>
+    pub fn extract_stiffness_matrix(&self) -> Result<ExtendedMatrix<T, V>, String>
     {
         let stiffness_matrix = self.element.extract_stiffness_matrix()?;
         Ok(stiffness_matrix)

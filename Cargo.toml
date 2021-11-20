@@ -1,6 +1,6 @@
 [package]
 name = "finite_element_method"
-version = "0.4.0"
+version = "0.4.1"
 authors = ["Roman Shushakov <roman.a.shushakov1@gmail.com>"]
 edition = "2021"
 description = "A finite element method module."
@@ -9,4 +9,4 @@ license = "MIT OR Apache-2.0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-extended_matrix = "0.3.8"
+extended_matrix = "0.3.9"

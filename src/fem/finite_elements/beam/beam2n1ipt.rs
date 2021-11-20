@@ -252,10 +252,11 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
     }
 
 
-    fn extract_stiffness_matrix(&self) -> Result<ExtendedMatrix<T, V>, &str>
+    fn extract_stiffness_matrix(&self) -> Result<ExtendedMatrix<T, V>, String>
     {
         let mut interim_matrix = self.state.rotation_matrix.clone();
         interim_matrix.transpose();
+
         if let Ok(matrix) =
             interim_matrix.multiply_by_matrix(&self.state.local_stiffness_matrix)
         {
@@ -265,7 +266,7 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
                 return Ok(matrix);
             }
         }
-        Err("Beam2n2ipT: Stiffness matrix cannot be extracted!")
+        Err("Beam2n2ipT: Stiffness matrix cannot be extracted!".to_string())
     }
 
 

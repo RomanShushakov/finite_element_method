@@ -212,7 +212,7 @@ impl<T, V> FiniteElementTrait<T, V> for Truss2n1ip<T, V>
     }
 
 
-    fn extract_stiffness_matrix(&self) -> Result<ExtendedMatrix<T, V>, &str>
+    fn extract_stiffness_matrix(&self) -> Result<ExtendedMatrix<T, V>, String>
     {
         let mut interim_matrix = self.state.rotation_matrix.clone();
         interim_matrix.transpose();
@@ -225,7 +225,7 @@ impl<T, V> FiniteElementTrait<T, V> for Truss2n1ip<T, V>
                 return Ok(matrix);
             }
         }
-        Err("Truss2n2ip: Stiffness matrix cannot be extracted!")
+        Err("Truss2n2ip: Stiffness matrix cannot be extracted!".to_string())
     }
 
 

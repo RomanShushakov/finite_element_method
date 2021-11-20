@@ -185,8 +185,8 @@ impl<T, V> BeamAuxFunctions<T, V>
         let c_xz = compare_with_tolerance(
             (c_x.my_powi(2) + c_z.my_powi(2)).my_sqrt(), tolerance);
 
-        let c = total_angle.my_cos();
-        let s = total_angle.my_sin();
+        let c =  compare_with_tolerance(total_angle.my_cos(), tolerance);
+        let s = compare_with_tolerance(total_angle.my_sin(), tolerance);
 
         let r_11 = if c_xz != V::from(0f32) { c_x } else { V::from(0f32) };
         let r_12 = c_y;
