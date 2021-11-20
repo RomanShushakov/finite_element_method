@@ -25,8 +25,6 @@ use crate::fem::functions::{separate, add_new_stiffness_sub_groups};
 
 use crate::my_float::MyFloatTrait;
 
-use std::time::{Duration, Instant};
-
 
 struct State<T, V>
 {
@@ -163,7 +161,8 @@ impl<T, V> FEModel<T, V>
     }
 
 
-    pub fn add_node(&mut self, number: T, x: V, y: V, z: V) -> Result<(), String>
+    pub fn add_node(&mut self, number: T, x: V, y: V, z: V, stiffness_groups_update: bool)
+        -> Result<(), String>
     {
         if self.nodes.contains_key(&number)
         {
@@ -179,7 +178,11 @@ impl<T, V> FEModel<T, V>
 
         let node = FENode::create(x, y, z);
         self.nodes.insert(number, node);
-        self.update_stiffness_groups()?;
+
+        if stiffness_groups_update
+        {
+            self.update_stiffness_groups()?;
+        }
         Ok(())
 
     }
@@ -261,8 +264,10 @@ impl<T, V> FEModel<T, V>
     }
 
 
-    pub fn delete_node(&mut self, number: T) -> Result<(DeletedFENodeData<T, V>,
-        Option<Vec<DeletedFEData<T, V>>>, Option<Vec<DeletedBCData<T, V>>>), String>
+    pub fn delete_node(&mut self, number: T, stiffness_groups_update: bool) 
+        -> Result<(DeletedFENodeData<T, V>,
+           Option<Vec<DeletedFEData<T, V>>>, 
+           Option<Vec<DeletedBCData<T, V>>>), String>
     {
         if !self.nodes.contains_key(&number)
         {
@@ -299,7 +304,11 @@ impl<T, V> FEModel<T, V>
         }
 
         let deleted_node = self.nodes.remove(&number).unwrap();
-        self.update_stiffness_groups()?;
+
+        if stiffness_groups_update
+        {
+            self.update_stiffness_groups()?;
+        }
 
         let deleted_fe_node_data =
             DeletedFENodeData::create(number, deleted_node);
@@ -858,16 +867,14 @@ impl<T, V> FEModel<T, V>
     }
 
 
-    pub fn global_analysis(&mut self , colsol_usage: bool)
+    pub fn global_analysis(&mut self , colsol_usage: bool, stiffness_groups_update: bool)
         -> Result<GlobalAnalysisResult<T, V>, String>
     {
-        let start = Instant::now();
-        println!("Global analysis started!");
-
+        if stiffness_groups_update
+        {
+            self.update_stiffness_groups()?;
+        }
         self.update_nodes_dof_parameters_global()?;
-
-        let duration = start.elapsed();
-        println!("Nodes dof parameters was updated. Elapsed time: {:?}", duration);
 
         if self.boundary_conditions.iter().position(|bc|
             bc.is_type_same(BCType::Displacement)).is_none()
@@ -878,11 +885,6 @@ impl<T, V> FEModel<T, V>
 
         let (mut global_stiffness_matrix, zero_rows_numbers, zero_columns_numbers) =
             self.compose_global_stiffness_matrix()?;
-
-        // println!("{:?}, {:?}", zero_rows_numbers, zero_columns_numbers);
-
-        let duration = start.elapsed();
-        println!("Global stiffness matrix was composed. Elapsed time: {:?}", duration);
 
         let mut removed_zeros_rows_columns = Vec::new();
         for (zero_row_number, zero_column_number) in zero_rows_numbers
@@ -898,12 +900,7 @@ impl<T, V> FEModel<T, V>
         // let removed_zeros_rows_columns =
         //     global_stiffness_matrix.remove_zeros_rows_columns();
 
-        let duration = start.elapsed();
-        println!("Zero rows columns were removed. Elapsed time: {:?}", duration);
         self.shrink_of_nodes_dof_parameters(&removed_zeros_rows_columns)?;
-
-        let duration = start.elapsed();
-        println!("Nodes dof parameters were shrinked. Elapsed time: {:?}", duration);
 
         let mut ub_rb_rows_numbers = Vec::new();
         let mut separation_positions = Vec::new();
@@ -983,9 +980,6 @@ impl<T, V> FEModel<T, V>
             GlobalAnalysisResult::create(
                 reactions_values, reactions_dof_parameters_data,
                 displacements_values, displacements_dof_parameters_data);
-
-        let duration = start.elapsed();
-        println!("Global analysis was finished. Elapsed time: {:?}", duration);
 
         Ok(global_analysis_result)
     }
