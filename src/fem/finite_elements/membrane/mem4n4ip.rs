@@ -9,7 +9,7 @@ use extended_matrix::extended_matrix::ExtendedMatrix;
 use crate::fem::element_analysis::fe_stress_strain_components::StressStrainComponent;
 use crate::fem::finite_elements::finite_element::{FiniteElementTrait, FEType};
 use crate::fem::finite_elements::fe_node::FENode;
-use crate::fem::finite_elements::membrane::quad_mem_aux_functions::QuadMemAuxFunctions;
+use crate::fem::finite_elements::membrane::quad_full_mem_aux_functions::QuadFullMemAuxFunctions;
 
 use crate::fem::global_analysis::fe_stiffness::{StiffnessGroup, StiffnessType};
 use crate::fem::global_analysis::fe_dof_parameter_data::{DOFParameterData};
@@ -107,12 +107,12 @@ impl<T, V> Mem4n4ip<T, V>
             integration_point_1, integration_point_2, integration_point_3, integration_point_4
         ];
 
-        let rotation_matrix = QuadMemAuxFunctions::rotation_matrix(
+        let rotation_matrix = QuadFullMemAuxFunctions::rotation_matrix(
             node_2_number, node_3_number, node_4_number, tolerance, ref_nodes)?;
 
         let mut local_stiffness_matrix = ExtendedMatrix::create(
-            QuadMemAuxFunctions::<T, V>::nodes_number() * QuadMemAuxFunctions::<T, V>::node_dof(),
-            QuadMemAuxFunctions::<T, V>::nodes_number() * QuadMemAuxFunctions::<T, V>::node_dof(),
+            QuadFullMemAuxFunctions::<T, V>::nodes_number() * QuadFullMemAuxFunctions::<T, V>::node_dof(),
+            QuadFullMemAuxFunctions::<T, V>::nodes_number() * QuadFullMemAuxFunctions::<T, V>::node_dof(),
             vec![V::from(0f32); (MEM4N4IP_NODES_NUMBER * MEMBRANE_NODE_DOF).pow(2)], tolerance)?;
 
         for i in 0..integration_points.len()
@@ -120,7 +120,7 @@ impl<T, V> Mem4n4ip<T, V>
             let r = integration_points[i].r;
             let s = integration_points[i].s;
             let alpha = integration_points[i].weight_r * integration_points[i].weight_s;
-            let matrix = QuadMemAuxFunctions::local_stiffness_matrix(
+            let matrix = QuadFullMemAuxFunctions::local_stiffness_matrix(
                 node_1_number, node_2_number, node_3_number, node_4_number, young_modulus, poisson_ratio, 
                 thickness, alpha, r, s, &local_stiffness_matrix, ref_nodes, 
                 &rotation_matrix, tolerance)?;
@@ -128,13 +128,13 @@ impl<T, V> Mem4n4ip<T, V>
         }
 
         let mut nodes_dof_parameters =
-            QuadMemAuxFunctions::<T, V>::compose_node_dof_parameters(node_1_number)?;
+            QuadFullMemAuxFunctions::<T, V>::compose_node_dof_parameters(node_1_number)?;
         let node_2_dof_parameters =
-            QuadMemAuxFunctions::<T, V>::compose_node_dof_parameters(node_2_number)?;
+            QuadFullMemAuxFunctions::<T, V>::compose_node_dof_parameters(node_2_number)?;
         let node_3_dof_parameters =
-            QuadMemAuxFunctions::<T, V>::compose_node_dof_parameters(node_3_number)?;
+            QuadFullMemAuxFunctions::<T, V>::compose_node_dof_parameters(node_3_number)?;
         let node_4_dof_parameters =
-            QuadMemAuxFunctions::<T, V>::compose_node_dof_parameters(node_4_number)?;
+            QuadFullMemAuxFunctions::<T, V>::compose_node_dof_parameters(node_4_number)?;
 
         nodes_dof_parameters.extend(node_2_dof_parameters);
         nodes_dof_parameters.extend(node_3_dof_parameters);
@@ -212,12 +212,12 @@ impl<T, V> FiniteElementTrait<T, V> for Mem4n4ip<T, V>
 
         let thickness = properties[2];
 
-        let rotation_matrix = QuadMemAuxFunctions::rotation_matrix(
+        let rotation_matrix = QuadFullMemAuxFunctions::rotation_matrix(
             node_2_number, node_3_number, node_4_number, tolerance, ref_nodes)?;
 
         let mut local_stiffness_matrix = ExtendedMatrix::create(
-            QuadMemAuxFunctions::<T, V>::nodes_number() * QuadMemAuxFunctions::<T, V>::node_dof(),
-            QuadMemAuxFunctions::<T, V>::nodes_number() * QuadMemAuxFunctions::<T, V>::node_dof(),
+            QuadFullMemAuxFunctions::<T, V>::nodes_number() * QuadFullMemAuxFunctions::<T, V>::node_dof(),
+            QuadFullMemAuxFunctions::<T, V>::nodes_number() * QuadFullMemAuxFunctions::<T, V>::node_dof(),
             vec![V::from(0f32); (MEM4N4IP_NODES_NUMBER * MEMBRANE_NODE_DOF).pow(2)], tolerance)?;
 
         for i in 0..self.state.integration_points.len()
@@ -225,7 +225,7 @@ impl<T, V> FiniteElementTrait<T, V> for Mem4n4ip<T, V>
             let r = self.state.integration_points[i].r;
             let s = self.state.integration_points[i].s;
             let alpha = self.state.integration_points[i].weight_r * self.state.integration_points[i].weight_s;
-            let matrix = QuadMemAuxFunctions::local_stiffness_matrix(
+            let matrix = QuadFullMemAuxFunctions::local_stiffness_matrix(
                 node_1_number, node_2_number, node_3_number, node_4_number, young_modulus, poisson_ratio, 
                 thickness, alpha, r, s, &local_stiffness_matrix, ref_nodes, 
                 &rotation_matrix, tolerance)?;
@@ -233,13 +233,13 @@ impl<T, V> FiniteElementTrait<T, V> for Mem4n4ip<T, V>
         }
 
         let mut nodes_dof_parameters =
-            QuadMemAuxFunctions::<T, V>::compose_node_dof_parameters(node_1_number)?;
+            QuadFullMemAuxFunctions::<T, V>::compose_node_dof_parameters(node_1_number)?;
         let node_2_dof_parameters =
-            QuadMemAuxFunctions::<T, V>::compose_node_dof_parameters(node_2_number)?;
+            QuadFullMemAuxFunctions::<T, V>::compose_node_dof_parameters(node_2_number)?;
         let node_3_dof_parameters =
-            QuadMemAuxFunctions::<T, V>::compose_node_dof_parameters(node_3_number)?;
+            QuadFullMemAuxFunctions::<T, V>::compose_node_dof_parameters(node_3_number)?;
         let node_4_dof_parameters =
-            QuadMemAuxFunctions::<T, V>::compose_node_dof_parameters(node_4_number)?;
+            QuadFullMemAuxFunctions::<T, V>::compose_node_dof_parameters(node_4_number)?;
 
         nodes_dof_parameters.extend(node_2_dof_parameters);
         nodes_dof_parameters.extend(node_3_dof_parameters);
@@ -280,8 +280,8 @@ impl<T, V> FiniteElementTrait<T, V> for Mem4n4ip<T, V>
     fn extract_stiffness_groups(&self) -> Vec<StiffnessGroup<T>>
     {
         let (rows_number, columns_number) =
-            (QuadMemAuxFunctions::<T, V>::nodes_number() * QuadMemAuxFunctions::<T, V>::node_dof(),
-             QuadMemAuxFunctions::<T, V>::nodes_number() * QuadMemAuxFunctions::<T, V>::node_dof());
+            (QuadFullMemAuxFunctions::<T, V>::nodes_number() * QuadFullMemAuxFunctions::<T, V>::node_dof(),
+             QuadFullMemAuxFunctions::<T, V>::nodes_number() * QuadFullMemAuxFunctions::<T, V>::node_dof());
 
             let mut positions_kuu_1_1 = Vec::new();
             let mut positions_kuu_1_2 = Vec::new();
@@ -312,94 +312,94 @@ impl<T, V> FiniteElementTrait<T, V> for Mem4n4ip<T, V>
                 let row = i / columns_number;
                 let column = i % columns_number;
     
-                if row < QuadMemAuxFunctions::<T, V>::node_dof() &&
-                    column < QuadMemAuxFunctions::<T, V>::node_dof()
+                if row < QuadFullMemAuxFunctions::<T, V>::node_dof() &&
+                    column < QuadFullMemAuxFunctions::<T, V>::node_dof()
                 {
                     positions_kuu_1_1.push(position);
                 }
-                else if row < QuadMemAuxFunctions::<T, V>::node_dof() &&
-                    column >= QuadMemAuxFunctions::<T, V>::node_dof() &&
-                    column < QuadMemAuxFunctions::<T, V>::node_dof() * T::from(2u8)
+                else if row < QuadFullMemAuxFunctions::<T, V>::node_dof() &&
+                    column >= QuadFullMemAuxFunctions::<T, V>::node_dof() &&
+                    column < QuadFullMemAuxFunctions::<T, V>::node_dof() * T::from(2u8)
                 {
                     positions_kuu_1_2.push(position);
                 }
-                else if row < QuadMemAuxFunctions::<T, V>::node_dof() &&
-                    column >= QuadMemAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
-                    column < QuadMemAuxFunctions::<T, V>::node_dof() * T::from(3u8)
+                else if row < QuadFullMemAuxFunctions::<T, V>::node_dof() &&
+                    column >= QuadFullMemAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
+                    column < QuadFullMemAuxFunctions::<T, V>::node_dof() * T::from(3u8)
                 {
                     positions_kuu_1_3.push(position);
                 }
-                else if row < QuadMemAuxFunctions::<T, V>::node_dof() &&
-                    column >= QuadMemAuxFunctions::<T, V>::node_dof() * T::from(3u8)
+                else if row < QuadFullMemAuxFunctions::<T, V>::node_dof() &&
+                    column >= QuadFullMemAuxFunctions::<T, V>::node_dof() * T::from(3u8)
                 {
                     positions_kuu_1_4.push(position);
                 }
-                else if row >= QuadMemAuxFunctions::<T, V>::node_dof() &&
-                    row < QuadMemAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
-                    column < QuadMemAuxFunctions::<T, V>::node_dof()
+                else if row >= QuadFullMemAuxFunctions::<T, V>::node_dof() &&
+                    row < QuadFullMemAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
+                    column < QuadFullMemAuxFunctions::<T, V>::node_dof()
                 {
                     positions_kuu_2_1.push(position);
                 }
-                else if row >= QuadMemAuxFunctions::<T, V>::node_dof() &&
-                    row < QuadMemAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
-                    column >= QuadMemAuxFunctions::<T, V>::node_dof() &&
-                    column < QuadMemAuxFunctions::<T, V>::node_dof() * T::from(2u8)
+                else if row >= QuadFullMemAuxFunctions::<T, V>::node_dof() &&
+                    row < QuadFullMemAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
+                    column >= QuadFullMemAuxFunctions::<T, V>::node_dof() &&
+                    column < QuadFullMemAuxFunctions::<T, V>::node_dof() * T::from(2u8)
                 {
                     positions_kuu_2_2.push(position);
                 }
-                else if row >= QuadMemAuxFunctions::<T, V>::node_dof() &&
-                    row < QuadMemAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
-                    column >= QuadMemAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
-                    column < QuadMemAuxFunctions::<T, V>::node_dof() * T::from(3u8)
+                else if row >= QuadFullMemAuxFunctions::<T, V>::node_dof() &&
+                    row < QuadFullMemAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
+                    column >= QuadFullMemAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
+                    column < QuadFullMemAuxFunctions::<T, V>::node_dof() * T::from(3u8)
                 {
                     positions_kuu_2_3.push(position);
                 }
-                else if row >= QuadMemAuxFunctions::<T, V>::node_dof() &&
-                    row < QuadMemAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
-                    column >= QuadMemAuxFunctions::<T, V>::node_dof() * T::from(3u8)
+                else if row >= QuadFullMemAuxFunctions::<T, V>::node_dof() &&
+                    row < QuadFullMemAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
+                    column >= QuadFullMemAuxFunctions::<T, V>::node_dof() * T::from(3u8)
                 {
                     positions_kuu_2_4.push(position);
                 }
-                else if row >= QuadMemAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
-                    row < QuadMemAuxFunctions::<T, V>::node_dof() * T::from(3u8) &&
-                    column < QuadMemAuxFunctions::<T, V>::node_dof()
+                else if row >= QuadFullMemAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
+                    row < QuadFullMemAuxFunctions::<T, V>::node_dof() * T::from(3u8) &&
+                    column < QuadFullMemAuxFunctions::<T, V>::node_dof()
                 {
                     positions_kuu_3_1.push(position);
                 }
-                else if row >= QuadMemAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
-                    row < QuadMemAuxFunctions::<T, V>::node_dof() * T::from(3u8) &&
-                    column >= QuadMemAuxFunctions::<T, V>::node_dof() &&
-                    column < QuadMemAuxFunctions::<T, V>::node_dof() * T::from(2u8)
+                else if row >= QuadFullMemAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
+                    row < QuadFullMemAuxFunctions::<T, V>::node_dof() * T::from(3u8) &&
+                    column >= QuadFullMemAuxFunctions::<T, V>::node_dof() &&
+                    column < QuadFullMemAuxFunctions::<T, V>::node_dof() * T::from(2u8)
                 {
                     positions_kuu_3_2.push(position);
                 }
-                else if row >= QuadMemAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
-                    row < QuadMemAuxFunctions::<T, V>::node_dof() * T::from(3u8) &&
-                    column >= QuadMemAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
-                    column < QuadMemAuxFunctions::<T, V>::node_dof() * T::from(3u8)
+                else if row >= QuadFullMemAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
+                    row < QuadFullMemAuxFunctions::<T, V>::node_dof() * T::from(3u8) &&
+                    column >= QuadFullMemAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
+                    column < QuadFullMemAuxFunctions::<T, V>::node_dof() * T::from(3u8)
                 {
                     positions_kuu_3_3.push(position);
                 }
-                else if row >= QuadMemAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
-                    row < QuadMemAuxFunctions::<T, V>::node_dof() * T::from(3u8) &&
-                    column >= QuadMemAuxFunctions::<T, V>::node_dof() * T::from(3u8)
+                else if row >= QuadFullMemAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
+                    row < QuadFullMemAuxFunctions::<T, V>::node_dof() * T::from(3u8) &&
+                    column >= QuadFullMemAuxFunctions::<T, V>::node_dof() * T::from(3u8)
                 {
                     positions_kuu_3_4.push(position);
                 }
-                else if row >= QuadMemAuxFunctions::<T, V>::node_dof() * T::from(3u8) &&
-                    column < QuadMemAuxFunctions::<T, V>::node_dof()
+                else if row >= QuadFullMemAuxFunctions::<T, V>::node_dof() * T::from(3u8) &&
+                    column < QuadFullMemAuxFunctions::<T, V>::node_dof()
                 {
                     positions_kuu_4_1.push(position);
                 }
-                else if row >= QuadMemAuxFunctions::<T, V>::node_dof() * T::from(3u8) &&
-                    column >= QuadMemAuxFunctions::<T, V>::node_dof() &&
-                    column < QuadMemAuxFunctions::<T, V>::node_dof() * T::from(2u8)
+                else if row >= QuadFullMemAuxFunctions::<T, V>::node_dof() * T::from(3u8) &&
+                    column >= QuadFullMemAuxFunctions::<T, V>::node_dof() &&
+                    column < QuadFullMemAuxFunctions::<T, V>::node_dof() * T::from(2u8)
                 {
                     positions_kuu_4_2.push(position);
                 }
-                else if row >= QuadMemAuxFunctions::<T, V>::node_dof() * T::from(3u8) &&
-                    column >= QuadMemAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
-                    column < QuadMemAuxFunctions::<T, V>::node_dof() * T::from(3u8)
+                else if row >= QuadFullMemAuxFunctions::<T, V>::node_dof() * T::from(3u8) &&
+                    column >= QuadFullMemAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
+                    column < QuadFullMemAuxFunctions::<T, V>::node_dof() * T::from(3u8)
                 {
                     positions_kuu_4_3.push(position);
                 }
@@ -455,12 +455,12 @@ impl<T, V> FiniteElementTrait<T, V> for Mem4n4ip<T, V>
 
     fn refresh(&mut self, tolerance: V, ref_nodes: &HashMap<T, FENode<V>>) -> Result<(), String>
     {
-        let rotation_matrix = QuadMemAuxFunctions::rotation_matrix(
+        let rotation_matrix = QuadFullMemAuxFunctions::rotation_matrix(
             self.node_2_number, self.node_3_number, self.node_4_number, tolerance, ref_nodes)?;
 
         let mut local_stiffness_matrix = ExtendedMatrix::create(
-            QuadMemAuxFunctions::<T, V>::nodes_number() * QuadMemAuxFunctions::<T, V>::node_dof(),
-            QuadMemAuxFunctions::<T, V>::nodes_number() * QuadMemAuxFunctions::<T, V>::node_dof(),
+            QuadFullMemAuxFunctions::<T, V>::nodes_number() * QuadFullMemAuxFunctions::<T, V>::node_dof(),
+            QuadFullMemAuxFunctions::<T, V>::nodes_number() * QuadFullMemAuxFunctions::<T, V>::node_dof(),
             vec![V::from(0f32); (MEM4N4IP_NODES_NUMBER * MEMBRANE_NODE_DOF).pow(2)], tolerance)?;
 
         for i in 0..self.state.integration_points.len()
@@ -468,7 +468,7 @@ impl<T, V> FiniteElementTrait<T, V> for Mem4n4ip<T, V>
             let r = self.state.integration_points[i].r;
             let s = self.state.integration_points[i].s;
             let alpha = self.state.integration_points[i].weight_r * self.state.integration_points[i].weight_s;
-            let matrix = QuadMemAuxFunctions::local_stiffness_matrix(
+            let matrix = QuadFullMemAuxFunctions::local_stiffness_matrix(
                 self.node_1_number, self.node_2_number, self.node_3_number, self.node_4_number, 
                 self.young_modulus, self.poisson_ratio, self.thickness, alpha, r, s, 
                 &local_stiffness_matrix, ref_nodes, 
@@ -531,12 +531,12 @@ impl<T, V> FiniteElementTrait<T, V> for Mem4n4ip<T, V>
             let s = local_nodes_coordinates[i].1;
 
             let strain_displacement_matrix_at_ip = 
-                QuadMemAuxFunctions::strain_displacement_matrix(self.node_1_number, self.node_2_number, 
+                QuadFullMemAuxFunctions::strain_displacement_matrix(self.node_1_number, self.node_2_number, 
                     self.node_3_number, self.node_4_number, r, s, ref_nodes, &self.state.rotation_matrix, tolerance)?;
             let strains_matrix_at_ip = strain_displacement_matrix_at_ip.multiply_by_matrix(&element_local_displacements)?;
-            let strains_at_ip = QuadMemAuxFunctions::extract_column_matrix_values(&strains_matrix_at_ip)?;
+            let strains_at_ip = QuadFullMemAuxFunctions::extract_column_matrix_values(&strains_matrix_at_ip)?;
             let stresses_matrix_at_ip = c_matrix.multiply_by_matrix(&strains_matrix_at_ip)?;
-            let stresses_at_ip = QuadMemAuxFunctions::extract_column_matrix_values(&stresses_matrix_at_ip)?;
+            let stresses_at_ip = QuadFullMemAuxFunctions::extract_column_matrix_values(&stresses_matrix_at_ip)?;
             for (j, k) in (0..3).into_iter().zip([0, 4, 1].into_iter())
             {
                 let stress_strain_component = 
