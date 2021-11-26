@@ -868,7 +868,7 @@ impl<T, V> QuadFullPlateAuxFunctions<T, V>
         {
             let dof_parameter =
                 GlobalDOFParameter::iterator().nth(dof)
-                    .ok_or("Quad mem aux functions: Could not find dof parameter!")?;
+                    .ok_or("QuadFullPlateAuxFunctions: Could not find dof parameter!")?;
             let dof_parameter = DOFParameterData::create(
                 node_number, *dof_parameter);
             node_dof_parameters.push(dof_parameter);

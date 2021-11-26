@@ -505,11 +505,11 @@ impl<T, V> FiniteElementTrait<T, V> for Mem4n4ip<T, V>
             tolerance)?;
         c_matrix.multiply_by_number(c_matrix_multiplier);
 
-        let mut strains_values = Vec::new();
-        let mut strains_components = Vec::new();
+        // let mut strains_values = Vec::new();
+        // let mut strains_components = Vec::new();
 
-        let mut stresses_values = Vec::new();
-        let mut stresses_components = Vec::new();
+        // let mut stresses_values = Vec::new();
+        // let mut stresses_components = Vec::new();
 
         let mut forces_values = Vec::new();
         let mut forces_components = Vec::new();
@@ -530,27 +530,27 @@ impl<T, V> FiniteElementTrait<T, V> for Mem4n4ip<T, V>
             let r = local_nodes_coordinates[i].0;
             let s = local_nodes_coordinates[i].1;
 
-            let strain_displacement_matrix_at_ip = 
+            let strain_displacement_matrix_at_node = 
                 QuadFullMemAuxFunctions::strain_displacement_matrix(self.node_1_number, self.node_2_number, 
                     self.node_3_number, self.node_4_number, r, s, ref_nodes, &self.state.rotation_matrix, tolerance)?;
-            let strains_matrix_at_ip = strain_displacement_matrix_at_ip.multiply_by_matrix(&element_local_displacements)?;
-            let strains_at_ip = QuadFullMemAuxFunctions::extract_column_matrix_values(&strains_matrix_at_ip)?;
-            let stresses_matrix_at_ip = c_matrix.multiply_by_matrix(&strains_matrix_at_ip)?;
-            let stresses_at_ip = QuadFullMemAuxFunctions::extract_column_matrix_values(&stresses_matrix_at_ip)?;
+            let strains_matrix_at_node = strain_displacement_matrix_at_node.multiply_by_matrix(&element_local_displacements)?;
+            // let strains_at_node = QuadFullMemAuxFunctions::extract_column_matrix_values(&strains_matrix_at_node)?;
+            let stresses_matrix_at_node = c_matrix.multiply_by_matrix(&strains_matrix_at_node)?;
+            let stresses_at_node = QuadFullMemAuxFunctions::extract_column_matrix_values(&stresses_matrix_at_node)?;
             for (j, k) in (0..3).into_iter().zip([0, 4, 1].into_iter())
             {
-                let stress_strain_component = 
-                    StressStrainComponent::iterator().nth(k).ok_or("Mem4n4ip: Unknown stress/strain component number!")?;
-                strains_values.push(strains_at_ip[j]);
-                strains_components.push(*stress_strain_component);
-                stresses_values.push(stresses_at_ip[j]);
-                stresses_components.push(*stress_strain_component);
+                // let stress_strain_component = 
+                //     StressStrainComponent::iterator().nth(k).ok_or("Mem4n4ip: Unknown stress/strain component number!")?;
+                // strains_values.push(strains_at_node[j]);
+                // strains_components.push(*stress_strain_component);
+                // stresses_values.push(stresses_at_node[j]);
+                // stresses_components.push(*stress_strain_component);
 
                 match k
                 {
-                    0 => force_x += stresses_at_ip[j] * self.thickness,
-                    4 => force_y += stresses_at_ip[j] * self.thickness,
-                    1 => force_xy += stresses_at_ip[j] * self.thickness,
+                    0 => force_x += stresses_at_node[j] * self.thickness,
+                    4 => force_y += stresses_at_node[j] * self.thickness,
+                    1 => force_xy += stresses_at_node[j] * self.thickness,
                     _ => (),
                 }
             }
@@ -563,12 +563,12 @@ impl<T, V> FiniteElementTrait<T, V> for Mem4n4ip<T, V>
         forces_values.push(force_xy);
         forces_components.push(ForceComponent::MembraneForceXY);
     
-        let element_strains = ElementStrains::create(strains_values, strains_components);
-        let element_stresses = ElementStresses::create(stresses_values, stresses_components);
+        // let element_strains = ElementStrains::create(strains_values, strains_components);
+        // let element_stresses = ElementStresses::create(stresses_values, stresses_components);
         let element_forces = ElementForces::create(forces_values, forces_components);
 
         let element_analysis_data = ElementAnalysisData::create(
-            Some(element_strains), Some(element_stresses),
+            None, None,
             Some(element_forces), None);
         Ok(element_analysis_data)
     }

@@ -488,14 +488,14 @@ impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
                     positions_kthth_1_4.push(position);
                 }
 
-                if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() && 
+                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() && 
                     row < QuadFullPlateAuxFunctions::<T, V>::node_dof() + 
                         QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
                     column < QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8)
                 {
                     positions_kuu_2_1.push(position);
                 }
-                if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() && 
+                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() && 
                     row < QuadFullPlateAuxFunctions::<T, V>::node_dof() + 
                         QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
                     column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
@@ -503,7 +503,7 @@ impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
                 {
                     positions_kuth_2_1.push(position);
                 }
-                if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() && 
+                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() && 
                     row < QuadFullPlateAuxFunctions::<T, V>::node_dof() + 
                         QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
                     column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() &&
@@ -512,7 +512,7 @@ impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
                 {
                     positions_kuu_2_2.push(position);
                 }
-                if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() && 
+                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() && 
                     row < QuadFullPlateAuxFunctions::<T, V>::node_dof() + 
                         QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
                     column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() + 
@@ -521,7 +521,7 @@ impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
                 {
                     positions_kuth_2_2.push(position);
                 }
-                if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() && 
+                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() && 
                     row < QuadFullPlateAuxFunctions::<T, V>::node_dof() + 
                         QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
                     column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
@@ -530,7 +530,7 @@ impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
                 {
                     positions_kuu_2_3.push(position);
                 }
-                if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() && 
+                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() && 
                     row < QuadFullPlateAuxFunctions::<T, V>::node_dof() + 
                         QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
                     column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) + 
@@ -539,7 +539,7 @@ impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
                 {
                     positions_kuth_2_3.push(position);
                 }
-                if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() && 
+                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() && 
                     row < QuadFullPlateAuxFunctions::<T, V>::node_dof() + 
                         QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
                     column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) &&
@@ -548,7 +548,7 @@ impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
                 {
                     positions_kuu_2_4.push(position);
                 }
-                if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() && 
+                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() && 
                     row < QuadFullPlateAuxFunctions::<T, V>::node_dof() + 
                         QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
                     column >  QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) +
@@ -626,14 +626,14 @@ impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
                     positions_kthth_2_4.push(position);
                 }
 
-                if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) && 
+                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) && 
                     row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) + 
                         QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
                     column < QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8)
                 {
                     positions_kuu_3_1.push(position);
                 }
-                if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) && 
+                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) && 
                     row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) + 
                         QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
                     column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
@@ -641,7 +641,7 @@ impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
                 {
                     positions_kuth_3_1.push(position);
                 }
-                if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) && 
+                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) && 
                     row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) + 
                         QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
                     column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() &&
@@ -650,7 +650,7 @@ impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
                 {
                     positions_kuu_3_2.push(position);
                 }
-                if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) && 
+                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) && 
                     row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) + 
                         QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
                     column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() + 
@@ -659,7 +659,7 @@ impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
                 {
                     positions_kuth_3_2.push(position);
                 }
-                if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) && 
+                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) && 
                     row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) + 
                         QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
                     column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
@@ -668,7 +668,7 @@ impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
                 {
                     positions_kuu_3_3.push(position);
                 }
-                if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) && 
+                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) && 
                     row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) + 
                         QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
                     column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) + 
@@ -677,7 +677,7 @@ impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
                 {
                     positions_kuth_3_3.push(position);
                 }
-                if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) && 
+                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) && 
                     row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) + 
                         QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
                     column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) &&
@@ -686,7 +686,7 @@ impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
                 {
                     positions_kuu_3_4.push(position);
                 }
-                if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) && 
+                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) && 
                     row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) + 
                         QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
                     column >  QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) +
@@ -764,14 +764,14 @@ impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
                     positions_kthth_3_4.push(position);
                 }
 
-                if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) && 
+                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) && 
                     row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) + 
                         QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
                     column < QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8)
                 {
                     positions_kuu_4_1.push(position);
                 }
-                if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) && 
+                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) && 
                     row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) + 
                         QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
                     column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
@@ -779,7 +779,7 @@ impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
                 {
                     positions_kuth_4_1.push(position);
                 }
-                if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) && 
+                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) && 
                     row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) + 
                         QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
                     column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() &&
@@ -788,7 +788,7 @@ impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
                 {
                     positions_kuu_4_2.push(position);
                 }
-                if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) && 
+                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) && 
                     row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) + 
                         QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
                     column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() + 
@@ -797,7 +797,7 @@ impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
                 {
                     positions_kuth_4_2.push(position);
                 }
-                if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) && 
+                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) && 
                     row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) + 
                         QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
                     column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
@@ -806,7 +806,7 @@ impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
                 {
                     positions_kuu_4_3.push(position);
                 }
-                if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) && 
+                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) && 
                     row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) + 
                         QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
                     column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) + 
@@ -815,7 +815,7 @@ impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
                 {
                     positions_kuth_4_3.push(position);
                 }
-                if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) && 
+                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) && 
                     row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) + 
                         QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
                     column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) &&
@@ -824,7 +824,7 @@ impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
                 {
                     positions_kuu_4_4.push(position);
                 }
-                if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) && 
+                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) && 
                     row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) + 
                         QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
                     column >  QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) +
@@ -1090,8 +1090,8 @@ impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
         let element_local_displacements =
             self.extract_local_displacements(global_displacements, tolerance)?;
 
-        let c_matrix_multiplier = self.young_modulus / (V::from(1f32) - self.poisson_ratio.my_powi(2));
-        let mut c_matrix = ExtendedMatrix::create(
+        let c_matrix_multiplier_mem = self.young_modulus / (V::from(1f32) - self.poisson_ratio.my_powi(2));
+        let mut c_matrix_mem = ExtendedMatrix::create(
             T::from(3u8), T::from(3u8), 
             vec![
                 V::from(1f32), self.poisson_ratio, V::from(0f32),
@@ -1099,13 +1099,30 @@ impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
                 V::from(0f32), V::from(0f32), (V::from(1f32) - self.poisson_ratio) / V::from(2f32),
             ], 
             tolerance)?;
-        c_matrix.multiply_by_number(c_matrix_multiplier);
+        c_matrix_mem.multiply_by_number(c_matrix_multiplier_mem);
 
-        let mut strains_values = Vec::new();
-        let mut strains_components = Vec::new();
+        let c_matrix_multiplier_bend = self.young_modulus * self.thickness.my_powi(3) / 
+            (V::from(12f32) * (V::from(1f32) - self.poisson_ratio.my_powi(2)));
+        let mut c_matrix_bend = ExtendedMatrix::create(
+            T::from(3u8), T::from(3u8), 
+            vec![
+                V::from(1f32), self.poisson_ratio, V::from(0f32),
+                self.poisson_ratio, V::from(1f32), V::from(0f32),
+                V::from(0f32), V::from(0f32), (V::from(1f32) - self.poisson_ratio) / V::from(2f32),
+            ], 
+            tolerance)?;
+        c_matrix_bend.multiply_by_number(c_matrix_multiplier_bend);
 
-        let mut stresses_values = Vec::new();
-        let mut stresses_components = Vec::new();
+        let c_matrix_multiplier_shear = self.young_modulus * self.thickness * self.shear_factor / 
+            (V::from(2f32) * (V::from(1f32) + self.poisson_ratio));
+        let mut c_matrix_shear = ExtendedMatrix::create(
+            T::from(2u8), T::from(2u8), 
+            vec![
+                V::from(1f32), V::from(0f32),
+                V::from(0f32), V::from(1f32),
+            ], 
+            tolerance)?;
+        c_matrix_shear.multiply_by_number(c_matrix_multiplier_shear);
 
         let mut forces_values = Vec::new();
         let mut forces_components = Vec::new();
@@ -1113,6 +1130,13 @@ impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
         let mut force_x = V::from(0f32);
         let mut force_y = V::from(0f32);
         let mut force_xy = V::from(0f32);
+        let mut moment_x = V::from(0f32);
+        let mut moment_y = V::from(0f32);
+        let mut moment_xy = V::from(0f32);
+        let mut force_xz = V::from(0f32);
+        let mut force_yz = V::from(0f32);
+
+
 
         let local_nodes_coordinates = vec![
             (V::from(1f32), V::from(1f32)), 
@@ -1126,29 +1150,48 @@ impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
             let r = local_nodes_coordinates[i].0;
             let s = local_nodes_coordinates[i].1;
 
-            let strain_displacement_matrix_at_ip = 
-                QuadFullMemAuxFunctions::strain_displacement_matrix(self.node_1_number, self.node_2_number, 
+            let strain_displacement_matrix_mem_at_node = 
+                QuadFullPlateAuxFunctions::strain_displacement_matrix_mem(self.node_1_number, self.node_2_number, 
                     self.node_3_number, self.node_4_number, r, s, ref_nodes, &self.state.rotation_matrix, tolerance)?;
-            let strains_matrix_at_ip = strain_displacement_matrix_at_ip.multiply_by_matrix(&element_local_displacements)?;
-            let strains_at_ip = QuadFullMemAuxFunctions::extract_column_matrix_values(&strains_matrix_at_ip)?;
-            let stresses_matrix_at_ip = c_matrix.multiply_by_matrix(&strains_matrix_at_ip)?;
-            let stresses_at_ip = QuadFullMemAuxFunctions::extract_column_matrix_values(&stresses_matrix_at_ip)?;
-            for (j, k) in (0..3).into_iter().zip([0, 4, 1].into_iter())
+            let strains_matrix_mem_at_node = 
+                strain_displacement_matrix_mem_at_node.multiply_by_matrix(&element_local_displacements)?;
+            let stresses_matrix_mem_at_node = c_matrix_mem.multiply_by_matrix(&strains_matrix_mem_at_node)?;
+            let stresses_mem_at_node = 
+                QuadFullPlateAuxFunctions::extract_column_matrix_values(&stresses_matrix_mem_at_node)?;
+            for j in 0..3
             {
-                let stress_strain_component = 
-                    StressStrainComponent::iterator().nth(k).ok_or("Mem4n4ip: Unknown stress/strain component number!")?;
-                strains_values.push(strains_at_ip[j]);
-                strains_components.push(*stress_strain_component);
-                stresses_values.push(stresses_at_ip[j]);
-                stresses_components.push(*stress_strain_component);
+                if j == 0 { force_x += stresses_mem_at_node[j] * self.thickness; }
+                if j == 1 { force_y += stresses_mem_at_node[j] * self.thickness; }
+                if j == 2 { force_xy += stresses_mem_at_node[j] * self.thickness; }
+            }
 
-                match k
-                {
-                    0 => force_x += stresses_at_ip[j] * self.thickness,
-                    4 => force_y += stresses_at_ip[j] * self.thickness,
-                    1 => force_xy += stresses_at_ip[j] * self.thickness,
-                    _ => (),
-                }
+            let strain_displacement_matrix_bend_at_node = 
+                QuadFullPlateAuxFunctions::strain_displacement_matrix_plate_bending(self.node_1_number, self.node_2_number, 
+                    self.node_3_number, self.node_4_number, r, s, ref_nodes, &self.state.rotation_matrix, tolerance)?;
+            let strains_matrix_bend_at_node = 
+                strain_displacement_matrix_bend_at_node.multiply_by_matrix(&element_local_displacements)?;
+            let stresses_matrix_bend_at_node = c_matrix_bend.multiply_by_matrix(&strains_matrix_bend_at_node)?;
+            let stresses_bend_at_node = 
+                QuadFullPlateAuxFunctions::extract_column_matrix_values(&stresses_matrix_bend_at_node)?;
+            for k in 0..3
+            {
+                if k == 0 { moment_x += stresses_bend_at_node[k] * self.thickness; }
+                if k == 1 { moment_y += stresses_mem_at_node[k] * self.thickness; }
+                if k == 2 { moment_xy += stresses_mem_at_node[k] * self.thickness; }
+            }
+
+            let strain_displacement_matrix_shear_at_node = 
+                QuadFullPlateAuxFunctions::strain_displacement_matrix_plate_shear(self.node_1_number, self.node_2_number, 
+                    self.node_3_number, self.node_4_number, r, s, ref_nodes, &self.state.rotation_matrix, tolerance)?;
+            let strains_matrix_shear_at_node = 
+                strain_displacement_matrix_shear_at_node.multiply_by_matrix(&element_local_displacements)?;
+            let stresses_matrix_shear_at_node = c_matrix_shear.multiply_by_matrix(&strains_matrix_shear_at_node)?;
+            let stresses_shear_at_node = 
+                QuadFullPlateAuxFunctions::extract_column_matrix_values(&stresses_matrix_shear_at_node)?;
+            for m in 0..2
+            {
+                if m == 0 { force_xz += stresses_shear_at_node[m] * self.thickness; }
+                if m == 1 { force_yz += stresses_shear_at_node[m] * self.thickness; }
             }
         }
 
@@ -1158,13 +1201,21 @@ impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
         forces_components.push(ForceComponent::MembraneForceY);
         forces_values.push(force_xy);
         forces_components.push(ForceComponent::MembraneForceXY);
+        forces_values.push(force_xz);
+        forces_components.push(ForceComponent::ShearForceXZ);
+        forces_values.push(force_yz);
+        forces_components.push(ForceComponent::ShearForceYZ);
+        forces_values.push(moment_x);
+        forces_components.push(ForceComponent::MomentX);
+        forces_values.push(moment_y);
+        forces_components.push(ForceComponent::MomentY);
+        forces_values.push(moment_xy);
+        forces_components.push(ForceComponent::MomentXY);
     
-        let element_strains = ElementStrains::create(strains_values, strains_components);
-        let element_stresses = ElementStresses::create(stresses_values, stresses_components);
         let element_forces = ElementForces::create(forces_values, forces_components);
 
         let element_analysis_data = ElementAnalysisData::create(
-            Some(element_strains), Some(element_stresses),
+            None, None,
             Some(element_forces), None);
         Ok(element_analysis_data)
     }
