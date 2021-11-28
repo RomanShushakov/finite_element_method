@@ -20,7 +20,7 @@ use crate::fem::element_analysis::fe_element_analysis_result::
     ElementAnalysisData, ElementForces
 };
 
-use crate::my_float::MyFloatTrait;
+use extended_matrix_float::MyFloatTrait;
 
 use crate::fem::finite_elements::truss::consts::{TRUSS_NODE_DOF, TRUSS2N1IP_NODES_NUMBER};
 use crate::fem::finite_elements::functions::extract_unique_elements_of_rotation_matrix;

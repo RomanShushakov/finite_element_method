@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use extended_matrix::extended_matrix::ExtendedMatrix;
 use extended_matrix::functions::matrix_element_value_extractor;
 
-use crate::my_float::MyFloatTrait;
+use extended_matrix_float::MyFloatTrait;
 
 use crate::fem::global_analysis::fe_dof_parameter_data::{DOFParameterData, GlobalDOFParameter};
 
@@ -502,7 +502,7 @@ impl<T, V> QuadFullPlateAuxFunctions<T, V>
     {
         let jacobian = QuadFullPlateAuxFunctions::<T, V>::jacobian(
             node_1_number, node_2_number, node_3_number, node_4_number, r, s, ref_nodes, ref_rotation_matrix, tolerance)?;
-        let determinant_of_jacobian = jacobian.determinant()?;
+        let determinant_of_jacobian = jacobian.determinant_2x2()?;
         Ok(determinant_of_jacobian)
     }
 
@@ -717,20 +717,20 @@ impl<T, V> QuadFullPlateAuxFunctions<T, V>
         let dh4_dy = matrix_element_value_extractor(T::from(1u8), T::from(3u8), &dh_dx_dh_dy_matrix)?;
 
         let elements = vec![
-            V::from(0f32), V::from(0f32), V::from(0f32), dh1_dx, V::from(0f32), V::from(0f32),
-            V::from(0f32), V::from(0f32), V::from(0f32), dh2_dx, V::from(0f32), V::from(0f32),
-            V::from(0f32), V::from(0f32), V::from(0f32), dh3_dx, V::from(0f32), V::from(0f32),
-            V::from(0f32), V::from(0f32), V::from(0f32), dh4_dx, V::from(0f32), V::from(0f32),
+            V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), dh1_dx, V::from(0f32),
+            V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), dh2_dx, V::from(0f32),
+            V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), dh3_dx, V::from(0f32),
+            V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), dh4_dx, V::from(0f32),
 
-            V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), dh1_dy, V::from(0f32),
-            V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), dh2_dy, V::from(0f32),
-            V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), dh3_dy, V::from(0f32),
-            V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), dh4_dy, V::from(0f32),
+            V::from(0f32), V::from(0f32), V::from(0f32), dh1_dy, V::from(0f32), V::from(0f32),
+            V::from(0f32), V::from(0f32), V::from(0f32), dh2_dy, V::from(0f32), V::from(0f32),
+            V::from(0f32), V::from(0f32), V::from(0f32), dh3_dy, V::from(0f32), V::from(0f32),
+            V::from(0f32), V::from(0f32), V::from(0f32), dh4_dy, V::from(0f32), V::from(0f32),
 
-            V::from(0f32), V::from(0f32), V::from(0f32), dh1_dy, dh1_dx, V::from(0f32),
-            V::from(0f32), V::from(0f32), V::from(0f32), dh2_dy, dh2_dx, V::from(0f32),
-            V::from(0f32), V::from(0f32), V::from(0f32), dh3_dy, dh3_dx, V::from(0f32),
-            V::from(0f32), V::from(0f32), V::from(0f32), dh4_dy, dh4_dx, V::from(0f32),
+            V::from(0f32), V::from(0f32), V::from(0f32), dh1_dx, dh1_dy, V::from(0f32),
+            V::from(0f32), V::from(0f32), V::from(0f32), dh2_dx, dh2_dy, V::from(0f32),
+            V::from(0f32), V::from(0f32), V::from(0f32), dh3_dx, dh3_dy, V::from(0f32),
+            V::from(0f32), V::from(0f32), V::from(0f32), dh4_dx, dh4_dy, V::from(0f32),
         ];
 
         let matrix = ExtendedMatrix::create(
@@ -790,7 +790,7 @@ impl<T, V> QuadFullPlateAuxFunctions<T, V>
         ref_nodes: &HashMap<T, FENode<V>>, ref_rotation_matrix: &ExtendedMatrix<T, V>, tolerance: V) 
         -> Result<ExtendedMatrix<T, V>, String>
     {
-        let c_matrix_multiplier_mem = young_modulus / (V::from(1f32) - poisson_ratio.my_powi(2));
+        let c_matrix_multiplier_mem = young_modulus * thickness / (V::from(1f32) - poisson_ratio.my_powi(2));
         let mut c_matrix_mem = ExtendedMatrix::create(
             T::from(3u8), T::from(3u8), 
             vec![
@@ -807,8 +807,11 @@ impl<T, V> QuadFullPlateAuxFunctions<T, V>
         let mut lhs_matrix_mem = rhs_matrix_mem.clone();
         lhs_matrix_mem.transpose();
 
-        let matrix_mem = lhs_matrix_mem.multiply_by_matrix(&c_matrix_mem)?
+        let mut matrix_mem = lhs_matrix_mem.multiply_by_matrix(&c_matrix_mem)?
             .multiply_by_matrix(&rhs_matrix_mem)?;
+        matrix_mem.multiply_by_number(QuadFullPlateAuxFunctions::determinant_of_jacobian(
+            node_1_number, node_2_number, node_3_number, node_4_number, r, s, ref_nodes, ref_rotation_matrix, tolerance)? * alpha);
+        
 
         let c_matrix_multiplier_bend = young_modulus * thickness.my_powi(3) / 
             (V::from(12f32) * (V::from(1f32) - poisson_ratio.my_powi(2)));
@@ -828,8 +831,10 @@ impl<T, V> QuadFullPlateAuxFunctions<T, V>
         let mut lhs_matrix_bend = rhs_matrix_bend.clone();
         lhs_matrix_bend.transpose();
 
-        let matrix_bend = lhs_matrix_bend.multiply_by_matrix(&c_matrix_bend)?
+        let mut matrix_bend = lhs_matrix_bend.multiply_by_matrix(&c_matrix_bend)?
             .multiply_by_matrix(&rhs_matrix_bend)?;
+        matrix_bend.multiply_by_number(QuadFullPlateAuxFunctions::determinant_of_jacobian(
+            node_1_number, node_2_number, node_3_number, node_4_number, r, s, ref_nodes, ref_rotation_matrix, tolerance)? * alpha);
 
         let c_matrix_multiplier_shear = young_modulus * thickness * shear_factor / 
             (V::from(2f32) * (V::from(1f32) + poisson_ratio));
@@ -840,16 +845,18 @@ impl<T, V> QuadFullPlateAuxFunctions<T, V>
                 V::from(0f32), V::from(1f32),
             ], 
             tolerance)?;
-        c_matrix_shear.multiply_by_number(c_matrix_multiplier_shear);
+        c_matrix_shear.multiply_by_number(c_matrix_multiplier_shear * alpha);
 
         let rhs_matrix_shear = QuadFullPlateAuxFunctions::strain_displacement_matrix_plate_shear(
             node_1_number, node_2_number, node_3_number, node_4_number, r, s, ref_nodes, 
             ref_rotation_matrix, tolerance)?;
-        let mut lhs_matrix_shear = rhs_matrix_bend.clone();
+        let mut lhs_matrix_shear = rhs_matrix_shear.clone();
         lhs_matrix_shear.transpose();
 
-        let matrix_shear = lhs_matrix_shear.multiply_by_matrix(&c_matrix_shear)?
+        let mut matrix_shear = lhs_matrix_shear.multiply_by_matrix(&c_matrix_shear)?
             .multiply_by_matrix(&rhs_matrix_shear)?;
+        matrix_shear.multiply_by_number(QuadFullPlateAuxFunctions::determinant_of_jacobian(
+            node_1_number, node_2_number, node_3_number, node_4_number, r, s, ref_nodes, ref_rotation_matrix, tolerance)? * alpha);
 
         let matrix = (matrix_mem.add_matrix(&matrix_bend)
             .map_err(|e| format!("QuadFullPlateAuxFunctions: Local stiffness matrix could not be calculated! \

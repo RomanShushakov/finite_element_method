@@ -7,6 +7,8 @@ use extended_matrix::matrix_element_position::MatrixElementPosition;
 use extended_matrix::extended_matrix::ExtendedMatrix;
 use extended_matrix::functions::{conversion_uint_into_usize, matrix_element_value_extractor};
 
+use extended_matrix_float::MyFloatTrait;
+
 
 use crate::fem::global_analysis::fe_stiffness::
 {
@@ -77,7 +79,7 @@ pub fn separate<T, V>(matrix: ExtendedMatrix<T, V>, positions: Vec<MatrixElement
              From<u8> + Ord + 'static,
           V: Add<Output = V> + Mul<Output = V> + Sub<Output = V> + Div<Output = V> + Copy + Debug +
              PartialEq + AddAssign + MulAssign + SubAssign + Into<f64> + From<f32> + PartialOrd +
-             'static
+             MyFloatTrait + 'static
 {
     let shape = matrix.copy_shape();
 

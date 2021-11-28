@@ -23,7 +23,7 @@ use crate::fem::element_analysis::fe_element_analysis_result::{ElementsAnalysisR
 
 use crate::fem::functions::{separate, add_new_stiffness_sub_groups};
 
-use crate::my_float::MyFloatTrait;
+use extended_matrix_float::MyFloatTrait;
 
 
 struct State<T, V>
@@ -429,6 +429,29 @@ impl<T, V> FEModel<T, V>
                         }
                     }
                 },
+            FEType::Plate4n4ip => 
+                {
+                    if nodes_numbers.len() != 4
+                    {
+                        return Err(format!("FEModel: Element {:?} could not be added! \
+                            Incorrect number of nodes!", element_number));
+                    }
+
+                    if properties.len() != 4
+                    {
+                        return Err(format!("FEModel: Element {:?} could not be added! \
+                            Incorrect length of properties data!", element_number));
+                    }
+
+                    for value in properties.iter()
+                    {
+                        if *value <= V::from(0f32)
+                        {
+                            return Err(format!("FEModel: All properties values for element {:?} \
+                                should be greater than zero!", element_number));
+                        }
+                    }
+                },
         }
 
         if self.elements.values().position(|element|
@@ -488,6 +511,29 @@ impl<T, V> FEModel<T, V>
         {
             match element.copy_fe_type()
             {
+                FEType::Truss2n1ip | FEType::Truss2n2ip =>
+                {
+                    if nodes_numbers.len() != 2
+                    {
+                        return Err(format!("FEModel: Element {:?} could not be updated! \
+                            Incorrect number of nodes!", element_number));
+                    }
+
+                    if properties.len() < 2 || properties.len() > 3
+                    {
+                            return Err(format!("FEModel: Element {:?} could not be updated! \
+                            Incorrect length of properties data!", element_number));
+                    }
+
+                    for value in properties.iter()
+                    {
+                        if *value <= V::from(0f32)
+                        {
+                            return Err(format!("FEModel: All properties values for element {:?} \
+                                should be greater than zero!", element_number));
+                        }
+                    }
+                },
                 FEType::Beam2n1ipT =>
                     {
                         if nodes_numbers.len() != 2
@@ -513,29 +559,53 @@ impl<T, V> FEModel<T, V>
                             }
                         }
                     },
-                _ =>
+                FEType::Mem4n4ip => 
+                {
+                    if nodes_numbers.len() != 4
                     {
-                        if nodes_numbers.len() != 2
-                        {
-                            return Err(format!("FEModel: Element {:?} could not be updated! \
-                                Incorrect number of nodes!", element_number));
-                        }
+                        return Err(format!("FEModel: Element {:?} could not be updated! \
+                            Incorrect number of nodes!", element_number));
+                    }
 
-                        if properties.len() < 2 || properties.len() > 3
-                        {
-                             return Err(format!("FEModel: Element {:?} could not be updated! \
-                                Incorrect length of properties data!", element_number));
-                        }
+                    if properties.len() != 3
+                    {
+                        return Err(format!("FEModel: Element {:?} could not be updated! \
+                            Incorrect length of properties data!", element_number));
+                    }
 
-                        for value in properties.iter()
+                    for value in properties.iter()
+                    {
+                        if *value <= V::from(0f32)
                         {
-                            if *value <= V::from(0f32)
-                            {
-                                return Err(format!("FEModel: All properties values for element {:?} \
-                                    should be greater than zero!", element_number));
-                            }
+                            return Err(format!("FEModel: All properties values for element {:?} \
+                                should be greater than zero!", element_number));
                         }
                     }
+                },
+            FEType::Plate4n4ip => 
+                {
+                    if nodes_numbers.len() != 4
+                    {
+                        return Err(format!("FEModel: Element {:?} could not be updated! \
+                            Incorrect number of nodes!", element_number));
+                    }
+
+                    if properties.len() != 4
+                    {
+                        return Err(format!("FEModel: Element {:?} could not be updated! \
+                            Incorrect length of properties data!", element_number));
+                    }
+
+                    for value in properties.iter()
+                    {
+                        if *value <= V::from(0f32)
+                        {
+                            return Err(format!("FEModel: All properties values for element {:?} \
+                                should be greater than zero!", element_number));
+                        }
+                    }
+                },
+
             }
             element.update(nodes_numbers, properties, self.state.tolerance, &self.nodes)?;
             Ok(())
@@ -603,6 +673,11 @@ impl<T, V> FEModel<T, V>
         for element in self.elements.values()
         {
             let mut element_stiffness_matrix = element.extract_stiffness_matrix()?;
+
+            // let f = |data: &str| println!("{}", data);
+            // println!("Matrix: ");
+            // element_stiffness_matrix.show_matrix(f);
+            // println!();
 
             let element_stiffness_groups = element.extract_stiffness_groups();
 
@@ -890,8 +965,8 @@ impl<T, V> FEModel<T, V>
         for (zero_row_number, zero_column_number) in zero_rows_numbers
             .iter().rev().zip(zero_columns_numbers.iter().rev())
         {
-            global_stiffness_matrix.remove_selected_column(*zero_column_number);
             global_stiffness_matrix.remove_selected_row(*zero_row_number);
+            global_stiffness_matrix.remove_selected_column(*zero_column_number);
             let matrix_element_position = 
                 MatrixElementPosition::create(*zero_row_number, *zero_column_number);
             removed_zeros_rows_columns.push(matrix_element_position);

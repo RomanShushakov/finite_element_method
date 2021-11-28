@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use extended_matrix::extended_matrix::ExtendedMatrix;
 use extended_matrix::functions::matrix_element_value_extractor;
 
-use crate::my_float::MyFloatTrait;
+use extended_matrix_float::MyFloatTrait;
 
 use crate::fem::global_analysis::fe_dof_parameter_data::{DOFParameterData, GlobalDOFParameter};
 
@@ -410,7 +410,7 @@ impl<T, V> QuadFullMemAuxFunctions<T, V>
     {
         let jacobian = QuadFullMemAuxFunctions::<T, V>::jacobian(
             node_1_number, node_2_number, node_3_number, node_4_number, r, s, ref_nodes, ref_rotation_matrix, tolerance)?;
-        let determinant_of_jacobian = jacobian.determinant()?;
+        let determinant_of_jacobian = jacobian.determinant_2x2()?;
         Ok(determinant_of_jacobian)
     }
 
@@ -582,7 +582,7 @@ impl<T, V> QuadFullMemAuxFunctions<T, V>
         ref_local_stiffness_matrix: &ExtendedMatrix<T, V>, ref_nodes: &HashMap<T, FENode<V>>, 
         ref_rotation_matrix: &ExtendedMatrix<T, V>, tolerance: V) -> Result<ExtendedMatrix<T, V>, String>
     {
-        let c_matrix_multiplier = young_modulus / (V::from(1f32) - poisson_ratio.my_powi(2));
+        let c_matrix_multiplier = young_modulus * thickness / (V::from(1f32) - poisson_ratio.my_powi(2));
         let mut c_matrix = ExtendedMatrix::create(
             T::from(3u8), T::from(3u8), 
             vec![
@@ -608,7 +608,7 @@ impl<T, V> QuadFullMemAuxFunctions<T, V>
                 {
                     matrix.multiply_by_number(QuadFullMemAuxFunctions::determinant_of_jacobian(
                         node_1_number, node_2_number, node_3_number, node_4_number, r, s, 
-                        ref_nodes, ref_rotation_matrix, tolerance)? * alpha * thickness);
+                        ref_nodes, ref_rotation_matrix, tolerance)? * alpha);
 
                     match ref_local_stiffness_matrix.add_matrix(&matrix)
                     {

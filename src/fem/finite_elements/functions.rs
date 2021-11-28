@@ -2,7 +2,7 @@ use std::ops::{Add, Sub, Mul, Div, Rem, AddAssign, SubAssign, MulAssign};
 use std::fmt::Debug;
 use std::hash::Hash;
 
-use crate::my_float::MyFloatTrait;
+use extended_matrix_float::MyFloatTrait;
 use extended_matrix::extended_matrix::ExtendedMatrix;
 use extended_matrix::functions::matrix_element_value_extractor;
 
@@ -28,7 +28,7 @@ pub fn extract_unique_elements_of_rotation_matrix<T, V>(rotation_matrix: &Extend
              PartialOrd + Ord + 'static,
           V: Add<Output = V> + Sub<Output = V> + Mul<Output = V> + Div<Output = V> + Copy +
              Debug + AddAssign + SubAssign + MulAssign + PartialEq + From<f32> + Into<f64> +
-             PartialOrd + 'static
+             PartialOrd + MyFloatTrait + 'static
 {
     let r11 = matrix_element_value_extractor(T::from(0u8), T::from(0u8), &rotation_matrix)?;
     let r12 = matrix_element_value_extractor(T::from(0u8), T::from(1u8), &rotation_matrix)?;

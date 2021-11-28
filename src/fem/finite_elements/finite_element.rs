@@ -6,13 +6,14 @@ use std::collections::HashMap;
 
 use extended_matrix::extended_matrix::ExtendedMatrix;
 
-use crate::my_float::MyFloatTrait;
+use extended_matrix_float::MyFloatTrait;
 
 use crate::fem::finite_elements::fe_node::FENode;
 use crate::fem::finite_elements::truss::truss2n1ip::Truss2n1ip;
 use crate::fem::finite_elements::truss::truss2n2ip::Truss2n2ip;
 use crate::fem::finite_elements::beam::beam2n1ipt::Beam2n1ipT;
 use crate::fem::finite_elements::membrane::mem4n4ip::Mem4n4ip;
+use crate::fem::finite_elements::plate::plate4n4ip::Plate4n4ip;
 use crate::fem::global_analysis::fe_stiffness::StiffnessGroup;
 use crate::fem::element_analysis::fe_element_analysis_result::ElementAnalysisData;
 use crate::fem::global_analysis::fe_global_analysis_result::Displacements;
@@ -28,6 +29,7 @@ pub enum FEType
     Truss2n2ip,
     Beam2n1ipT,
     Mem4n4ip,
+    Plate4n4ip,
 }
 
 
@@ -40,16 +42,17 @@ impl FEType
             FEType::Truss2n1ip => "Truss2n1ip",
             FEType::Truss2n2ip => "Truss2n2ip",
             FEType::Beam2n1ipT => "Beam2n1ipT",
-            &FEType::Mem4n4ip => "Mem4n4ip",
+            FEType::Mem4n4ip => "Mem4n4ip",
+            FEType::Plate4n4ip => "Plate4n4ip",
         }
     }
 
 
     pub(super) fn iterator() -> Iter<'static, FEType>
     {
-        const TYPES: [FEType; 4] =
+        const TYPES: [FEType; 5] =
             [
-                Truss2n1ip, Truss2n2ip, Beam2n1ipT, Mem4n4ip,
+                Truss2n1ip, Truss2n2ip, Beam2n1ipT, Mem4n4ip, Plate4n4ip
             ];
         TYPES.iter()
     }
@@ -163,6 +166,21 @@ impl<T, V> FECreator<T, V>
                         tolerance, ref_nodes)?;
                     
                     Ok(Box::new(membrane_element))
+                },
+            FEType::Plate4n4ip => 
+                {
+                    let plate_element = Plate4n4ip::create(
+                        nodes_numbers[0],
+                        nodes_numbers[1], 
+                        nodes_numbers[2], 
+                        nodes_numbers[3], 
+                        properties[0], 
+                        properties[1], 
+                        properties[2],
+                        properties[3], 
+                        tolerance, ref_nodes)?;
+                    
+                    Ok(Box::new(plate_element))
                 }
         }
     }

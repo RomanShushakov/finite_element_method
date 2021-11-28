@@ -21,7 +21,7 @@ use crate::fem::element_analysis::fe_element_analysis_result::
     ElementAnalysisData, ElementForces, ElementStrains, ElementStresses
 };
 
-use crate::my_float::MyFloatTrait;
+use extended_matrix_float::MyFloatTrait;
 
 use crate::fem::finite_elements::plate::consts::{PLATE_NODE_DOF, PLATE4N4IP_NODES_NUMBER};
 use crate::fem::finite_elements::functions::extract_unique_elements_of_rotation_matrix;
@@ -283,7 +283,7 @@ impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
                 return Ok(matrix);
             }
         }
-        Err("Mem4n4ip: Stiffness matrix cannot be extracted!".to_string())
+        Err("Plate4n4ip: Stiffness matrix cannot be extracted!".to_string())
     }
 
 
@@ -364,6 +364,17 @@ impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
             let mut positions_kthth_4_3 = Vec::new();
             let mut positions_kthu_4_4 = Vec::new();
             let mut positions_kthth_4_4 = Vec::new();
+
+            let half = QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8);
+            let one = QuadFullPlateAuxFunctions::<T, V>::node_dof();
+            let one_and_half = QuadFullPlateAuxFunctions::<T, V>::node_dof() + 
+                QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8);
+            let two = QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8);
+            let two_and_half = QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) + 
+                QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8);
+            let three = QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8);
+            let three_and_half = QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) + 
+                QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8);
     
             let mut i = T::from(0u8);
             while i < rows_number * columns_number
@@ -374,521 +385,262 @@ impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
                 let row = i / columns_number;
                 let column = i % columns_number;
     
-                if row < QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column < QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8)
+                if row < half && column < half
                 {
                     positions_kuu_1_1.push(position);
                 }
-                else if row < QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column < QuadFullPlateAuxFunctions::<T, V>::node_dof()
+                else if row < half && column >= half && column < one
                 {
                     positions_kuth_1_1.push(position);
                 }
-                else if row < QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() &&
-                    column < QuadFullPlateAuxFunctions::<T, V>::node_dof() + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8)
+                else if row < half && column >= one && column < one_and_half
                 {
                     positions_kuu_1_2.push(position);
                 }
-                else if row < QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8)
+                else if row < half && column >= one_and_half && column < two
                 {
                     positions_kuth_1_2.push(position);
                 }
-                else if row < QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
-                    column < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8)
+                else if row < half && column >= two && column < two_and_half
                 {
                     positions_kuu_1_3.push(position);
                 }
-                else if row < QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column <  QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8)
+                else if row < half && column >= two_and_half && column < three
                 {
                     positions_kuth_1_3.push(position);
                 }
-                else if row < QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) &&
-                    column <  QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8)
+                else if row < half && column >= three && column < three_and_half
                 {
                     positions_kuu_1_4.push(position);
                 }
-                else if row < QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column >  QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) +
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8)
+                else if row < half && column >= three_and_half
                 {
                     positions_kuth_1_4.push(position);
                 }
 
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() &&
-                    column < QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8)
+                else if row >= half && row < one && column < half
                 {
                     positions_kthu_1_1.push(position);
                 }
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() &&
-                    column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column < QuadFullPlateAuxFunctions::<T, V>::node_dof()
+                else if row >= half && row < one && column >= half && column < one
                 {
                     positions_kthth_1_1.push(position);
                 }
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() &&
-                    column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() &&
-                    column < QuadFullPlateAuxFunctions::<T, V>::node_dof() + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8)
+                else if row >= half && row < one && column >= one && column < one_and_half
                 {
                     positions_kthu_1_2.push(position);
                 }
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() &&
-                    column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8)
+                else if row >= half && row < one && column >= one_and_half && column < two
                 {
                     positions_kthth_1_2.push(position);
                 }
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() &&
-                    column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
-                    column < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) +
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8)
+                else if row >= half && row < one && column >= two && column < two_and_half
                 {
                     positions_kthu_1_3.push(position);
                 }
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() &&
-                    column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) +
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8)
+                else if row >= half && row < one && column >= two_and_half && column < three
                 {
                     positions_kthth_1_3.push(position);
                 }
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() &&
-                    column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) &&
-                    column < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) +
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8)
+                else if row >= half && row < one && column >= three && column < three_and_half
                 {
                     positions_kthu_1_4.push(position);
                 }
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() &&
-                    column > QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) +
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8)
+                else if row >= half && row < one && column >= three_and_half
                 {
                     positions_kthth_1_4.push(position);
                 }
 
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() && 
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column < QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8)
+                else if row >= one && row < one_and_half && column < half
                 {
                     positions_kuu_2_1.push(position);
                 }
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() && 
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column < QuadFullPlateAuxFunctions::<T, V>::node_dof()
+                else if row >= one && row < one_and_half && column >= half && column < one
                 {
                     positions_kuth_2_1.push(position);
                 }
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() && 
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() &&
-                    column < QuadFullPlateAuxFunctions::<T, V>::node_dof() + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8)
+                else if row >= one && row < one_and_half && column >= one && column < one_and_half
                 {
                     positions_kuu_2_2.push(position);
                 }
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() && 
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8)
+                else if row >= one && row < one_and_half && column >= one_and_half && column < two
                 {
                     positions_kuth_2_2.push(position);
                 }
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() && 
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
-                    column < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8)
+                else if row >= one && row < one_and_half && column >= two && column < two_and_half
                 {
                     positions_kuu_2_3.push(position);
                 }
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() && 
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column <  QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8)
+                else if row >= one && row < one_and_half && column >= two_and_half && column < three
                 {
                     positions_kuth_2_3.push(position);
                 }
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() && 
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) &&
-                    column <  QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8)
+                else if row >= one && row < one_and_half && column >= three && column < three_and_half
                 {
                     positions_kuu_2_4.push(position);
                 }
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() && 
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column >  QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) +
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8)
+                else if row >= one && row < one_and_half && column >= three_and_half
                 {
                     positions_kuth_2_4.push(position);
                 }
 
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
-                    column < QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8)
+                else if row >= one_and_half && row < two && column < half
                 {
                     positions_kthu_2_1.push(position);
                 }
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
-                    column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column < QuadFullPlateAuxFunctions::<T, V>::node_dof()
+                else if row >= one_and_half && row < two && column >= half && column < one
                 {
                     positions_kthth_2_1.push(position);
                 }
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
-                    column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() &&
-                    column < QuadFullPlateAuxFunctions::<T, V>::node_dof() + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8)
+                else if row >= one_and_half && row < two && column >= one && column < one_and_half
                 {
                     positions_kthu_2_2.push(position);
                 }
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
-                    column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8)
+                else if row >= one_and_half && row < two && column >= one_and_half && column < two
                 {
                     positions_kthth_2_2.push(position);
                 }
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
-                    column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
-                    column < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) +
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8)
+                else if row >= one_and_half && row < two && column >= two && column < two_and_half
                 {
                     positions_kthu_2_3.push(position);
                 }
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
-                    column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) +
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8)
+                else if row >= one_and_half && row < two && column >= two_and_half && column < three
                 {
                     positions_kthth_2_3.push(position);
                 }
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
-                    column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) &&
-                    column < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) +
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8)
+                else if row >= one_and_half && row < two && column >= three && column < three_and_half
                 {
                     positions_kthu_2_4.push(position);
                 }
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
-                    column > QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) +
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8)
+                else if row >= one_and_half && row < two && column >= three_and_half
                 {
                     positions_kthth_2_4.push(position);
                 }
 
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) && 
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column < QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8)
+                else if row >= two && row < two_and_half && column < half
                 {
                     positions_kuu_3_1.push(position);
                 }
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) && 
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column < QuadFullPlateAuxFunctions::<T, V>::node_dof()
+                else if row >= two && row < two_and_half && column >= half && column < one
                 {
                     positions_kuth_3_1.push(position);
                 }
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) && 
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() &&
-                    column < QuadFullPlateAuxFunctions::<T, V>::node_dof() + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8)
+                else if row >= two && row < two_and_half && column >= one && column < one_and_half
                 {
                     positions_kuu_3_2.push(position);
                 }
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) && 
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8)
+                else if row >= two && row < two_and_half && column >= one_and_half && column < two
                 {
                     positions_kuth_3_2.push(position);
                 }
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) && 
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
-                    column < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8)
+                else if row >= two && row < two_and_half && column >= two && column < two_and_half
                 {
                     positions_kuu_3_3.push(position);
                 }
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) && 
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column <  QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8)
+                else if row >= two && row < two_and_half && column >= two_and_half && column < three
                 {
                     positions_kuth_3_3.push(position);
                 }
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) && 
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) &&
-                    column <  QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8)
+                else if row >= two && row < two_and_half && column >= three && column < three_and_half
                 {
                     positions_kuu_3_4.push(position);
                 }
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) && 
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column >  QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) +
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8)
+                else if row >= two && row < two_and_half && column >= three_and_half
                 {
                     positions_kuth_3_4.push(position);
                 }
 
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) &&
-                    column < QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8)
+                else if row >= two_and_half && row < three && column < half
                 {
                     positions_kthu_3_1.push(position);
                 }
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) &&
-                    column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column < QuadFullPlateAuxFunctions::<T, V>::node_dof()
+                else if row >= two_and_half && row < three && column >= half && column < one
                 {
                     positions_kthth_3_1.push(position);
                 }
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) &&
-                    column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() &&
-                    column < QuadFullPlateAuxFunctions::<T, V>::node_dof() + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8)
+                else if row >= two_and_half && row < three && column >= one && column < one_and_half
                 {
                     positions_kthu_3_2.push(position);
                 }
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) &&
-                    column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8)
+                else if row >= two_and_half && row < three && column >= one_and_half && column < two
                 {
                     positions_kthth_3_2.push(position);
                 }
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) &&
-                    column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
-                    column < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) +
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8)
+                else if row >= two_and_half && row < three && column >= two && column < two_and_half
                 {
                     positions_kthu_3_3.push(position);
                 }
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) &&
-                    column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) +
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8)
+                else if row >= two_and_half && row < three && column >= two_and_half && column < three
                 {
                     positions_kthth_3_3.push(position);
                 }
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) &&
-                    column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) &&
-                    column < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) +
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8)
+                else if row >= two_and_half && row < three && column >= three && column < three_and_half
                 {
                     positions_kthu_3_4.push(position);
                 }
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) &&
-                    column > QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) +
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8)
+                else if row >= two_and_half && row < three && column >= three_and_half
                 {
                     positions_kthth_3_4.push(position);
                 }
 
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) && 
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column < QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8)
+                else if row >= three && row < three_and_half && column < half
                 {
                     positions_kuu_4_1.push(position);
                 }
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) && 
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column < QuadFullPlateAuxFunctions::<T, V>::node_dof()
+                else if row >= three && row < three_and_half && column >= half && column < one
                 {
                     positions_kuth_4_1.push(position);
                 }
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) && 
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() &&
-                    column < QuadFullPlateAuxFunctions::<T, V>::node_dof() + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8)
+                else if row >= three && row < three_and_half && column >= one && column < one_and_half
                 {
                     positions_kuu_4_2.push(position);
                 }
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) && 
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8)
+                else if row >= three && row < three_and_half && column >= one_and_half && column < two
                 {
                     positions_kuth_4_2.push(position);
                 }
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) && 
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
-                    column < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8)
+                else if row >= three && row < three_and_half && column >= two && column < two_and_half
                 {
                     positions_kuu_4_3.push(position);
                 }
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) && 
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column <  QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8)
+                else if row >= three && row < three_and_half && column >= two_and_half && column < three
                 {
                     positions_kuth_4_3.push(position);
                 }
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) && 
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) &&
-                    column <  QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8)
+                else if row >= three && row < three_and_half && column >= three && column < three_and_half
                 {
                     positions_kuu_4_4.push(position);
                 }
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) && 
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column >  QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) +
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8)
+                else if row >= three && row < three_and_half && column >= three_and_half
                 {
                     positions_kuth_4_4.push(position);
                 }
 
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column < QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8)
+                else if row >= three_and_half && column < half
                 {
                     positions_kthu_4_1.push(position);
                 }
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) &&
-                    column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column < QuadFullPlateAuxFunctions::<T, V>::node_dof()
+                else if row >= three_and_half && column >= half && column < one
                 {
                     positions_kthth_4_1.push(position);
                 }
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) &&
-                    column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() &&
-                    column < QuadFullPlateAuxFunctions::<T, V>::node_dof() + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8)
+                else if row >= three_and_half && column >= one && column < one_and_half
                 {
                     positions_kthu_4_2.push(position);
                 }
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) &&
-                    column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8)
+                else if row >= three_and_half && column >= one_and_half && column < two
                 {
                     positions_kthth_4_2.push(position);
                 }
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) &&
-                    column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) &&
-                    column < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) +
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8)
+                else if row >= three_and_half && column >= two && column < two_and_half
                 {
                     positions_kthu_4_3.push(position);
                 }
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) &&
-                    column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) +
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    column < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8)
+                else if row >= three_and_half && column >= two_and_half && column < three
                 {
                     positions_kthth_4_3.push(position);
                 }
-                else if row >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) + 
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8) &&
-                    row < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) &&
-                    column >= QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) &&
-                    column < QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) +
-                        QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8)
+                else if row >= three_and_half && column >= three && column < three_and_half
                 {
                     positions_kthu_4_4.push(position);
                 }
@@ -1136,8 +888,6 @@ impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
         let mut force_xz = V::from(0f32);
         let mut force_yz = V::from(0f32);
 
-
-
         let local_nodes_coordinates = vec![
             (V::from(1f32), V::from(1f32)), 
             (V::from(-1f32), V::from(1f32)),
@@ -1155,6 +905,7 @@ impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
                     self.node_3_number, self.node_4_number, r, s, ref_nodes, &self.state.rotation_matrix, tolerance)?;
             let strains_matrix_mem_at_node = 
                 strain_displacement_matrix_mem_at_node.multiply_by_matrix(&element_local_displacements)?;
+
             let stresses_matrix_mem_at_node = c_matrix_mem.multiply_by_matrix(&strains_matrix_mem_at_node)?;
             let stresses_mem_at_node = 
                 QuadFullPlateAuxFunctions::extract_column_matrix_values(&stresses_matrix_mem_at_node)?;
@@ -1175,9 +926,9 @@ impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
                 QuadFullPlateAuxFunctions::extract_column_matrix_values(&stresses_matrix_bend_at_node)?;
             for k in 0..3
             {
-                if k == 0 { moment_x += stresses_bend_at_node[k] * self.thickness; }
-                if k == 1 { moment_y += stresses_mem_at_node[k] * self.thickness; }
-                if k == 2 { moment_xy += stresses_mem_at_node[k] * self.thickness; }
+                if k == 0 { moment_x += stresses_bend_at_node[k]; }
+                if k == 1 { moment_y += stresses_bend_at_node[k]; }
+                if k == 2 { moment_xy += stresses_bend_at_node[k]; }
             }
 
             let strain_displacement_matrix_shear_at_node = 
@@ -1190,26 +941,26 @@ impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
                 QuadFullPlateAuxFunctions::extract_column_matrix_values(&stresses_matrix_shear_at_node)?;
             for m in 0..2
             {
-                if m == 0 { force_xz += stresses_shear_at_node[m] * self.thickness; }
-                if m == 1 { force_yz += stresses_shear_at_node[m] * self.thickness; }
+                if m == 0 { force_xz += stresses_shear_at_node[m]; }
+                if m == 1 { force_yz += stresses_shear_at_node[m]; }
             }
         }
 
-        forces_values.push(force_x);
+        forces_values.push(force_x / V::from(4f32));
         forces_components.push(ForceComponent::MembraneForceX);
-        forces_values.push(force_y);
+        forces_values.push(force_y / V::from(4f32));
         forces_components.push(ForceComponent::MembraneForceY);
-        forces_values.push(force_xy);
+        forces_values.push(force_xy / V::from(4f32));
         forces_components.push(ForceComponent::MembraneForceXY);
-        forces_values.push(force_xz);
+        forces_values.push(force_xz / V::from(4f32));
         forces_components.push(ForceComponent::ShearForceXZ);
-        forces_values.push(force_yz);
+        forces_values.push(force_yz / V::from(4f32));
         forces_components.push(ForceComponent::ShearForceYZ);
-        forces_values.push(moment_x);
+        forces_values.push(moment_x / V::from(4f32));
         forces_components.push(ForceComponent::MomentX);
-        forces_values.push(moment_y);
+        forces_values.push(moment_y / V::from(4f32));
         forces_components.push(ForceComponent::MomentY);
-        forces_values.push(moment_xy);
+        forces_values.push(moment_xy / V::from(4f32));
         forces_components.push(ForceComponent::MomentXY);
     
         let element_forces = ElementForces::create(forces_values, forces_components);

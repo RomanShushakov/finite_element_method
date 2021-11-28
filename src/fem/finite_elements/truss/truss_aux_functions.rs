@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use extended_matrix::extended_matrix::ExtendedMatrix;
 use extended_matrix::functions::matrix_element_value_extractor;
 
-use crate::my_float::MyFloatTrait;
+use extended_matrix_float::MyFloatTrait;
 
 use crate::fem::global_analysis::fe_dof_parameter_data::{DOFParameterData, GlobalDOFParameter};
 

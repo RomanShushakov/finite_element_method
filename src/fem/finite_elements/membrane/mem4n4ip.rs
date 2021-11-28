@@ -21,7 +21,7 @@ use crate::fem::element_analysis::fe_element_analysis_result::
     ElementAnalysisData, ElementForces, ElementStrains, ElementStresses
 };
 
-use crate::my_float::MyFloatTrait;
+use extended_matrix_float::MyFloatTrait;
 
 use crate::fem::finite_elements::membrane::consts::{MEMBRANE_NODE_DOF, MEM4N4IP_NODES_NUMBER};
 use crate::fem::finite_elements::functions::extract_unique_elements_of_rotation_matrix;
@@ -556,11 +556,11 @@ impl<T, V> FiniteElementTrait<T, V> for Mem4n4ip<T, V>
             }
         }
 
-        forces_values.push(force_x);
+        forces_values.push(force_x / V::from(4f32));
         forces_components.push(ForceComponent::MembraneForceX);
-        forces_values.push(force_y);
+        forces_values.push(force_y / V::from(4f32));
         forces_components.push(ForceComponent::MembraneForceY);
-        forces_values.push(force_xy);
+        forces_values.push(force_xy / V::from(4f32));
         forces_components.push(ForceComponent::MembraneForceXY);
     
         // let element_strains = ElementStrains::create(strains_values, strains_components);

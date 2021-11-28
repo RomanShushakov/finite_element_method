@@ -19,7 +19,7 @@ use crate::fem::element_analysis::fe_element_analysis_result::{ElementAnalysisDa
 
 use crate::fem::finite_elements::beam::beam_aux_functions::BeamAuxFunctions;
 
-use crate::my_float::MyFloatTrait;
+use extended_matrix_float::MyFloatTrait;
 
 use crate::fem::finite_elements::beam::consts::{ BEAM_NODE_DOF, BEAM2N1IPT_NODES_NUMBER };
 use crate::fem::finite_elements::functions::extract_unique_elements_of_rotation_matrix;
