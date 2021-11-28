@@ -717,20 +717,20 @@ impl<T, V> QuadFullPlateAuxFunctions<T, V>
         let dh4_dy = matrix_element_value_extractor(T::from(1u8), T::from(3u8), &dh_dx_dh_dy_matrix)?;
 
         let elements = vec![
-            V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), dh1_dx, V::from(0f32),
-            V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), dh2_dx, V::from(0f32),
-            V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), dh3_dx, V::from(0f32),
-            V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), dh4_dx, V::from(0f32),
+            V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), V::from(-1f32) * dh1_dx, V::from(0f32),
+            V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), V::from(-1f32) * dh2_dx, V::from(0f32),
+            V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), V::from(-1f32) * dh3_dx, V::from(0f32),
+            V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), V::from(-1f32) * dh4_dx, V::from(0f32),
 
             V::from(0f32), V::from(0f32), V::from(0f32), dh1_dy, V::from(0f32), V::from(0f32),
             V::from(0f32), V::from(0f32), V::from(0f32), dh2_dy, V::from(0f32), V::from(0f32),
             V::from(0f32), V::from(0f32), V::from(0f32), dh3_dy, V::from(0f32), V::from(0f32),
             V::from(0f32), V::from(0f32), V::from(0f32), dh4_dy, V::from(0f32), V::from(0f32),
 
-            V::from(0f32), V::from(0f32), V::from(0f32), dh1_dx, dh1_dy, V::from(0f32),
-            V::from(0f32), V::from(0f32), V::from(0f32), dh2_dx, dh2_dy, V::from(0f32),
-            V::from(0f32), V::from(0f32), V::from(0f32), dh3_dx, dh3_dy, V::from(0f32),
-            V::from(0f32), V::from(0f32), V::from(0f32), dh4_dx, dh4_dy, V::from(0f32),
+            V::from(0f32), V::from(0f32), V::from(0f32), dh1_dx, V::from(-1f32) * dh1_dy, V::from(0f32),
+            V::from(0f32), V::from(0f32), V::from(0f32), dh2_dx, V::from(-1f32) * dh2_dy, V::from(0f32),
+            V::from(0f32), V::from(0f32), V::from(0f32), dh3_dx, V::from(-1f32) * dh3_dy, V::from(0f32),
+            V::from(0f32), V::from(0f32), V::from(0f32), dh4_dx, V::from(-1f32) * dh4_dy, V::from(0f32),
         ];
 
         let matrix = ExtendedMatrix::create(

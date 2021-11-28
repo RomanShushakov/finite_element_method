@@ -853,8 +853,8 @@ impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
             tolerance)?;
         c_matrix_mem.multiply_by_number(c_matrix_multiplier_mem);
 
-        let c_matrix_multiplier_bend = self.young_modulus * self.thickness.my_powi(3) / 
-            (V::from(12f32) * (V::from(1f32) - self.poisson_ratio.my_powi(2)));
+        let c_matrix_multiplier_bend = self.young_modulus * self.thickness / 
+            (V::from(2f32) * (V::from(1f32) - self.poisson_ratio.my_powi(2)));
         let mut c_matrix_bend = ExtendedMatrix::create(
             T::from(3u8), T::from(3u8), 
             vec![
@@ -865,8 +865,7 @@ impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
             tolerance)?;
         c_matrix_bend.multiply_by_number(c_matrix_multiplier_bend);
 
-        let c_matrix_multiplier_shear = self.young_modulus * self.thickness * self.shear_factor / 
-            (V::from(2f32) * (V::from(1f32) + self.poisson_ratio));
+        let c_matrix_multiplier_shear = self.young_modulus / (V::from(2f32) * (V::from(1f32) + self.poisson_ratio));
         let mut c_matrix_shear = ExtendedMatrix::create(
             T::from(2u8), T::from(2u8), 
             vec![
@@ -926,9 +925,18 @@ impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
                 QuadFullPlateAuxFunctions::extract_column_matrix_values(&stresses_matrix_bend_at_node)?;
             for k in 0..3
             {
-                if k == 0 { moment_x += stresses_bend_at_node[k]; }
-                if k == 1 { moment_y += stresses_bend_at_node[k]; }
-                if k == 2 { moment_xy += stresses_bend_at_node[k]; }
+                if k == 0 
+                { 
+                    moment_y += stresses_bend_at_node[k] / V::from(4f32) * self.shear_factor; 
+                }
+                if k == 1 
+                {
+                    moment_x += stresses_bend_at_node[k] / V::from(4f32) * self.shear_factor; 
+                }
+                if k == 2 
+                {
+                    moment_xy += stresses_bend_at_node[k] / V::from(4f32) * self.shear_factor;
+                }
             }
 
             let strain_displacement_matrix_shear_at_node = 
@@ -941,8 +949,8 @@ impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
                 QuadFullPlateAuxFunctions::extract_column_matrix_values(&stresses_matrix_shear_at_node)?;
             for m in 0..2
             {
-                if m == 0 { force_xz += stresses_shear_at_node[m]; }
-                if m == 1 { force_yz += stresses_shear_at_node[m]; }
+                if m == 0 { force_xz += stresses_shear_at_node[m] * self.thickness * self.shear_factor; }
+                if m == 1 { force_yz += stresses_shear_at_node[m] * self.thickness * self.shear_factor; }
             }
         }
 
