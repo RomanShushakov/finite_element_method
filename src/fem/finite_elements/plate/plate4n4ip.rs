@@ -853,6 +853,7 @@ impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
             tolerance)?;
         c_matrix_mem.multiply_by_number(c_matrix_multiplier_mem);
 
+        // let c_matrix_multiplier_bend = self.young_modulus / (V::from(1f32) - self.poisson_ratio.my_powi(2));
         let c_matrix_multiplier_bend = self.young_modulus * self.thickness / 
             (V::from(2f32) * (V::from(1f32) - self.poisson_ratio.my_powi(2)));
         let mut c_matrix_bend = ExtendedMatrix::create(
@@ -927,15 +928,15 @@ impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
             {
                 if k == 0 
                 { 
-                    moment_y += stresses_bend_at_node[k] / V::from(4f32) * self.shear_factor; 
+                    moment_y += stresses_bend_at_node[k] * self.thickness.my_powi(2) / V::from(6f32); 
                 }
                 if k == 1 
                 {
-                    moment_x += stresses_bend_at_node[k] / V::from(4f32) * self.shear_factor; 
+                    moment_x += stresses_bend_at_node[k] * self.thickness.my_powi(2) / V::from(6f32); 
                 }
                 if k == 2 
                 {
-                    moment_xy += stresses_bend_at_node[k] / V::from(4f32) * self.shear_factor;
+                    moment_xy += stresses_bend_at_node[k] * self.thickness.my_powi(2) / V::from(6f32);
                 }
             }
 

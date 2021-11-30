@@ -397,9 +397,9 @@ impl<T, V> QuadFullPlateAuxFunctions<T, V>
     }
 
 
-    pub fn jacobian(node_1_number: T, node_2_number: T, node_3_number: T, node_4_number: T,
-        r: V, s: V, ref_nodes: &HashMap<T, FENode<V>>, ref_rotation_matrix: &ExtendedMatrix<T, V>,
-        tolerance: V) -> Result<ExtendedMatrix<T, V>, String>
+    fn extract_transformed_directions_of_nodes(node_1_number: T, node_2_number: T, node_3_number: T, node_4_number: T,
+        ref_nodes: &HashMap<T, FENode<V>>, ref_rotation_matrix: &ExtendedMatrix<T, V>, tolerance: V) 
+        -> Result<Vec<(V, V, V)>, String>
     {
         let unique_elements_of_rotation_matrix = 
             extract_unique_elements_of_rotation_matrix::<T, V>(ref_rotation_matrix)?;
@@ -437,45 +437,75 @@ impl<T, V> QuadFullPlateAuxFunctions<T, V>
         let transformed_node_2_direction = shrinked_rotation_matrix.multiply_by_matrix(&node_2_direction)?;
         let transformed_node_4_direction = shrinked_rotation_matrix.multiply_by_matrix(&node_4_direction)?;
 
-        let transformed_transformed_node_1_direction_x =
+        let transformed_node_1_direction_x =
             matrix_element_value_extractor(T::from(0u8), T::from(0u8), &transformed_node_1_direction)?;
-        let transformed_transformed_node_1_direction_y =
+        let transformed_node_1_direction_y =
             matrix_element_value_extractor(T::from(1u8), T::from(0u8), &transformed_node_1_direction)?;
-        let transformed_transformed_node_1_direction_z =
+        let transformed_node_1_direction_z =
             matrix_element_value_extractor(T::from(2u8), T::from(0u8), &transformed_node_1_direction)?;
-        let transformed_transformed_node_2_direction_x =
+        let transformed_node_2_direction_x =
             matrix_element_value_extractor(T::from(0u8), T::from(0u8), &transformed_node_2_direction)?;
-        let transformed_transformed_node_2_direction_y =
+        let transformed_node_2_direction_y =
             matrix_element_value_extractor(T::from(1u8), T::from(0u8), &transformed_node_2_direction)?;
-        let transformed_transformed_node_2_direction_z =
+        let transformed_node_2_direction_z =
             matrix_element_value_extractor(T::from(2u8), T::from(0u8), &transformed_node_2_direction)?;
-        let transformed_transformed_node_4_direction_x =
+        let transformed_node_4_direction_x =
             matrix_element_value_extractor(T::from(0u8), T::from(0u8), &transformed_node_4_direction)?;
-        let transformed_transformed_node_4_direction_y =
+        let transformed_node_4_direction_y =
             matrix_element_value_extractor(T::from(1u8), T::from(0u8), &transformed_node_4_direction)?;
-        let transformed_transformed_node_4_direction_z =
+        let transformed_node_4_direction_z =
             matrix_element_value_extractor(T::from(2u8), T::from(0u8), &transformed_node_4_direction)?;
 
-        if transformed_transformed_node_1_direction_z != transformed_transformed_node_2_direction_z || 
-            transformed_transformed_node_1_direction_z != transformed_transformed_node_4_direction_z ||
-            transformed_transformed_node_2_direction_z != transformed_transformed_node_4_direction_z
+        if transformed_node_1_direction_z != transformed_node_2_direction_z || 
+            transformed_node_1_direction_z != transformed_node_4_direction_z ||
+            transformed_node_2_direction_z != transformed_node_4_direction_z
         {
-            return Err("Quad membrane element Jacobian calculation: Incorrect nodes directions transformation!".into());
+            return Err("Quad plate element: Transformed directions of nodes calculation: /
+                Incorrect nodes directions transformation!".into());
         }
+
+        let transformed_directions_of_nodes = vec![
+            (transformed_node_1_direction_x, transformed_node_1_direction_y, transformed_node_1_direction_z),
+            (transformed_node_2_direction_x, transformed_node_2_direction_y, transformed_node_2_direction_z),
+            (transformed_node_4_direction_x, transformed_node_4_direction_y, transformed_node_4_direction_z),
+        ];
+        Ok(transformed_directions_of_nodes)
+    }
+
+
+    pub fn jacobian(node_1_number: T, node_2_number: T, node_3_number: T, node_4_number: T,
+        r: V, s: V, ref_nodes: &HashMap<T, FENode<V>>, ref_rotation_matrix: &ExtendedMatrix<T, V>,
+        tolerance: V) -> Result<ExtendedMatrix<T, V>, String>
+    {
+        let transformed_directions_of_nodes = 
+            QuadFullPlateAuxFunctions::extract_transformed_directions_of_nodes(
+                node_1_number, node_2_number, node_3_number, node_4_number, ref_nodes, ref_rotation_matrix, tolerance)?;
+
+        if transformed_directions_of_nodes.len() != 3
+        {
+            return Err("Quad plate element Jacobian calculation: Incorrect quantity of transformed directions of nodes!".into());
+        }
+
+        let transformed_node_1_direction_x = transformed_directions_of_nodes[0].0;
+        let transformed_node_1_direction_y = transformed_directions_of_nodes[0].1;
+        let transformed_node_2_direction_x = transformed_directions_of_nodes[1].0;
+        let transformed_node_2_direction_y = transformed_directions_of_nodes[1].1;
+        let transformed_node_4_direction_x = transformed_directions_of_nodes[2].0;
+        let transformed_node_4_direction_y = transformed_directions_of_nodes[2].1;
         
         let jacobian_elements = vec![
             QuadFullPlateAuxFunctions::<T, V>::dx_dr(
-                transformed_transformed_node_1_direction_x, transformed_transformed_node_2_direction_x, 
-                V::from(0f32), transformed_transformed_node_4_direction_x, r, s),
+                transformed_node_1_direction_x, transformed_node_2_direction_x, 
+                V::from(0f32), transformed_node_4_direction_x, r, s),
             QuadFullPlateAuxFunctions::<T, V>::dy_dr(
-                transformed_transformed_node_1_direction_y, transformed_transformed_node_2_direction_y, 
-                V::from(0f32), transformed_transformed_node_4_direction_y, r, s),
+                transformed_node_1_direction_y, transformed_node_2_direction_y, 
+                V::from(0f32), transformed_node_4_direction_y, r, s),
             QuadFullPlateAuxFunctions::<T, V>::dx_ds(
-                transformed_transformed_node_1_direction_x, transformed_transformed_node_2_direction_x, 
-                V::from(0f32), transformed_transformed_node_4_direction_x, r, s),
+                transformed_node_1_direction_x, transformed_node_2_direction_x, 
+                V::from(0f32), transformed_node_4_direction_x, r, s),
             QuadFullPlateAuxFunctions::<T, V>::dy_ds(
-                transformed_transformed_node_1_direction_y, transformed_transformed_node_2_direction_y, 
-                V::from(0f32), transformed_transformed_node_4_direction_y, r, s),
+                transformed_node_1_direction_y, transformed_node_2_direction_y, 
+                V::from(0f32), transformed_node_4_direction_y, r, s),
         ];
 
         let jacobian = ExtendedMatrix::create(
@@ -742,38 +772,145 @@ impl<T, V> QuadFullPlateAuxFunctions<T, V>
     }
 
 
+    // pub fn strain_displacement_matrix_plate_shear(node_1_number: T, node_2_number: T, node_3_number: T, node_4_number: T,
+    //     r: V, s: V, ref_nodes: &HashMap<T, FENode<V>>, ref_rotation_matrix: &ExtendedMatrix<T, V>,
+    //     tolerance: V) -> Result<ExtendedMatrix<T, V>, String>
+    // {
+    //     let dh_dx_dh_dy_matrix = QuadFullPlateAuxFunctions::<T, V>::dh_dx_dh_dy(
+    //         node_1_number, node_2_number, node_3_number, node_4_number, r, s, ref_nodes, ref_rotation_matrix, tolerance)?;
+
+    //     let dh1_dx = matrix_element_value_extractor(T::from(0u8), T::from(0u8), &dh_dx_dh_dy_matrix)?;
+    //     let dh2_dx = matrix_element_value_extractor(T::from(0u8), T::from(1u8), &dh_dx_dh_dy_matrix)?;
+    //     let dh3_dx = matrix_element_value_extractor(T::from(0u8), T::from(2u8), &dh_dx_dh_dy_matrix)?;
+    //     let dh4_dx = matrix_element_value_extractor(T::from(0u8), T::from(3u8), &dh_dx_dh_dy_matrix)?;
+
+    //     let dh1_dy = matrix_element_value_extractor(T::from(1u8), T::from(0u8), &dh_dx_dh_dy_matrix)?;
+    //     let dh2_dy = matrix_element_value_extractor(T::from(1u8), T::from(1u8), &dh_dx_dh_dy_matrix)?;
+    //     let dh3_dy = matrix_element_value_extractor(T::from(1u8), T::from(2u8), &dh_dx_dh_dy_matrix)?;
+    //     let dh4_dy = matrix_element_value_extractor(T::from(1u8), T::from(3u8), &dh_dx_dh_dy_matrix)?;
+
+    //     let h_1 = QuadFullPlateAuxFunctions::<T, V>::h1_r_s(r, s);
+    //     let h_2 = QuadFullPlateAuxFunctions::<T, V>::h2_r_s(r, s);
+    //     let h_3 = QuadFullPlateAuxFunctions::<T, V>::h3_r_s(r, s);
+    //     let h_4 = QuadFullPlateAuxFunctions::<T, V>::h4_r_s(r, s);
+
+    //     let elements = vec![
+    //         V::from(0f32), V::from(0f32), dh1_dx, V::from(0f32), h_1, V::from(0f32),
+    //         V::from(0f32), V::from(0f32), dh2_dx, V::from(0f32), h_2, V::from(0f32),
+    //         V::from(0f32), V::from(0f32), dh3_dx, V::from(0f32), h_3, V::from(0f32),
+    //         V::from(0f32), V::from(0f32), dh4_dx, V::from(0f32), h_4, V::from(0f32),
+
+    //         V::from(0f32), V::from(0f32), dh1_dy, V::from(-1f32) * h_1, V::from(0f32), V::from(0f32),
+    //         V::from(0f32), V::from(0f32), dh2_dy, V::from(-1f32) * h_2, V::from(0f32), V::from(0f32),
+    //         V::from(0f32), V::from(0f32), dh3_dy, V::from(-1f32) * h_3, V::from(0f32), V::from(0f32),
+    //         V::from(0f32), V::from(0f32), dh4_dy, V::from(-1f32) * h_4, V::from(0f32), V::from(0f32),
+    //     ];
+
+    //     let matrix = ExtendedMatrix::create(
+    //         T::from(2u8), 
+    //         QuadFullPlateAuxFunctions::<T, V>::nodes_number() * QuadFullPlateAuxFunctions::<T, V>::node_dof(), 
+    //         elements, tolerance)?;
+
+    //     Ok(matrix)
+    // }
+
+
     pub fn strain_displacement_matrix_plate_shear(node_1_number: T, node_2_number: T, node_3_number: T, node_4_number: T,
         r: V, s: V, ref_nodes: &HashMap<T, FENode<V>>, ref_rotation_matrix: &ExtendedMatrix<T, V>,
         tolerance: V) -> Result<ExtendedMatrix<T, V>, String>
     {
-        let dh_dx_dh_dy_matrix = QuadFullPlateAuxFunctions::<T, V>::dh_dx_dh_dy(
+        let transformed_directions_of_nodes = 
+            QuadFullPlateAuxFunctions::extract_transformed_directions_of_nodes(
+                node_1_number, node_2_number, node_3_number, node_4_number, ref_nodes, ref_rotation_matrix, tolerance)?;
+
+        if transformed_directions_of_nodes.len() != 3
+        {
+            return Err("Quad plate element strain displacement matrix for shear calculation: / 
+                Incorrect quantity of transformed directions of nodes!".into());
+        }
+
+        let x_1 = transformed_directions_of_nodes[0].0;
+        let y_1 = transformed_directions_of_nodes[0].1;
+        let x_2 = transformed_directions_of_nodes[1].0;
+        let y_2 = transformed_directions_of_nodes[1].1;
+        let x_3 = V::from(0f32);
+        let y_3 = V::from(0f32);
+        let x_4 = transformed_directions_of_nodes[2].0;
+        let y_4 = transformed_directions_of_nodes[2].1;
+
+        let a_x = x_1 - x_2 - x_3 + x_4;
+        let b_x = x_1 - x_2 + x_3 - x_4;
+        let c_x = x_1 + x_2 - x_3 - x_4;
+        let a_y = y_1 - y_2 - y_3 + y_4;
+        let b_y = y_1 - y_2 + y_3 - y_4;
+        let c_y = y_1 + y_2 - y_3 - y_4;
+
+        let determinant_of_jacobian = QuadFullPlateAuxFunctions::determinant_of_jacobian(
             node_1_number, node_2_number, node_3_number, node_4_number, r, s, ref_nodes, ref_rotation_matrix, tolerance)?;
 
-        let dh1_dx = matrix_element_value_extractor(T::from(0u8), T::from(0u8), &dh_dx_dh_dy_matrix)?;
-        let dh2_dx = matrix_element_value_extractor(T::from(0u8), T::from(1u8), &dh_dx_dh_dy_matrix)?;
-        let dh3_dx = matrix_element_value_extractor(T::from(0u8), T::from(2u8), &dh_dx_dh_dy_matrix)?;
-        let dh4_dx = matrix_element_value_extractor(T::from(0u8), T::from(3u8), &dh_dx_dh_dy_matrix)?;
-
-        let dh1_dy = matrix_element_value_extractor(T::from(1u8), T::from(0u8), &dh_dx_dh_dy_matrix)?;
-        let dh2_dy = matrix_element_value_extractor(T::from(1u8), T::from(1u8), &dh_dx_dh_dy_matrix)?;
-        let dh3_dy = matrix_element_value_extractor(T::from(1u8), T::from(2u8), &dh_dx_dh_dy_matrix)?;
-        let dh4_dy = matrix_element_value_extractor(T::from(1u8), T::from(3u8), &dh_dx_dh_dy_matrix)?;
-
-        let h_1 = QuadFullPlateAuxFunctions::<T, V>::h1_r_s(r, s);
-        let h_2 = QuadFullPlateAuxFunctions::<T, V>::h2_r_s(r, s);
-        let h_3 = QuadFullPlateAuxFunctions::<T, V>::h3_r_s(r, s);
-        let h_4 = QuadFullPlateAuxFunctions::<T, V>::h4_r_s(r, s);
+        let gamma_rz_multiplier = ((c_x + r * b_x).my_powi(2) + (c_y + r * b_y).my_powi(2)).my_sqrt() / 
+            (V::from(8f32) * determinant_of_jacobian);
+        
+        let gamma_sz_multiplier = ((a_x + s * b_x).my_powi(2) + (a_y + s * b_y).my_powi(2)).my_sqrt() / 
+            (V::from(8f32) * determinant_of_jacobian);
 
         let elements = vec![
-            V::from(0f32), V::from(0f32), dh1_dx, V::from(0f32), h_1, V::from(0f32),
-            V::from(0f32), V::from(0f32), dh2_dx, V::from(0f32), h_2, V::from(0f32),
-            V::from(0f32), V::from(0f32), dh3_dx, V::from(0f32), h_3, V::from(0f32),
-            V::from(0f32), V::from(0f32), dh4_dx, V::from(0f32), h_4, V::from(0f32),
+            V::from(0f32), 
+            V::from(0f32), 
+            (V::from(1f32) + s) / V::from(2f32) * gamma_rz_multiplier,
+            (V::from(1f32) + s) * V::from(-1f32) * (y_1 - y_2) / V::from(4f32) * gamma_rz_multiplier,
+            (V::from(1f32) + s) * (x_1 - x_2) / V::from(4f32) * gamma_rz_multiplier,
+            V::from(0f32),
 
-            V::from(0f32), V::from(0f32), dh1_dy, V::from(-1f32) * h_1, V::from(0f32), V::from(0f32),
-            V::from(0f32), V::from(0f32), dh2_dy, V::from(-1f32) * h_2, V::from(0f32), V::from(0f32),
-            V::from(0f32), V::from(0f32), dh3_dy, V::from(-1f32) * h_3, V::from(0f32), V::from(0f32),
-            V::from(0f32), V::from(0f32), dh4_dy, V::from(-1f32) * h_4, V::from(0f32), V::from(0f32),
+            V::from(0f32), 
+            V::from(0f32), 
+            V::from(-1f32) * (V::from(1f32) + s) / V::from(2f32) * gamma_rz_multiplier,
+            (V::from(1f32) + s) * V::from(-1f32) * (y_1 - y_2) / V::from(4f32) * gamma_rz_multiplier,
+            (V::from(1f32) + s) * (x_1 - x_2) / V::from(4f32) * gamma_rz_multiplier,
+            V::from(0f32),
+
+            V::from(0f32), 
+            V::from(0f32), 
+            V::from(-1f32) * (V::from(1f32) - s) / V::from(2f32) * gamma_rz_multiplier,
+            (V::from(1f32) - s) * V::from(-1f32) * (y_4 - y_3) / V::from(4f32) * gamma_rz_multiplier,
+            (V::from(1f32) - s) * (x_4 - x_3) / V::from(4f32) * gamma_rz_multiplier,
+            V::from(0f32),
+
+            V::from(0f32), 
+            V::from(0f32), 
+            (V::from(1f32) - s) / V::from(2f32) * gamma_rz_multiplier,
+            (V::from(1f32) - s) * V::from(-1f32) * (y_4 - y_3) / V::from(4f32) * gamma_rz_multiplier,
+            (V::from(1f32) - s) * (x_4 - x_3) / V::from(4f32) * gamma_rz_multiplier,
+            V::from(0f32),
+
+
+            V::from(0f32), 
+            V::from(0f32), 
+            (V::from(1f32) + r) / V::from(2f32) * gamma_sz_multiplier,
+            (V::from(1f32) + r) * V::from(-1f32) * (y_1 - y_4) / V::from(4f32) * gamma_sz_multiplier,
+            (V::from(1f32) + r) * (x_1 - x_4) / V::from(4f32) * gamma_sz_multiplier,
+            V::from(0f32),
+
+            V::from(0f32), 
+            V::from(0f32), 
+            (V::from(1f32) - r) / V::from(2f32) * gamma_sz_multiplier,
+            (V::from(1f32) - r) * V::from(-1f32) * (y_2 - y_3) / V::from(4f32) * gamma_sz_multiplier,
+            (V::from(1f32) - r) * (x_2 - x_3) / V::from(4f32) * gamma_sz_multiplier,
+            V::from(0f32),
+
+            V::from(0f32), 
+            V::from(0f32), 
+            V::from(-1f32) * (V::from(1f32) - r) / V::from(2f32) * gamma_sz_multiplier,
+            (V::from(1f32) - r) * V::from(-1f32) * (y_2 - y_3) / V::from(4f32) * gamma_sz_multiplier,
+            (V::from(1f32) - r) * (x_2 - x_3) / V::from(4f32) * gamma_sz_multiplier,
+            V::from(0f32),
+
+            V::from(0f32), 
+            V::from(0f32), 
+            V::from(-1f32) * (V::from(1f32) + r) / V::from(2f32) * gamma_sz_multiplier,
+            (V::from(1f32) + r) * V::from(-1f32) * (y_1 - y_4) / V::from(4f32) * gamma_sz_multiplier,
+            (V::from(1f32) + r) * (x_1 - x_4) / V::from(4f32) * gamma_sz_multiplier,
+            V::from(0f32),
         ];
 
         let matrix = ExtendedMatrix::create(

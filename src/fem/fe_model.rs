@@ -674,11 +674,6 @@ impl<T, V> FEModel<T, V>
         {
             let mut element_stiffness_matrix = element.extract_stiffness_matrix()?;
 
-            // let f = |data: &str| println!("{}", data);
-            // println!("Matrix: ");
-            // element_stiffness_matrix.show_matrix(f);
-            // println!();
-
             let element_stiffness_groups = element.extract_stiffness_groups();
 
             for element_stiffness_group in element_stiffness_groups
