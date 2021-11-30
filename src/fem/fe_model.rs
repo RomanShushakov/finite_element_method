@@ -188,8 +188,7 @@ impl<T, V> FEModel<T, V>
     }
 
 
-    pub fn update_node(&mut self, number: T, x: V, y: V, z: V, optional_properties: Option<Vec<V>>)
-        -> Result<(), String>
+    pub fn update_node(&mut self, number: T, x: V, y: V, z: V) -> Result<(), String>
     {
         if self.nodes.iter().position(|(node_number, node)|
             *node_number != number && node.is_coordinates_same(x, y, z)).is_some()
@@ -201,59 +200,6 @@ impl<T, V> FEModel<T, V>
         if let Some(node) = self.nodes.get_mut(&number)
         {
             node.update(x, y, z);
-            for element in self.elements.values_mut()
-                .filter(|element|
-                    element.is_node_belong_element(number))
-            {
-                if let Some(properties) = optional_properties.as_ref()
-                {
-                    match element.copy_fe_type()
-                    {
-                        FEType::Beam2n1ipT =>
-                            {
-                                if properties.len() != 11
-                                {
-                                    return Err("FEModel: Update node action: Incorrect length of \
-                                        properties data!".into());
-                                }
-                                for (i, value) in properties.iter().enumerate()
-                                {
-                                    if *value <= V::from(0f32) && [i != 5, i < 8].iter()
-                                        .all(|condition| *condition == true)
-                                    {
-                                        return Err("FEModel: Update node action: All properties \
-                                            values should be greater than zero!".into());
-                                    }
-                                }
-                            },
-                        _ =>
-                            {
-                                if properties.len() < 2 || properties.len() > 3
-                                {
-                                    return Err("FEModel: Update node action: Incorrect \
-                                        length of properties data!".into());
-                                }
-
-                                for value in properties.iter()
-                                {
-                                    if *value <= V::from(0f32)
-                                    {
-                                        return Err("FEModel: Update node action: All properties \
-                                            values should be greater than zero!".into());
-                                    }
-                                }
-                            },
-                    }
-
-                    let element_nodes_numbers = element.copy_nodes_numbers();
-                    element.update(element_nodes_numbers, properties.clone(),
-                        self.state.tolerance, &self.nodes)?;
-                }
-                else
-                {
-                    element.refresh(self.state.tolerance, &self.nodes)?;
-                }
-            }
             Ok(())
         }
         else
