@@ -8,6 +8,7 @@ use extended_matrix::extended_matrix::ExtendedMatrix;
 use extended_matrix::matrix_element_position::MatrixElementPosition;
 use extended_matrix::extended_matrix::Operation;
 use extended_matrix::functions::{conversion_uint_into_usize, matrix_element_value_extractor};
+use extended_matrix::basic_matrix::basic_matrix::BasicMatrixType;
 
 use crate::fem::finite_elements::fe_node::{FENode, DeletedFENodeData};
 use crate::fem::finite_elements::finite_element::{FiniteElement, FEType, DeletedFEData};
@@ -25,11 +26,20 @@ use crate::fem::functions::{separate, add_new_stiffness_sub_groups};
 
 use extended_matrix_float::MyFloatTrait;
 
+use crate::fem::separated_matrix::SeparatedMatrix;
+
 
 struct State<T, V>
 {
     stiffness_groups: HashMap<StiffnessGroupKey<T>, Vec<MatrixElementPosition<T>>>,
     nodes_dof_parameters_global: Vec<DOFParameterData<T>>,
+    optional_ua_ra_rows_numbers: Option<Vec<T>>,
+    optional_ub_rb_rows_numbers: Option<Vec<T>>,
+    optional_ua_matrix: Option<ExtendedMatrix<T, V>>,
+    optional_ub_matrix: Option<ExtendedMatrix<T, V>>,
+    optional_ra_matrix: Option<ExtendedMatrix<T, V>>,
+    optional_rb_c_matrix: Option<ExtendedMatrix<T, V>>,
+    optional_separated_matrix: Option<SeparatedMatrix<T, V>>,
     tolerance: V,
 }
 
@@ -37,9 +47,20 @@ struct State<T, V>
 impl<T, V> State<T, V>
 {
     fn create(stiffness_groups: HashMap<StiffnessGroupKey<T>, Vec<MatrixElementPosition<T>>>,
-              nodes_dof_parameters_global: Vec<DOFParameterData<T>>, tolerance: V,) -> Self
+        nodes_dof_parameters_global: Vec<DOFParameterData<T>>, tolerance: V,) -> Self
     {
-        State { stiffness_groups, nodes_dof_parameters_global, tolerance }
+        let optional_ua_ra_rows_numbers = None;
+        let optional_ub_rb_rows_numbers = None;
+        let optional_ua_matrix = None;
+        let optional_ub_matrix = None;
+        let optional_ra_matrix = None;
+        let optional_rb_c_matrix = None;
+        let optional_separated_matrix = None;
+        State { 
+            stiffness_groups, nodes_dof_parameters_global, tolerance, 
+            optional_ua_ra_rows_numbers, optional_ub_rb_rows_numbers, optional_ua_matrix, optional_ub_matrix, 
+            optional_ra_matrix, optional_rb_c_matrix, optional_separated_matrix,
+        }
     }
 }
 
@@ -71,6 +92,18 @@ impl<T, V> FEModel<T, V>
     }
 
 
+    fn reset_optional_state_values(&mut self)
+    {
+        self.state.optional_ua_ra_rows_numbers = None;
+        self.state.optional_ub_rb_rows_numbers = None;
+        self.state.optional_ua_matrix = None;
+        self.state.optional_ub_matrix = None;
+        self.state.optional_ra_matrix = None;
+        self.state.optional_rb_c_matrix = None;
+        self.state.optional_separated_matrix = None;
+    }
+
+
     pub fn reset(&mut self)
     {
         self.nodes = HashMap::new();
@@ -78,6 +111,7 @@ impl<T, V> FEModel<T, V>
         self.boundary_conditions = Vec::new();
         self.state.stiffness_groups = HashMap::new();
         self.state.nodes_dof_parameters_global = Vec::new();
+        self.reset_optional_state_values();
     }
 
 
@@ -883,7 +917,7 @@ impl<T, V> FEModel<T, V>
     }
 
 
-    pub fn global_analysis(&mut self , colsol_usage: bool, stiffness_groups_update: bool)
+    pub fn global_analysis(&mut self, colsol_usage: bool, stiffness_groups_update: bool)
         -> Result<GlobalAnalysisResult<T, V>, String>
     {
         if stiffness_groups_update
@@ -996,6 +1030,246 @@ impl<T, V> FEModel<T, V>
             GlobalAnalysisResult::create(
                 reactions_values, reactions_dof_parameters_data,
                 displacements_values, displacements_dof_parameters_data);
+
+        Ok(global_analysis_result)
+    }
+
+
+    pub fn prepare_to_global_analysis(&mut self, stiffness_groups_update: bool) -> Result<(), String>
+    {
+        if stiffness_groups_update
+        {
+            self.update_stiffness_groups()?;
+        }
+        self.update_nodes_dof_parameters_global()?;
+
+        if self.boundary_conditions.iter().position(|bc|
+            bc.is_type_same(BCType::Displacement)).is_none()
+        {
+            return Err("FEModel: Model could not be analyzed because there are no restraints were \
+                applied!".into())
+        }
+
+        let (mut global_stiffness_matrix, zero_rows_numbers, zero_columns_numbers) =
+            self.compose_global_stiffness_matrix()?;
+
+        let mut removed_zeros_rows_columns = Vec::new();
+        for (zero_row_number, zero_column_number) in zero_rows_numbers
+            .iter().rev().zip(zero_columns_numbers.iter().rev())
+        {
+            global_stiffness_matrix.remove_selected_row(*zero_row_number);
+            global_stiffness_matrix.remove_selected_column(*zero_column_number);
+            let matrix_element_position = 
+                MatrixElementPosition::create(*zero_row_number, *zero_column_number);
+            removed_zeros_rows_columns.push(matrix_element_position);
+        }
+
+        // let removed_zeros_rows_columns =
+        //     global_stiffness_matrix.remove_zeros_rows_columns();
+
+        self.shrink_of_nodes_dof_parameters(&removed_zeros_rows_columns)?;
+
+        let mut ub_rb_rows_numbers = Vec::new();
+        let mut separation_positions = Vec::new();
+        self.compose_separation_positions(&mut ub_rb_rows_numbers, &mut separation_positions);
+
+        let mut ua_ra_rows_numbers = Vec::new();
+        self.compose_ua_ra_rows_numbers(&ub_rb_rows_numbers, &mut ua_ra_rows_numbers);
+
+        let ra_matrix = self.compose_matrix_by_rows_numbers(
+            &ua_ra_rows_numbers, BCType::Force)?;
+        let ub_matrix = self.compose_matrix_by_rows_numbers(
+            &ub_rb_rows_numbers, BCType::Displacement)?;
+        let rb_c_matrix = self.compose_matrix_by_rows_numbers(
+            &ub_rb_rows_numbers, BCType::Force)?;
+
+        let separated_matrix =
+            separate(global_stiffness_matrix, separation_positions, self.state.tolerance)?;
+
+        self.state.optional_ua_ra_rows_numbers = Some(ua_ra_rows_numbers);
+        self.state.optional_ub_rb_rows_numbers = Some(ub_rb_rows_numbers);
+        self.state.optional_ub_matrix = Some(ub_matrix);
+        self.state.optional_ra_matrix = Some(ra_matrix);
+        self.state.optional_rb_c_matrix = Some(rb_c_matrix);
+        self.state.optional_separated_matrix = Some(separated_matrix);
+
+        Ok(())
+    }
+
+
+    pub fn calculate_ua_matrix(&mut self, colsol_usage: bool) -> Result<(), String>
+    {
+        if self.state.optional_ra_matrix.is_some() && 
+            self.state.optional_ub_matrix.is_some() &&
+            self.state.optional_separated_matrix.is_some()
+        {
+            let lhs_matrix = self.state.optional_separated_matrix.as_ref().unwrap().ref_k_aa();
+            let rhs_matrix = self.state.optional_ra_matrix.as_ref().unwrap()
+                .add_subtract_matrix(
+                    &self.state.optional_separated_matrix.as_ref().unwrap().ref_k_ab()
+                        .multiply_by_matrix(&self.state.optional_ub_matrix.as_ref().unwrap())?, 
+                    Operation::Subtraction)?;
+            
+            let ua_matrix = lhs_matrix.direct_solution(&rhs_matrix, colsol_usage)?;
+            self.state.optional_ua_matrix = Some(ua_matrix);
+            Ok(())
+        }
+        else
+        {
+            let error_message = "FEModel: Calculation of Ua matrix: \
+                Insufficient data to calculate Ua matrix!";
+            Err(error_message.to_string())
+        }
+    }
+
+
+    pub fn extract_data_for_ua_matrix_calculation(&mut self) -> Result<(T, T, Vec<V>, Vec<V>), String>
+    {
+        if self.state.optional_ra_matrix.is_some() && 
+            self.state.optional_ub_matrix.is_some() &&
+            self.state.optional_separated_matrix.is_some()
+        {
+            let lhs_matrix = self.state.optional_separated_matrix.as_ref().unwrap().ref_k_aa();
+            let rhs_matrix = self.state.optional_ra_matrix.as_ref().unwrap()
+                .add_subtract_matrix(
+                    &self.state.optional_separated_matrix.as_ref().unwrap().ref_k_ab()
+                        .multiply_by_matrix(&self.state.optional_ub_matrix.as_ref().unwrap())?, 
+                    Operation::Subtraction)?;
+            
+            let lhs_matrix_shape = lhs_matrix.copy_shape();
+            let a_rows_number = lhs_matrix_shape.0;
+            let a_columns_number = lhs_matrix_shape.1;
+
+            let mut a_elements_values = vec![
+                V::from(0f32); 
+                conversion_uint_into_usize(a_rows_number) * conversion_uint_into_usize(a_columns_number)
+            ];
+
+            for (element_position, element_value) in lhs_matrix.ref_elements_values()
+            {
+                let row_position = element_position.ref_row();
+                let column_position = element_position.ref_column();
+                let uint_index = *row_position * a_columns_number + *column_position;
+                let index = conversion_uint_into_usize(uint_index);
+                a_elements_values[index] = *element_value;
+                if *lhs_matrix.ref_matrix_type() == BasicMatrixType::Symmetric && (*row_position != *column_position)
+                {
+                    let symmetric_uint_index = *column_position * a_columns_number + *row_position;
+                    let symmetric_index = conversion_uint_into_usize(symmetric_uint_index);
+                    a_elements_values[symmetric_index] = *element_value;
+                }
+            }
+
+            let mut b_elements_values = vec![V::from(0f32); conversion_uint_into_usize(a_rows_number)];
+
+            for (element_position, element_value) in rhs_matrix.ref_elements_values()
+            {
+                let row_position = element_position.ref_row();
+                let column_position = element_position.ref_column();
+                let uint_index = *row_position * a_columns_number + *column_position;
+                let index = conversion_uint_into_usize(uint_index);
+                b_elements_values[index] = *element_value;
+            }
+            Ok((a_rows_number, a_columns_number, a_elements_values, b_elements_values))
+        }
+        else
+        {
+            let error_message = "FEModel: Calculation of Ua matrix: \
+                Insufficient data to calculate Ua matrix!";
+            Err(error_message.to_string())
+        }
+    }
+
+
+    pub fn receive_ua_matrix_data(&mut self, a_rows_number: T, a_columns_number: T, a_elements_values: Vec<V>) 
+        -> Result<(), String>
+    {
+        let ua_matrix = ExtendedMatrix::create(
+            a_rows_number, a_columns_number, a_elements_values, self.state.tolerance)?;
+        self.state.optional_ua_matrix = Some(ua_matrix);
+        Ok(())
+    }
+
+
+    pub fn extract_global_analysis_result(&mut self) -> Result<GlobalAnalysisResult<T, V>, String>
+    {
+        if self.state.optional_ua_matrix.is_none() || 
+            self.state.optional_ub_matrix.is_none() ||
+            self.state.optional_separated_matrix.is_none() ||
+            self.state.optional_rb_c_matrix.is_none() ||
+            self.state.optional_ua_ra_rows_numbers.is_none() ||
+            self.state.optional_ub_rb_rows_numbers.is_none()
+        {
+            let error_message = "FEModel: Extraction of global analysis data: \
+                Insufficient data to perform global analysis!";
+            return Err(error_message.to_string());
+        }
+
+        let separated_matrix = self.state.optional_separated_matrix.as_ref().unwrap();
+        let ua_matrix = self.state.optional_ua_matrix.as_ref().unwrap();
+        let ub_matrix = self.state.optional_ub_matrix.as_ref().unwrap();
+        let rb_c_matrix = self.state.optional_rb_c_matrix.as_ref().unwrap();
+        let ua_ra_rows_numbers = self.state.optional_ua_ra_rows_numbers.as_ref().unwrap();
+        let ub_rb_rows_numbers = self.state.optional_ub_rb_rows_numbers.as_ref().unwrap();
+
+        let reactions_values_matrix = separated_matrix.ref_k_ba()
+            .multiply_by_matrix(&ua_matrix)?
+            .add_subtract_matrix(
+                &separated_matrix.ref_k_bb()
+                    .multiply_by_matrix(&ub_matrix)?,
+                        Operation::Addition)?
+            .add_subtract_matrix(&rb_c_matrix, Operation::Subtraction)?;
+
+        let reactions_values_matrix_shape = reactions_values_matrix.copy_shape();
+        let mut reactions_values = Vec::new();
+
+        let mut row = T::from(0u8);
+        while row < reactions_values_matrix_shape.0
+        {
+            let mut column = T::from(0u8);
+            while column < reactions_values_matrix_shape.1
+            {
+                let reaction_value = matrix_element_value_extractor(row, column, &reactions_values_matrix)?;
+                reactions_values.push(reaction_value);
+                column += T::from(1u8);
+            }
+            row += T::from(1u8);
+        }
+
+        let mut reactions_dof_parameters_data = Vec::new();
+        for row_number in ub_rb_rows_numbers
+        {
+            let converted_row_number = conversion_uint_into_usize(*row_number);
+            reactions_dof_parameters_data.push(
+                self.state.nodes_dof_parameters_global[converted_row_number]);
+        }
+        let displacements_dof_parameters_data =
+            self.state.nodes_dof_parameters_global.clone();
+        let displacements_values_matrix = self.compose_displacements_matrix(
+            ua_matrix.clone(), ub_matrix.clone(), &ua_ra_rows_numbers, &ub_rb_rows_numbers)?;
+
+        let displacements_values_matrix_shape = displacements_values_matrix.copy_shape();
+        let mut displacements_values = Vec::new();
+
+        let mut row = T::from(0u8);
+        while row < displacements_values_matrix_shape.0
+        {
+            let mut column = T::from(0u8);
+            while column < displacements_values_matrix_shape.1
+            {
+                let displacement_value = matrix_element_value_extractor(row, column, &displacements_values_matrix)?;
+                displacements_values.push(displacement_value);
+                column += T::from(1u8);
+            }
+            row += T::from(1u8);
+        }
+
+        let global_analysis_result =
+            GlobalAnalysisResult::create(
+                reactions_values, reactions_dof_parameters_data,
+                displacements_values, displacements_dof_parameters_data);
+
+        self.reset_optional_state_values();
 
         Ok(global_analysis_result)
     }
