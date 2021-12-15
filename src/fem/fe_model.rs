@@ -1160,16 +1160,18 @@ impl<T, V> FEModel<T, V>
                 }
             }
 
+
             let mut b_elements_values = vec![V::from(0f32); conversion_uint_into_usize(a_rows_number)];
 
             for (element_position, element_value) in rhs_matrix.ref_elements_values()
             {
                 let row_position = element_position.ref_row();
                 let column_position = element_position.ref_column();
-                let uint_index = *row_position * a_columns_number + *column_position;
+                let uint_index = *row_position + *column_position;
                 let index = conversion_uint_into_usize(uint_index);
                 b_elements_values[index] = *element_value;
             }
+
             Ok((a_rows_number, a_columns_number, a_elements_values, b_elements_values))
         }
         else
