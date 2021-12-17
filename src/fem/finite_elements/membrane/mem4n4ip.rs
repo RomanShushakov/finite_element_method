@@ -2,6 +2,7 @@ use std::hash::Hash;
 use std::fmt::Debug;
 use std::ops::{Sub, Mul, Add, Div, Rem, SubAssign, AddAssign, MulAssign};
 use std::collections::HashMap;
+use std::any::Any;
 
 use extended_matrix::matrix_element_position::MatrixElementPosition;
 use extended_matrix::extended_matrix::ExtendedMatrix;
@@ -590,5 +591,11 @@ impl<T, V> FiniteElementTrait<T, V> for Mem4n4ip<T, V>
     fn copy_properties(&self) -> Vec<V>
     {
         vec![self.young_modulus, self.poisson_ratio, self.thickness]
+    }
+
+
+    fn as_any(&self) -> &dyn Any
+    {
+        self
     }
 }

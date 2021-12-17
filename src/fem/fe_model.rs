@@ -28,6 +28,9 @@ use extended_matrix_float::MyFloatTrait;
 
 use crate::fem::separated_matrix::SeparatedMatrix;
 
+use super::finite_elements::beam::beam2n1ipt::Beam2n1ipT;
+use super::finite_elements::plate::plate4n4ip::Plate4n4ip;
+
 
 struct State<T, V>
 {
@@ -1464,5 +1467,69 @@ impl<T, V> FEModel<T, V>
             bc_types_numbers.push((bc_type, bc_number));
         }
         bc_types_numbers
+    }
+
+
+    pub fn convert_uniformly_distributed_surface_force_to_nodal_forces(&self, element_number: T,
+        uniformly_distributed_surface_force_value: V) -> Result<ExtendedMatrix<T, V>, String>
+    {
+        if let Some(finite_element) = self.elements.get(&element_number) 
+        {
+            match finite_element.copy_fe_type()
+            {
+                FEType::Plate4n4ip => 
+                {
+                    if let Some(element) = finite_element.element.as_any().downcast_ref::<Plate4n4ip<T, V>>()
+                    {
+                        element.convert_uniformly_distributed_surface_force_to_nodal_forces(uniformly_distributed_surface_force_value, 
+                            &self.nodes, self.state.tolerance)
+                    }
+                    else 
+                    {
+                        return Err(format!("FEModel: Incorrect type of element {:?}!", element_number));
+                    }
+                },
+                _ => 
+                {
+                    return Err(format!("FEModel: Incorrect type of element {:?}!", element_number));
+                },
+            }
+        }
+        else
+        {
+            Err(format!("FEModel: Finite element with number {:?} does not exist!", element_number))
+        }
+    }
+
+
+    pub fn convert_uniformly_distributed_line_force_to_nodal_forces(&self, element_number: T,
+        uniformly_distributed_line_force_value: V) -> Result<ExtendedMatrix<T, V>, String>
+    {
+        if let Some(finite_element) = self.elements.get(&element_number) 
+        {
+            match finite_element.copy_fe_type()
+            {
+                FEType::Beam2n1ipT => 
+                {
+                    if let Some(element) = finite_element.element.as_any().downcast_ref::<Beam2n1ipT<T, V>>()
+                    {
+                        element.convert_uniformly_distributed_line_force_to_nodal_forces(uniformly_distributed_line_force_value, 
+                            &self.nodes, self.state.tolerance)
+                    }
+                    else 
+                    {
+                        return Err(format!("FEModel: Incorrect type of element {:?}!", element_number));
+                    }
+                },
+                _ => 
+                {
+                    return Err(format!("FEModel: Incorrect type of element {:?}!", element_number));
+                },
+            }
+        }
+        else
+        {
+            Err(format!("FEModel: Finite element with number {:?} does not exist!", element_number))
+        }
     }
 }

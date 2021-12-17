@@ -2,6 +2,7 @@ use std::hash::Hash;
 use std::fmt::Debug;
 use std::ops::{Sub, Mul, Add, Div, Rem, SubAssign, AddAssign, MulAssign};
 use std::collections::HashMap;
+use std::any::Any;
 
 use extended_matrix::matrix_element_position::MatrixElementPosition;
 use extended_matrix::extended_matrix::ExtendedMatrix;
@@ -187,6 +188,44 @@ impl<T, V> Plate4n4ip<T, V>
         let element_local_displacements =
             self.state.rotation_matrix.multiply_by_matrix(&element_global_displacements)?;
         Ok(element_local_displacements)
+    }
+
+
+    pub fn convert_uniformly_distributed_surface_force_to_nodal_forces(&self, uniformly_distributed_surface_force_value: V, 
+        ref_nodes: &HashMap<T, FENode<V>>, tolerance: V) -> Result<ExtendedMatrix<T, V>, String>
+    {
+        let distributed_force_matrix = ExtendedMatrix::create(T::from(1u8), T::from(1u8),
+            vec![uniformly_distributed_surface_force_value], tolerance)?;
+
+        let mut nodal_forces = ExtendedMatrix::create(
+            T::from(4u8), T::from(1u8), vec![V::from(0f32); 4], tolerance)?;
+        for integration_point in self.state.integration_points.iter()
+        {
+            let r = integration_point.r;
+            let s = integration_point.s;
+            let alpha = integration_point.weight_r * integration_point.weight_s;
+
+            let determinant_of_jacobian = QuadFullPlateAuxFunctions::<T, V>::determinant_of_jacobian(
+                self.node_1_number, self.node_2_number, self.node_3_number, self.node_4_number, r, s, ref_nodes, 
+                &self.state.rotation_matrix, tolerance)?;
+
+            let mut displacement_interpolation_matrix = ExtendedMatrix::create(
+                T::from(1u8), T::from(4u8), 
+                vec![
+                    QuadFullPlateAuxFunctions::<T, V>::h1_r_s(r, s),
+                    QuadFullPlateAuxFunctions::<T, V>::h2_r_s(r, s),
+                    QuadFullPlateAuxFunctions::<T, V>::h3_r_s(r, s),
+                    QuadFullPlateAuxFunctions::<T, V>::h4_r_s(r, s),
+                ], tolerance)?;
+
+            displacement_interpolation_matrix.transpose();
+            let mut matrix = displacement_interpolation_matrix.multiply_by_matrix(&distributed_force_matrix)?;
+            matrix.multiply_by_number(determinant_of_jacobian);
+            matrix.multiply_by_number(alpha);
+            nodal_forces = nodal_forces.add_matrix(&matrix)?;
+        }
+
+        Ok(nodal_forces)
     }
 }
 
@@ -997,5 +1036,11 @@ impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
     fn copy_properties(&self) -> Vec<V>
     {
         vec![self.young_modulus, self.poisson_ratio, self.thickness]
+    }
+
+
+    fn as_any(&self) -> &dyn Any
+    {
+        self
     }
 }

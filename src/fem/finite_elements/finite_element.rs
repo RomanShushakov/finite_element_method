@@ -3,6 +3,8 @@ use std::hash::Hash;
 use std::fmt::Debug;
 use std::slice::Iter;
 use std::collections::HashMap;
+use std::any::Any;
+
 
 use extended_matrix::extended_matrix::ExtendedMatrix;
 
@@ -59,7 +61,7 @@ impl FEType
 }
 
 
-pub(super) trait FiniteElementTrait<T, V>
+pub(crate) trait FiniteElementTrait<T, V>: Any
 {
     fn update(&mut self, nodes_numbers: Vec<T>, properties: Vec<V>, tolerance: V,
         nodes: &HashMap<T, FENode<V>>) -> Result<(), String>;
@@ -73,6 +75,7 @@ pub(super) trait FiniteElementTrait<T, V>
     fn copy_nodes_numbers(&self) -> Vec<T>;
     fn extract_unique_elements_of_rotation_matrix(&self) -> Result<Vec<V>, String>;
     fn copy_properties(&self) -> Vec<V>;
+    fn as_any(&self) -> &dyn Any;
 }
 
 
@@ -190,7 +193,7 @@ impl<T, V> FECreator<T, V>
 pub(crate) struct FiniteElement<T, V>
 {
     element_type: FEType,
-    element: Box<dyn FiniteElementTrait<T, V>>,
+    pub(crate) element: Box<dyn FiniteElementTrait<T, V>>,
 }
 
 

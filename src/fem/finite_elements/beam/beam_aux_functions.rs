@@ -288,20 +288,20 @@ impl<T, V> BeamAuxFunctions<T, V>
     }
 
 
-    fn determinant_of_jacobian(node_1_number: T, node_2_number: T, r: V,
+    pub fn determinant_of_jacobian(node_1_number: T, node_2_number: T, r: V,
         nodes: &HashMap<T, FENode<V>>) -> V
     {
         BeamAuxFunctions::jacobian(node_1_number, node_2_number, r, nodes)
     }
 
 
-    fn h1_r(r: V) -> V
+    pub fn h1_r(r: V) -> V
     {
         V::from(0.5f32) * (V::from(1f32) - r)
     }
 
 
-    fn h2_r(r: V) -> V
+    pub fn h2_r(r: V) -> V
     {
         V::from(0.5f32) * (V::from(1f32) + r)
     }

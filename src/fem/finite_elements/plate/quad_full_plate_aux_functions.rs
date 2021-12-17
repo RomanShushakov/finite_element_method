@@ -526,7 +526,7 @@ impl<T, V> QuadFullPlateAuxFunctions<T, V>
     }
 
 
-    fn determinant_of_jacobian(node_1_number: T, node_2_number: T, node_3_number: T, node_4_number: T,
+    pub fn determinant_of_jacobian(node_1_number: T, node_2_number: T, node_3_number: T, node_4_number: T,
         r: V, s: V, ref_nodes: &HashMap<T, FENode<V>>, ref_rotation_matrix: &ExtendedMatrix<T, V>,
         tolerance: V) -> Result<V, String>
     {
@@ -662,25 +662,25 @@ impl<T, V> QuadFullPlateAuxFunctions<T, V>
     }
 
 
-    fn h1_r_s(r: V, s: V) -> V
+    pub fn h1_r_s(r: V, s: V) -> V
     {
         V::from(0.25f32) * (V::from(1f32) + r) * (V::from(1f32) + s)
     }
 
 
-    fn h2_r_s(r: V, s: V) -> V
+    pub fn h2_r_s(r: V, s: V) -> V
     {
         V::from(0.25f32) * (V::from(1f32) - r) * (V::from(1f32) + s)
     }
 
 
-    fn h3_r_s(r: V, s: V) -> V
+    pub fn h3_r_s(r: V, s: V) -> V
     {
         V::from(0.25f32) * (V::from(1f32) - r) * (V::from(1f32) - s)
     }
 
 
-    fn h4_r_s(r: V, s: V) -> V
+    pub fn h4_r_s(r: V, s: V) -> V
     {
         V::from(0.25f32) * (V::from(1f32) + r) * (V::from(1f32) - s)
     }

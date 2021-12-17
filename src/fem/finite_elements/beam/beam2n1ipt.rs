@@ -3,6 +3,7 @@ use std::fmt::Debug;
 use std::ops::{Sub, Mul, Add, Div, Rem, SubAssign, AddAssign, MulAssign};
 use std::collections::HashMap;
 use std::f32::consts::PI;
+use std::any::Any;
 
 use extended_matrix::matrix_element_position::MatrixElementPosition;
 use extended_matrix::extended_matrix::ExtendedMatrix;
@@ -164,6 +165,40 @@ impl<T, V> Beam2n1ipT<T, V>
         let element_local_displacements =
             self.state.rotation_matrix.multiply_by_matrix(&element_global_displacements)?;
         Ok(element_local_displacements)
+    }
+
+
+    pub fn convert_uniformly_distributed_line_force_to_nodal_forces(&self, uniformly_distributed_line_force_value: V, 
+        ref_nodes: &HashMap<T, FENode<V>>, tolerance: V) -> Result<ExtendedMatrix<T, V>, String>
+    {
+        let distributed_force_matrix = ExtendedMatrix::create(T::from(1u8), T::from(1u8),
+            vec![uniformly_distributed_line_force_value], tolerance)?;
+
+        let mut nodal_forces = ExtendedMatrix::create(
+            T::from(2u8), T::from(1u8), vec![V::from(0f32); 2], tolerance)?;
+        for integration_point in self.state.integration_points.iter()
+        {
+            let r = integration_point.r;
+            let alpha = integration_point.weight;
+
+            let determinant_of_jacobian = BeamAuxFunctions::<T, V>::determinant_of_jacobian(
+                self.node_1_number, self.node_2_number, r, ref_nodes);
+
+            let mut displacement_interpolation_matrix = ExtendedMatrix::create(
+                T::from(1u8), T::from(2u8), 
+                vec![
+                    BeamAuxFunctions::<T, V>::h1_r(r),
+                    BeamAuxFunctions::<T, V>::h2_r(r),
+                ], tolerance)?;
+
+            displacement_interpolation_matrix.transpose();
+            let mut matrix = displacement_interpolation_matrix.multiply_by_matrix(&distributed_force_matrix)?;
+            matrix.multiply_by_number(determinant_of_jacobian);
+            matrix.multiply_by_number(alpha);
+            nodal_forces = nodal_forces.add_matrix(&matrix)?;
+        }
+
+        Ok(nodal_forces)
     }
 }
 
@@ -628,5 +663,11 @@ impl<T, V> FiniteElementTrait<T, V> for Beam2n1ipT<T, V>
             self.i12_init, self.it, self.shear_factor, self.local_axis_1_direction[0],
             self.local_axis_1_direction[1], self.local_axis_1_direction[2]
         ]
+    }
+
+
+    fn as_any(&self) -> &dyn Any
+    {
+        self
     }
 }
