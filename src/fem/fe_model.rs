@@ -22,7 +22,11 @@ use crate::fem::global_analysis::fe_dof_parameter_data::
 
 use crate::fem::element_analysis::fe_element_analysis_result::{ElementsAnalysisResult, EARType};
 
-use crate::fem::functions::{separate, add_new_stiffness_sub_groups};
+use crate::fem::functions::
+{
+    separate, add_new_stiffness_sub_groups, is_points_of_quadrilateral_on_the_same_line,
+    is_points_of_quadrilateral_on_the_same_plane, convex_hull_on_four_points_on_plane,
+};
 
 use extended_matrix_float::MyFloatTrait;
 
@@ -452,6 +456,53 @@ impl<T, V> FEModel<T, V>
                 return Err(format!("FEModel: Element {:?} could not be added! Node {:?} does not \
                     exist!", element_number, node_number));
             }
+        }
+
+        match element_type
+        {
+            FEType::Mem4n4ip | FEType::Plate4n4ip => 
+            {
+                let node_1 = self.nodes.get(&nodes_numbers[0]).unwrap();
+                let node_2 = self.nodes.get(&nodes_numbers[1]).unwrap();
+                let node_3 = self.nodes.get(&nodes_numbers[2]).unwrap();
+                let node_4 = self.nodes.get(&nodes_numbers[3]).unwrap();
+                
+                if is_points_of_quadrilateral_on_the_same_line(
+                    &[node_1.copy_x(), node_1.copy_y(), node_1.copy_z()], 
+                    &[node_2.copy_x(), node_2.copy_y(), node_2.copy_z()],  
+                    &[node_3.copy_x(), node_3.copy_y(), node_3.copy_z()], 
+                    &[node_4.copy_x(), node_4.copy_y(), node_4.copy_z()], 
+                    self.state.tolerance)
+                {
+                    return Err(format!("FEModel: Element {:?} could not be added! Three of \
+                        four nodes lie on the same line!", element_number));
+                }
+
+                if !is_points_of_quadrilateral_on_the_same_plane(
+                    &[node_1.copy_x(), node_1.copy_y(), node_1.copy_z()], 
+                    &[node_2.copy_x(), node_2.copy_y(), node_2.copy_z()],  
+                    &[node_3.copy_x(), node_3.copy_y(), node_3.copy_z()], 
+                    &[node_4.copy_x(), node_4.copy_y(), node_4.copy_z()], 
+                    self.state.tolerance)
+                {
+                    return Err(format!("FEModel: Element {:?} could not be added! Not all nodes \
+                        lie on the same plane!", element_number));
+                }
+
+                if convex_hull_on_four_points_on_plane(&nodes_numbers, 
+                    &[
+                        &[node_1.copy_x(), node_1.copy_y(), node_1.copy_z()], 
+                        &[node_2.copy_x(), node_2.copy_y(), node_2.copy_z()],  
+                        &[node_3.copy_x(), node_3.copy_y(), node_3.copy_z()], 
+                        &[node_4.copy_x(), node_4.copy_y(), node_4.copy_z()]
+                    ], 
+                    self.state.tolerance)?.len() != 4
+                {
+                    return Err(format!("FEModel: Element {:?} could not be added! \
+                        Quadrilateral is not convex!", element_number));
+                }
+            }, 
+            _ => (),
         }
 
         let element = FiniteElement::create(element_type, nodes_numbers,

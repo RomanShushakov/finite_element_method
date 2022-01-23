@@ -456,13 +456,16 @@ impl<T, V> QuadFullPlateAuxFunctions<T, V>
         let transformed_node_4_direction_z =
             matrix_element_value_extractor(T::from(2u8), T::from(0u8), &transformed_node_4_direction)?;
 
-        if transformed_node_1_direction_z != transformed_node_2_direction_z || 
-            transformed_node_1_direction_z != transformed_node_4_direction_z ||
-            transformed_node_2_direction_z != transformed_node_4_direction_z
-        {
-            return Err("Quad plate element: Transformed directions of nodes calculation: /
-                Incorrect nodes directions transformation!".into());
-        }
+        // if compare_with_tolerance(transformed_node_1_direction_z - 
+        //     transformed_node_2_direction_z, tolerance) != V::from(0f32) || 
+        //     compare_with_tolerance(transformed_node_1_direction_z - 
+        //         transformed_node_4_direction_z, tolerance) != V::from(0f32) || 
+        //     compare_with_tolerance(transformed_node_2_direction_z - 
+        //         transformed_node_4_direction_z, tolerance) != V::from(0f32)
+        // {
+        //     return Err("Quad plate element: Transformed directions of nodes calculation: \
+        //         Incorrect nodes directions transformation!".into());
+        // }
 
         let transformed_directions_of_nodes = vec![
             (transformed_node_1_direction_x, transformed_node_1_direction_y, transformed_node_1_direction_z),

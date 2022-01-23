@@ -345,45 +345,48 @@ impl<T, V> QuadFullMemAuxFunctions<T, V>
         let transformed_node_2_direction = shrinked_rotation_matrix.multiply_by_matrix(&node_2_direction)?;
         let transformed_node_4_direction = shrinked_rotation_matrix.multiply_by_matrix(&node_4_direction)?;
 
-        let transformed_transformed_node_1_direction_x =
+        let transformed_node_1_direction_x =
             matrix_element_value_extractor(T::from(0u8), T::from(0u8), &transformed_node_1_direction)?;
-        let transformed_transformed_node_1_direction_y =
+        let transformed_node_1_direction_y =
             matrix_element_value_extractor(T::from(1u8), T::from(0u8), &transformed_node_1_direction)?;
-        let transformed_transformed_node_1_direction_z =
+        let transformed_node_1_direction_z =
             matrix_element_value_extractor(T::from(2u8), T::from(0u8), &transformed_node_1_direction)?;
-        let transformed_transformed_node_2_direction_x =
+        let transformed_node_2_direction_x =
             matrix_element_value_extractor(T::from(0u8), T::from(0u8), &transformed_node_2_direction)?;
-        let transformed_transformed_node_2_direction_y =
+        let transformed_node_2_direction_y =
             matrix_element_value_extractor(T::from(1u8), T::from(0u8), &transformed_node_2_direction)?;
-        let transformed_transformed_node_2_direction_z =
+        let transformed_node_2_direction_z =
             matrix_element_value_extractor(T::from(2u8), T::from(0u8), &transformed_node_2_direction)?;
-        let transformed_transformed_node_4_direction_x =
+        let transformed_node_4_direction_x =
             matrix_element_value_extractor(T::from(0u8), T::from(0u8), &transformed_node_4_direction)?;
-        let transformed_transformed_node_4_direction_y =
+        let transformed_node_4_direction_y =
             matrix_element_value_extractor(T::from(1u8), T::from(0u8), &transformed_node_4_direction)?;
-        let transformed_transformed_node_4_direction_z =
+        let transformed_node_4_direction_z =
             matrix_element_value_extractor(T::from(2u8), T::from(0u8), &transformed_node_4_direction)?;
 
-        if transformed_transformed_node_1_direction_z != transformed_transformed_node_2_direction_z || 
-            transformed_transformed_node_1_direction_z != transformed_transformed_node_4_direction_z ||
-            transformed_transformed_node_2_direction_z != transformed_transformed_node_4_direction_z
-        {
-            return Err("Quad membrane element Jacobian calculation: Incorrect nodes directions transformation!".into());
-        }
+        // if compare_with_tolerance(transformed_node_1_direction_z - 
+        //     transformed_node_2_direction_z, tolerance) != V::from(0f32) || 
+        //     compare_with_tolerance(transformed_node_1_direction_z - 
+        //         transformed_node_4_direction_z, tolerance) != V::from(0f32) || 
+        //     compare_with_tolerance(transformed_node_2_direction_z - 
+        //         transformed_node_4_direction_z, tolerance) != V::from(0f32)
+        // {
+        //     return Err("Quad membrane element Jacobian calculation: Incorrect nodes directions transformation!".into());
+        // }
         
         let jacobian_elements = vec![
             QuadFullMemAuxFunctions::<T, V>::dx_dr(
-                transformed_transformed_node_1_direction_x, transformed_transformed_node_2_direction_x, 
-                V::from(0f32), transformed_transformed_node_4_direction_x, r, s),
+                transformed_node_1_direction_x, transformed_node_2_direction_x, 
+                V::from(0f32), transformed_node_4_direction_x, r, s),
             QuadFullMemAuxFunctions::<T, V>::dy_dr(
-                transformed_transformed_node_1_direction_y, transformed_transformed_node_2_direction_y, 
-                V::from(0f32), transformed_transformed_node_4_direction_y, r, s),
+                transformed_node_1_direction_y, transformed_node_2_direction_y, 
+                V::from(0f32), transformed_node_4_direction_y, r, s),
             QuadFullMemAuxFunctions::<T, V>::dx_ds(
-                transformed_transformed_node_1_direction_x, transformed_transformed_node_2_direction_x, 
-                V::from(0f32), transformed_transformed_node_4_direction_x, r, s),
+                transformed_node_1_direction_x, transformed_node_2_direction_x, 
+                V::from(0f32), transformed_node_4_direction_x, r, s),
             QuadFullMemAuxFunctions::<T, V>::dy_ds(
-                transformed_transformed_node_1_direction_y, transformed_transformed_node_2_direction_y, 
-                V::from(0f32), transformed_transformed_node_4_direction_y, r, s),
+                transformed_node_1_direction_y, transformed_node_2_direction_y, 
+                V::from(0f32), transformed_node_4_direction_y, r, s),
         ];
 
         let jacobian = ExtendedMatrix::create(
