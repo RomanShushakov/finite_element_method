@@ -17,7 +17,9 @@ pub enum ForceComponent
     MomentX,
     MomentY,
     MomentZ,
-    MomentXY,
+    BendingMomentX,
+    BendingMomentY,
+    BendingMomentXY,
 }
 
 
@@ -38,7 +40,9 @@ impl ForceComponent
             ForceComponent::MomentX => "MomentX",
             ForceComponent::MomentY => "MomentY",
             ForceComponent::MomentZ => "MomentZ",
-            ForceComponent::MomentXY => "MomentXY",
+            ForceComponent::BendingMomentX => "BendingMomentX",
+            ForceComponent::BendingMomentY => "BendingMomentY",
+            ForceComponent::BendingMomentXY => "BendingMomentXY",
         }
     }
 }

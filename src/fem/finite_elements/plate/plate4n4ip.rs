@@ -1005,11 +1005,11 @@ impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
         forces_values.push(force_yz / V::from(4f32));
         forces_components.push(ForceComponent::ShearForceYZ);
         forces_values.push(moment_x / V::from(4f32));
-        forces_components.push(ForceComponent::MomentX);
+        forces_components.push(ForceComponent::BendingMomentX);
         forces_values.push(moment_y / V::from(4f32));
-        forces_components.push(ForceComponent::MomentY);
+        forces_components.push(ForceComponent::BendingMomentY);
         forces_values.push(moment_xy / V::from(4f32));
-        forces_components.push(ForceComponent::MomentXY);
+        forces_components.push(ForceComponent::BendingMomentXY);
     
         let element_forces = ElementForces::create(forces_values, forces_components);
 
