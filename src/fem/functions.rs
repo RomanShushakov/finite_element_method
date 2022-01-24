@@ -9,7 +9,9 @@ use extended_matrix::functions::{conversion_uint_into_usize, matrix_element_valu
 
 use extended_matrix_float::MyFloatTrait;
 
-
+use crate::fem::finite_elements::fe_node::FENode;
+use crate::fem::finite_elements::plate::plate4n4ip::Plate4n4ip;
+use crate::fem::finite_elements::beam::beam2n1ipt::Beam2n1ipT;
 use crate::fem::global_analysis::fe_stiffness::
 {
     stiffness_types_number, StiffnessGroup, StiffnessType, StiffnessGroupKey
@@ -402,4 +404,68 @@ pub fn convex_hull_on_four_points_on_plane<T, V>(point_numbers: &[T], points: &[
         .collect::<Vec<T>>();
 
     Ok(convex_hull_point_numbers)
+}
+
+
+pub fn convert_uniformly_distributed_surface_force_to_nodal_forces<T, V>(node_1_data: (T, V, V, V),
+    node_2_data: (T, V, V, V), node_3_data: (T, V, V, V), node_4_data: (T, V, V, V), 
+    uniformly_distributed_surface_force_value: V, tolerance: V) -> Result<HashMap<T, V>, String>
+    where T: Debug + Copy + Hash + SubAssign + Mul<Output = T> + AddAssign + From<u8> + Ord + 
+             Add<Output = T> + Sub<Output = T> + Div<Output = T> + Rem<Output = T> + 'static,
+          V: Debug + Copy + PartialEq + Sub<Output = V> + Mul<Output = V> + From<f32> + Add<Output = V> +
+             Div<Output = V> + AddAssign + MulAssign + SubAssign + MyFloatTrait + PartialOrd + Into<f64> + 
+             'static,
+{
+    let mut nodes = HashMap::new();
+    nodes.insert(node_1_data.0, FENode::create(node_1_data.1, node_1_data.2, node_1_data.3));
+    nodes.insert(node_2_data.0, FENode::create(node_2_data.1, node_2_data.2, node_2_data.3));
+    nodes.insert(node_3_data.0, FENode::create(node_3_data.1, node_3_data.2, node_3_data.3));
+    nodes.insert(node_4_data.0, FENode::create(node_4_data.1, node_4_data.2, node_4_data.3));
+
+    let default_plate_element = Plate4n4ip::create(node_1_data.0, node_2_data.0, 
+        node_3_data.0, node_4_data.0, V::from(1e7f32), V::from(0.3f32), 
+        V::from(0.1f32), V::from(0.833f32), tolerance, &nodes)?;
+    
+    let nodal_forces_matrix = 
+        default_plate_element.convert_uniformly_distributed_surface_force_to_nodal_forces(
+            uniformly_distributed_surface_force_value, &nodes, tolerance)?;
+
+    let nodal_force_1 = matrix_element_value_extractor(T::from(0u8), T::from(0u8), &nodal_forces_matrix)?;
+    let nodal_force_2 = matrix_element_value_extractor(T::from(1u8), T::from(0u8), &nodal_forces_matrix)?;
+    let nodal_force_3 = matrix_element_value_extractor(T::from(2u8), T::from(0u8), &nodal_forces_matrix)?;
+    let nodal_force_4 = matrix_element_value_extractor(T::from(3u8), T::from(0u8), &nodal_forces_matrix)?;
+
+    Ok(HashMap::from([
+        (node_1_data.0, nodal_force_1), (node_2_data.0, nodal_force_2), 
+        (node_3_data.0, nodal_force_3), (node_4_data.0, nodal_force_4),
+    ]))
+}
+
+
+pub fn convert_uniformly_distributed_line_force_to_nodal_forces<T, V>(node_1_data: (T, V, V, V),
+    node_2_data: (T, V, V, V), uniformly_distributed_line_force_value: V, tolerance: V) 
+    -> Result<HashMap<T, V>, String>
+    where T: Debug + Copy + Hash + SubAssign + Mul<Output = T> + AddAssign + From<u8> + Ord + 
+             Add<Output = T> + Sub<Output = T> + Div<Output = T> + Rem<Output = T> + 'static,
+          V: Debug + Copy + PartialEq + Sub<Output = V> + Mul<Output = V> + From<f32> + Add<Output = V> +
+             Div<Output = V> + AddAssign + MulAssign + SubAssign + MyFloatTrait + PartialOrd + Into<f64> + 
+             MyFloatTrait<Other = V> + 'static,
+{
+    let mut nodes = HashMap::new();
+    nodes.insert(node_1_data.0, FENode::create(node_1_data.1, node_1_data.2, node_1_data.3));
+    nodes.insert(node_2_data.0, FENode::create(node_2_data.1, node_2_data.2, node_2_data.3));
+
+    let default_beam_element = Beam2n1ipT::create(node_1_data.0, 
+        node_2_data.0, V::from(1e7f32), V::from(0.3f32), V::from(1f32),
+        V::from(1f32), V::from(1f32), V::from(0f32), V::from(1f32), V::from(0.833f32), 
+        [V::from(0f32), V::from(0f32), V::from(1f32)], tolerance, &nodes)?;
+
+    let nodal_forces_matrix = 
+        default_beam_element.convert_uniformly_distributed_line_force_to_nodal_forces(
+            uniformly_distributed_line_force_value, &nodes, tolerance)?;
+    
+    let nodal_force_1 = matrix_element_value_extractor(T::from(0u8), T::from(0u8), &nodal_forces_matrix)?;
+    let nodal_force_2 = matrix_element_value_extractor(T::from(1u8), T::from(0u8), &nodal_forces_matrix)?;
+
+    Ok(HashMap::from([(node_1_data.0, nodal_force_1), (node_2_data.0, nodal_force_2)]))
 }
