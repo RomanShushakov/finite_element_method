@@ -1022,8 +1022,10 @@ impl<T, V> FEModel<T, V>
 
         let separated_matrix =
             separate(global_stiffness_matrix, separation_positions, self.state.tolerance)?;
+        let mut lhs_matrix = separated_matrix.ref_k_aa().clone();
+        lhs_matrix.try_to_symmetrize(self.state.tolerance);
 
-        let ua_matrix = separated_matrix.ref_k_aa()
+        let ua_matrix = lhs_matrix
             .direct_solution(&ra_matrix.add_subtract_matrix(
                 &separated_matrix.ref_k_ab().multiply_by_matrix(&ub_matrix)?,
                 Operation::Subtraction)?, colsol_usage)?;
@@ -1157,12 +1159,14 @@ impl<T, V> FEModel<T, V>
             self.state.optional_ub_matrix.is_some() &&
             self.state.optional_separated_matrix.is_some()
         {
-            let lhs_matrix = self.state.optional_separated_matrix.as_ref().unwrap().ref_k_aa();
+            let mut lhs_matrix = self.state.optional_separated_matrix.as_ref().unwrap().ref_k_aa().clone();
             let rhs_matrix = self.state.optional_ra_matrix.as_ref().unwrap()
                 .add_subtract_matrix(
                     &self.state.optional_separated_matrix.as_ref().unwrap().ref_k_ab()
                         .multiply_by_matrix(&self.state.optional_ub_matrix.as_ref().unwrap())?, 
                     Operation::Subtraction)?;
+
+            lhs_matrix.try_to_symmetrize(self.state.tolerance);
 
             f(&format!("{:?}, colsol usage: {colsol_usage}", lhs_matrix.ref_matrix_type()));
             

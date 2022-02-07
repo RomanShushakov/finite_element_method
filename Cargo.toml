@@ -1,6 +1,6 @@
 [package]
 name = "finite_element_method"
-version = "0.4.9"
+version = "0.4.10"
 authors = ["Roman Shushakov <roman.a.shushakov1@gmail.com>"]
 edition = "2021"
 description = "A finite element method module."
@@ -10,4 +10,4 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 extended_matrix_float = "0.1.0"
-extended_matrix = "0.3.14"
+extended_matrix = "0.3.17"
