@@ -1151,7 +1151,7 @@ impl<T, V> FEModel<T, V>
     }
 
 
-    pub fn calculate_ua_matrix(&mut self, colsol_usage: bool) -> Result<(), String>
+    pub fn calculate_ua_matrix(&mut self, colsol_usage: bool, f: fn(data: &str)) -> Result<(), String>
     {
         if self.state.optional_ra_matrix.is_some() && 
             self.state.optional_ub_matrix.is_some() &&
@@ -1163,7 +1163,10 @@ impl<T, V> FEModel<T, V>
                     &self.state.optional_separated_matrix.as_ref().unwrap().ref_k_ab()
                         .multiply_by_matrix(&self.state.optional_ub_matrix.as_ref().unwrap())?, 
                     Operation::Subtraction)?;
+
+            f(&format!("{:?}, colsol usage: {colsol_usage}", lhs_matrix.ref_matrix_type()));
             
+
             let ua_matrix = lhs_matrix.direct_solution(&rhs_matrix, colsol_usage)?;
             self.state.optional_ua_matrix = Some(ua_matrix);
             Ok(())
