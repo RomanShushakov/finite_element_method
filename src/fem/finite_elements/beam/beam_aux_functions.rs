@@ -619,15 +619,16 @@ impl<T, V> BeamAuxFunctions<T, V>
 
     pub fn find_principal_moments_of_inertia(i11_init: V, i22_init: V, i12_init: V) -> (V, V, V)
     {
-        let mut angle = if i11_init == i22_init
-            {
-                V::from(0f32)
-            }
-            else
-            {
-                (V::from(2f32) * i12_init / (i22_init - i11_init)).my_atan() /
-                V::from(2f32)
-            };
+        // let mut angle = if i11_init == i22_init
+        //     {
+        //         V::from(0f32)
+        //     }
+        //     else
+        //     {
+        //         (V::from(2f32) * i12_init / (i22_init - i11_init)).my_atan() /
+        //         V::from(2f32)
+        //     };
+        let mut angle = (V::from(2f32) * i12_init / (i22_init - i11_init)).my_atan() / V::from(2f32);
 
         let mut i11 = i11_init * (angle.my_cos()).my_powi(2) +
             i22_init * (angle.my_sin()).my_powi(2) -
