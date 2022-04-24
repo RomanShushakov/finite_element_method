@@ -619,6 +619,10 @@ impl<T, V> BeamAuxFunctions<T, V>
 
     pub fn find_principal_moments_of_inertia(i11_init: V, i22_init: V, i12_init: V) -> (V, V, V)
     {
+        // if compare_with_tolerance(i12_init) == V::from(0f32)
+        // {
+        //     return 
+        // }
         // let mut angle = if i11_init == i22_init
         //     {
         //         V::from(0f32)
