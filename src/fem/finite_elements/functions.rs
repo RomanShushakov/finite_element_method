@@ -1,14 +1,10 @@
-use std::ops::{Add, Sub, Mul, Div, Rem, AddAssign, SubAssign, MulAssign};
-use std::fmt::Debug;
-use std::hash::Hash;
-
-use extended_matrix_float::MyFloatTrait;
 use extended_matrix::extended_matrix::ExtendedMatrix;
 use extended_matrix::functions::matrix_element_value_extractor;
+use extended_matrix::traits::{UIntTrait, FloatTrait};
 
 
 pub fn compare_with_tolerance<V>(value: V, tolerance: V) -> V
-    where V: MyFloatTrait + PartialOrd + From<f32>
+    where V: FloatTrait<Output = V, Other = V>
 {
     if value.my_abs() < tolerance
     {
@@ -23,12 +19,8 @@ pub fn compare_with_tolerance<V>(value: V, tolerance: V) -> V
 
 pub fn extract_unique_elements_of_rotation_matrix<T, V>(rotation_matrix: &ExtendedMatrix<T, V>)
     -> Result<Vec<V>, String>
-    where T: Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Div<Output = T> +
-             Rem<Output = T> + Copy + Debug + Eq + Hash + AddAssign + SubAssign + From<u8> +
-             PartialOrd + Ord + 'static,
-          V: Add<Output = V> + Sub<Output = V> + Mul<Output = V> + Div<Output = V> + Copy +
-             Debug + AddAssign + SubAssign + MulAssign + PartialEq + From<f32> + Into<f64> +
-             PartialOrd + MyFloatTrait + 'static
+    where T: UIntTrait<Output = T>,
+          V: FloatTrait<Output = V, Other = V>
 {
     let r11 = matrix_element_value_extractor(T::from(0u8), T::from(0u8), &rotation_matrix)?;
     let r12 = matrix_element_value_extractor(T::from(0u8), T::from(1u8), &rotation_matrix)?;

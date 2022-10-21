@@ -1,11 +1,9 @@
-use std::hash::Hash;
-use std::fmt::Debug;
-use std::ops::{Sub, Mul, Add, Div, Rem, SubAssign, AddAssign, MulAssign};
 use std::collections::HashMap;
 use std::any::Any;
 
 use extended_matrix::matrix_element_position::MatrixElementPosition;
 use extended_matrix::extended_matrix::ExtendedMatrix;
+use extended_matrix::traits::{UIntTrait, FloatTrait};
 
 use crate::fem::element_analysis::fe_stress_strain_components::StressStrainComponent;
 use crate::fem::finite_elements::finite_element::{FiniteElementTrait, FEType};
@@ -21,8 +19,6 @@ use crate::fem::element_analysis::fe_element_analysis_result::
 {
     ElementAnalysisData, ElementForces, ElementStrains, ElementStresses
 };
-
-use extended_matrix_float::MyFloatTrait;
 
 use crate::fem::finite_elements::plate::consts::{PLATE_NODE_DOF, PLATE4N4IP_NODES_NUMBER};
 use crate::fem::finite_elements::functions::extract_unique_elements_of_rotation_matrix;
@@ -73,12 +69,8 @@ pub struct Plate4n4ip<T, V>
 
 
 impl<T, V> Plate4n4ip<T, V>
-    where T: Copy + PartialOrd + Add<Output = T> + Sub<Output = T> + Div<Output = T> +
-             Rem<Output = T> + Eq + Hash + SubAssign + Debug + Mul<Output = T> + AddAssign +
-             From<u8> + Ord + 'static,
-          V: Copy + Into<f64> + Sub<Output = V> + Mul<Output = V> + From<f32> + Add<Output = V> +
-             Div<Output = V> + PartialEq + Debug + AddAssign + MulAssign + SubAssign +
-             MyFloatTrait + PartialOrd + 'static
+    where T: UIntTrait<Output = T>,
+          V: FloatTrait<Output = V, Other = V>
 {
     pub fn create(node_1_number: T, node_2_number: T, node_3_number: T, node_4_number: T, 
         young_modulus: V, poisson_ratio: V, thickness: V, shear_factor: V, tolerance: V, 
@@ -231,12 +223,8 @@ impl<T, V> Plate4n4ip<T, V>
 
 
 impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
-    where T: Copy + Add<Output = T> + Sub<Output = T> + Div<Output = T> + Rem<Output = T> +
-             Mul<Output = T> + Eq + Hash + Debug + SubAssign + PartialOrd + AddAssign +
-             From<u8> + Ord + 'static,
-          V: Copy + Sub<Output = V> + Mul<Output = V> + Add<Output = V> + Div<Output = V> +
-             Into<f64> + SubAssign + AddAssign + MulAssign + PartialEq + Debug +
-             MyFloatTrait + PartialOrd + From<f32> + 'static,
+    where T: UIntTrait<Output = T>,
+          V: FloatTrait<Output = V, Other = V>
 {
     fn update(&mut self, nodes_numbers: Vec<T>, properties: Vec<V>, tolerance: V,
         ref_nodes: &HashMap<T, FENode<V>>) -> Result<(), String>

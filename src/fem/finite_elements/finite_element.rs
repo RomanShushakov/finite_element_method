@@ -1,4 +1,3 @@
-use std::ops::{Sub, Div, Rem, SubAssign, Mul, Add, AddAssign, MulAssign};
 use std::hash::Hash;
 use std::fmt::Debug;
 use std::slice::Iter;
@@ -7,8 +6,7 @@ use std::any::Any;
 
 
 use extended_matrix::extended_matrix::ExtendedMatrix;
-
-use extended_matrix_float::MyFloatTrait;
+use extended_matrix::traits::{UIntTrait, FloatTrait};
 
 use crate::fem::finite_elements::fe_node::FENode;
 use crate::fem::finite_elements::truss::truss2n1ip::Truss2n1ip;
@@ -83,12 +81,8 @@ struct FECreator<T, V>(T, V);
 
 
 impl<T, V> FECreator<T, V>
-    where T: Copy + Sub<Output = T> + Div<Output = T> + Rem<Output = T> + Eq + Hash + SubAssign +
-             Debug + Mul<Output = T> + PartialOrd + Add<Output = T> + AddAssign + From<u8> +
-             Ord + 'static,
-          V: Copy + Sub<Output = V> + Mul<Output = V> + Add<Output = V> + Div<Output = V> +
-             PartialEq + Debug + AddAssign + MulAssign + SubAssign + MyFloatTrait + PartialOrd +
-             Into<f64> + From<f32> + MyFloatTrait<Other = V> + 'static,
+    where T: UIntTrait<Output = T>,
+          V: FloatTrait<Output = V, Other = V>
 {
     fn create(fe_type: FEType, nodes_numbers: Vec<T>, properties: Vec<V>, tolerance: V,
         ref_nodes: &HashMap<T, FENode<V>>) -> Result<Box<dyn FiniteElementTrait<T, V>>, String>
@@ -198,12 +192,8 @@ pub(crate) struct FiniteElement<T, V>
 
 
 impl<T, V> FiniteElement<T, V>
-    where T: Copy + Sub<Output = T> + Div<Output = T> + Rem<Output = T> + Eq + Hash + SubAssign +
-             Debug + Mul<Output = T> + PartialOrd + Add<Output = T> + AddAssign + From<u8> +
-             Ord + 'static,
-          V: Copy + Sub<Output = V> + Mul<Output = V> + Add<Output = V> + Div<Output = V> +
-             PartialEq + Debug + AddAssign + MulAssign + SubAssign + MyFloatTrait + PartialOrd +
-             Into<f64> + From<f32> + MyFloatTrait<Other = V> + 'static,
+    where T: UIntTrait<Output = T>,
+          V: FloatTrait<Output = V, Other = V>
 {
     pub fn create(fe_type: FEType, nodes_numbers: Vec<T>, properties: Vec<V>, tolerance: V,
         nodes: &HashMap<T, FENode<V>>) -> Result<Self, String>
@@ -305,12 +295,8 @@ pub struct DeletedFEData<T, V>
 
 
 impl<T, V> DeletedFEData<T, V>
-    where T: Copy + Sub<Output = T> + Div<Output = T> + Rem<Output = T> + Eq + Hash + SubAssign +
-             Debug + Mul<Output = T> + PartialOrd + Add<Output = T> + AddAssign + From<u8> +
-             Ord + 'static,
-          V: Copy + Sub<Output = V> + Mul<Output = V> + Add<Output = V> + Div<Output = V> +
-             PartialEq + Debug + AddAssign + MulAssign + SubAssign + MyFloatTrait + PartialOrd +
-             Into<f64> + From<f32> + MyFloatTrait<Other = V> + 'static,
+    where T: UIntTrait<Output = T>,
+          V: FloatTrait<Output = V, Other = V>
 {
     pub(crate) fn create(element_number: T, deleted_element: FiniteElement<T, V>) -> Self
     {

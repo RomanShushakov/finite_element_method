@@ -1,12 +1,8 @@
-use std::ops::{Add, Sub, Div, Rem, SubAssign, Mul, AddAssign, MulAssign};
-use std::hash::Hash;
-use std::fmt::Debug;
 use std::collections::HashMap;
 
 use extended_matrix::extended_matrix::ExtendedMatrix;
 use extended_matrix::functions::matrix_element_value_extractor;
-
-use extended_matrix_float::MyFloatTrait;
+use extended_matrix::traits::{UIntTrait, FloatTrait};
 
 use crate::fem::global_analysis::fe_dof_parameter_data::{DOFParameterData, GlobalDOFParameter};
 
@@ -22,12 +18,8 @@ pub struct QuadFullMemAuxFunctions<T, V>(T, V);
 
 
 impl<T, V> QuadFullMemAuxFunctions<T, V>
-    where T: Copy + PartialOrd + Add<Output = T> + Sub<Output = T> + Div<Output = T> +
-             Rem<Output = T> + Eq + Hash + SubAssign + Debug + Mul<Output = T> + AddAssign +
-             From<u8> + Ord + 'static,
-          V: Copy + Into<f64> + Sub<Output = V> + Mul<Output = V> + Add<Output = V> + From<f32> +
-             Div<Output = V> + PartialEq + Debug + AddAssign + MulAssign + SubAssign +
-             MyFloatTrait + PartialOrd + 'static,
+    where T: UIntTrait<Output = T>,
+          V: FloatTrait<Output = V, Other = V>
 {
     pub fn nodes_number() -> T
     {

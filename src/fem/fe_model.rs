@@ -1,14 +1,11 @@
-use std::ops::{Sub, Div, Rem, SubAssign, Mul, Add, AddAssign, MulAssign, DivAssign};
-use std::hash::Hash;
-use std::fmt::Debug;
 use std::collections::{HashSet, HashMap};
 use std::iter::FromIterator;
 
 use extended_matrix::extended_matrix::ExtendedMatrix;
 use extended_matrix::matrix_element_position::MatrixElementPosition;
-use extended_matrix::extended_matrix::Operation;
 use extended_matrix::functions::{conversion_uint_into_usize, matrix_element_value_extractor};
 use extended_matrix::basic_matrix::basic_matrix::BasicMatrixType;
+use extended_matrix::traits::{UIntTrait, FloatTrait};
 
 use crate::fem::finite_elements::fe_node::{FENode, DeletedFENodeData};
 use crate::fem::finite_elements::finite_element::{FiniteElement, FEType, DeletedFEData};
@@ -27,8 +24,6 @@ use crate::fem::functions::
     separate, add_new_stiffness_sub_groups, is_points_of_quadrilateral_on_the_same_line,
     is_points_of_quadrilateral_on_the_same_plane, convex_hull_on_four_points_on_plane,
 };
-
-use extended_matrix_float::MyFloatTrait;
 
 use crate::fem::separated_matrix::SeparatedMatrix;
 
@@ -82,12 +77,8 @@ pub struct FEModel<T, V>
 
 
 impl<T, V> FEModel<T, V>
-    where T: Copy + PartialEq + Sub<Output = T> + Div<Output = T> + Rem<Output = T> + Eq + Hash +
-             SubAssign + Debug + Mul<Output = T> + PartialOrd + Add<Output = T> + From<u8> +
-             AddAssign + Ord + 'static,
-          V: Copy + Sub<Output = V> + Mul<Output = V> + Add<Output = V> + Div<Output = V> +
-             PartialEq + Debug + AddAssign + MulAssign + SubAssign + Into<f64> + PartialOrd +
-             MyFloatTrait + From<f32> + MyFloatTrait<Other = V> + DivAssign + 'static,
+    where T: UIntTrait<Output = T>,
+          V: FloatTrait<Output = V, Other = V>
 {
     pub fn create(tolerance: V) -> Self
     {
@@ -1026,17 +1017,15 @@ impl<T, V> FEModel<T, V>
         lhs_matrix.try_to_symmetrize(self.state.tolerance);
 
         let ua_matrix = lhs_matrix
-            .direct_solution(&ra_matrix.add_subtract_matrix(
-                &separated_matrix.ref_k_ab().multiply_by_matrix(&ub_matrix)?,
-                Operation::Subtraction)?, colsol_usage)?;
+            .direct_solution(&ra_matrix.subtract_matrix(
+                &separated_matrix.ref_k_ab().multiply_by_matrix(&ub_matrix)?)?, colsol_usage)?;
 
         let reactions_values_matrix = separated_matrix.ref_k_ba()
             .multiply_by_matrix(&ua_matrix)?
-            .add_subtract_matrix(
+            .subtract_matrix(
                 &separated_matrix.ref_k_bb()
-                    .multiply_by_matrix(&ub_matrix)?,
-                        Operation::Addition)?
-            .add_subtract_matrix(&rb_c_matrix, Operation::Subtraction)?;
+                    .multiply_by_matrix(&ub_matrix)?)?
+            .subtract_matrix(&rb_c_matrix)?;
 
         let reactions_values_matrix_shape = reactions_values_matrix.copy_shape();
         let mut reactions_values = Vec::new();
@@ -1161,10 +1150,9 @@ impl<T, V> FEModel<T, V>
         {
             let mut lhs_matrix = self.state.optional_separated_matrix.as_ref().unwrap().ref_k_aa().clone();
             let rhs_matrix = self.state.optional_ra_matrix.as_ref().unwrap()
-                .add_subtract_matrix(
+                .subtract_matrix(
                     &self.state.optional_separated_matrix.as_ref().unwrap().ref_k_ab()
-                        .multiply_by_matrix(&self.state.optional_ub_matrix.as_ref().unwrap())?, 
-                    Operation::Subtraction)?;
+                        .multiply_by_matrix(&self.state.optional_ub_matrix.as_ref().unwrap())?)?;
 
             lhs_matrix.try_to_symmetrize(self.state.tolerance);
 
@@ -1192,10 +1180,9 @@ impl<T, V> FEModel<T, V>
         {
             let lhs_matrix = self.state.optional_separated_matrix.as_ref().unwrap().ref_k_aa();
             let rhs_matrix = self.state.optional_ra_matrix.as_ref().unwrap()
-                .add_subtract_matrix(
+                .subtract_matrix(
                     &self.state.optional_separated_matrix.as_ref().unwrap().ref_k_ab()
-                        .multiply_by_matrix(&self.state.optional_ub_matrix.as_ref().unwrap())?, 
-                    Operation::Subtraction)?;
+                        .multiply_by_matrix(&self.state.optional_ub_matrix.as_ref().unwrap())?)?;
             
             let lhs_matrix_shape = lhs_matrix.copy_shape();
             let a_rows_number = lhs_matrix_shape.0;
@@ -1277,11 +1264,10 @@ impl<T, V> FEModel<T, V>
 
         let reactions_values_matrix = separated_matrix.ref_k_ba()
             .multiply_by_matrix(&ua_matrix)?
-            .add_subtract_matrix(
+            .add_matrix(
                 &separated_matrix.ref_k_bb()
-                    .multiply_by_matrix(&ub_matrix)?,
-                        Operation::Addition)?
-            .add_subtract_matrix(&rb_c_matrix, Operation::Subtraction)?;
+                    .multiply_by_matrix(&ub_matrix)?)?
+            .subtract_matrix(&rb_c_matrix)?;
 
         let reactions_values_matrix_shape = reactions_values_matrix.copy_shape();
         let mut reactions_values = Vec::new();

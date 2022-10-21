@@ -6,8 +6,7 @@ use std::f32::consts::PI;
 
 use extended_matrix::extended_matrix::ExtendedMatrix;
 use extended_matrix::functions::matrix_element_value_extractor;
-
-use extended_matrix_float::MyFloatTrait;
+use extended_matrix::traits::{UIntTrait, FloatTrait};
 
 use crate::fem::global_analysis::fe_dof_parameter_data::{DOFParameterData, GlobalDOFParameter};
 
@@ -20,12 +19,8 @@ pub struct BeamAuxFunctions<T, V>(T, V);
 
 
 impl<T, V> BeamAuxFunctions<T, V>
-    where T: Copy + PartialOrd + Add<Output = T> + Sub<Output = T> + Div<Output = T> +
-             Rem<Output = T> + Eq + Hash + SubAssign + Debug + Mul<Output = T> + AddAssign +
-             From<u8> + Ord + 'static,
-          V: Copy + Into<f64> + Sub<Output = V> + Mul<Output = V> + Add<Output = V> + From<f32> +
-             Div<Output = V> + PartialEq + Debug + AddAssign + MulAssign + SubAssign +
-             MyFloatTrait + PartialOrd + MyFloatTrait<Other = V> + 'static,
+    where T: UIntTrait<Output = T>,
+          V: FloatTrait<Output = V, Other = V>
 {
     pub fn length(node_1_number: T, node_2_number: T, nodes: &HashMap<T, FENode<V>>) -> V
     {
@@ -98,8 +93,7 @@ impl<T, V> BeamAuxFunctions<T, V>
 
 
     pub fn rotation_matrix(node_1_number: T, node_2_number: T, local_axis_1_direction: &[V; 3],
-        angle: V, tolerance: V, nodes: &HashMap<T, FENode<V>>)
-        -> Result<ExtendedMatrix<T, V>, String>
+        angle: V, tolerance: V, nodes: &HashMap<T, FENode<V>>) -> Result<ExtendedMatrix<T, V>, String>
     {
         let node_1 = nodes.get(&node_1_number).unwrap();
         let node_2 = nodes.get(&node_2_number).unwrap();
@@ -146,12 +140,12 @@ impl<T, V> BeamAuxFunctions<T, V>
             )?;
 
         let interim_rotation_matrix = ExtendedMatrix::create(
-            3, 3,
+            T::from(3u8), T::from(3u8),
             vec![q_11, q_12, q_13, q_21, q_22, q_23, q_31, q_32, q_33],
             tolerance)?;
 
         let projection_of_beam_section_orientation = ExtendedMatrix::create(
-            3, 1,
+            T::from(3u8), T::from(1u8),
             components_projection_of_beam_section_orientation_vector.to_vec(),
             tolerance)?;
 
@@ -160,13 +154,16 @@ impl<T, V> BeamAuxFunctions<T, V>
                 &projection_of_beam_section_orientation)?;
 
         let transformed_projection_of_beam_section_orientation_x = 
-            matrix_element_value_extractor(0, 0, &transformed_projection_of_beam_section_orientation)?;
+            matrix_element_value_extractor(T::from(0u8), T::from(0u8),
+            &transformed_projection_of_beam_section_orientation)?;
 
         let transformed_projection_of_beam_section_orientation_y =
-            matrix_element_value_extractor(1, 0, &transformed_projection_of_beam_section_orientation)?;
+            matrix_element_value_extractor(T::from(1u8), T::from(0u8), 
+            &transformed_projection_of_beam_section_orientation)?;
 
         let transformed_projection_of_beam_section_orientation_z =
-            matrix_element_value_extractor(2, 0, &transformed_projection_of_beam_section_orientation)?;
+            matrix_element_value_extractor(T::from(2u8), T::from(0u8), 
+            &transformed_projection_of_beam_section_orientation)?;
 
         let angle_between_beam_section_local_axis_1_direction_and_axis_t =
             (transformed_projection_of_beam_section_orientation_z /

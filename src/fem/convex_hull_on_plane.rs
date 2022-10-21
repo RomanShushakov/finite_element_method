@@ -1,8 +1,7 @@
-use std::ops::{Sub, Mul, Add, Div, SubAssign, AddAssign};
 use std::fmt::Debug;
 use std::cmp::Ordering;
 
-use extended_matrix_float::MyFloatTrait;
+use extended_matrix::traits::{UIntTrait, FloatTrait};
 
 
 pub fn quick_sort<T>(arr: &mut [T])
@@ -68,9 +67,8 @@ pub struct Point<T, V>
 
 
 impl<T, V> Point<T, V>
-    where V: Copy + From<u8>,
-          T: Copy + From<f32> + Mul<Output = T> + Add<Output = T> + Div<Output = T> +
-             Sub<Output = T> + MyFloatTrait
+    where V: UIntTrait<Output = V>,
+          T: FloatTrait<Output = T, Other = T>
 {
     pub fn create(n: V, x: T, y: T) -> Self
     {
@@ -95,9 +93,8 @@ impl<T, V> Point<T, V>
 
 
 impl<T, V> PartialOrd for Point<T, V>
-    where V: PartialEq + Copy + PartialOrd + From<u8>,
-          T: Copy + Mul<Output = T> + Add<Output = T> + Div<Output = T> + Sub<Output = T> +
-             From<f32> + PartialOrd + MyFloatTrait
+    where V: UIntTrait<Output = V>,
+          T: FloatTrait<Output = T, Other = T>
 {
     fn partial_cmp(&self, other: &Point<T, V>) -> Option<Ordering>
     {
@@ -112,9 +109,8 @@ impl<T, V> PartialOrd for Point<T, V>
 
 
 impl<T, V> PartialEq for Point<T, V>
-    where V: PartialEq + Copy + PartialOrd + From<u8>,
-          T: Copy + Mul<Output = T> + Add<Output = T> + Div<Output = T> + Sub<Output = T> +
-             From<f32> + PartialOrd + MyFloatTrait
+    where V: UIntTrait<Output = V>,
+          T: FloatTrait<Output = T, Other = T>
 {
     fn eq(&self, other: &Point<T, V>) -> bool
     {
@@ -137,16 +133,15 @@ struct Vector<T, V>
 
 
 fn double_signed_area<T, V>(p_1: &Point<T, V>, p_2: &Point<T, V>, p_3: &Point<T, V>) -> T
-    where T: Copy + Sub<Output = T> + Mul<Output=T> + Add<Output=T>
+    where T: FloatTrait<Output = T, Other = T>
 {
     (p_2.x - p_1.x) * (p_3.y - p_1.y) - (p_2.y - p_1.y) * (p_3.x - p_1.x)
 }
 
 
 impl<T, V> Vector<T, V>
-    where T: Copy + Sub<Output = T> + Mul<Output=T> + Add<Output=T> + Div<Output = T> +
-             From<f32> + MyFloatTrait,
-          V: From<u8>
+    where V: UIntTrait<Output = V>,
+          T: FloatTrait<Output = T, Other = T>
 {
     fn create_directional_vector() -> Self
     {
@@ -189,10 +184,8 @@ impl<T, V> Vector<T, V>
 
 
 pub fn convex_hull_on_plane<T, V>(data: &[Point<T, V>]) -> Vec<Point<T, V>>
-    where T: Copy + PartialOrd + Mul<Output = T> + Add<Output = T> + Div<Output = T> +
-             Sub<Output = T> + From<f32> + Debug + SubAssign + AddAssign + 
-             MyFloatTrait,
-          V: Copy + Debug + From<u8> + PartialOrd
+    where V: UIntTrait<Output = V>,
+          T: FloatTrait<Output = T, Other = T>
 {
     let mut updated_data = data.to_vec();
     let mut shift_x = updated_data[0].x;

@@ -1,13 +1,9 @@
-use std::ops::{Div, Rem, Mul, Add, AddAssign, Sub, SubAssign, MulAssign};
-use std::fmt::Debug;
-use std::hash::Hash;
 use std::collections::HashMap;
 
 use extended_matrix::matrix_element_position::MatrixElementPosition;
 use extended_matrix::extended_matrix::ExtendedMatrix;
 use extended_matrix::functions::{conversion_uint_into_usize, matrix_element_value_extractor};
-
-use extended_matrix_float::MyFloatTrait;
+use extended_matrix::traits::{UIntTrait, FloatTrait};
 
 use crate::fem::finite_elements::fe_node::FENode;
 use crate::fem::finite_elements::plate::plate4n4ip::Plate4n4ip;
@@ -29,8 +25,7 @@ pub(super) fn add_new_stiffness_sub_groups<'a, T>(
     stiffness_groups: &mut HashMap<StiffnessGroupKey<T>, Vec<MatrixElementPosition<T>>>,
     global_group_position: T, global_group_columns_number: T, global_number_1: T,
     global_number_2: T) -> Result<(), &'a str>
-    where T: Copy + Debug + Div<Output = T> + Rem<Output = T> + Mul<Output = T> + Add<Output = T> +
-             PartialOrd + AddAssign + From<u8> + Eq + Hash + SubAssign
+    where T: UIntTrait<Output = T>
 {
     let row = global_group_position / global_group_columns_number;
     let column = global_group_position % global_group_columns_number;
@@ -80,12 +75,8 @@ pub(super) fn add_new_stiffness_sub_groups<'a, T>(
 
 pub(super) fn separate<T, V>(matrix: ExtendedMatrix<T, V>, positions: Vec<MatrixElementPosition<T>>,
     tolerance: V) -> Result<SeparatedMatrix<T, V>, String>
-    where T: Add<Output = T> + Mul<Output = T> + Sub<Output = T> + Div<Output = T> +
-             Rem<Output = T> + Copy + Debug + Eq + Hash + SubAssign + PartialOrd + AddAssign +
-             From<u8> + Ord + 'static,
-          V: Add<Output = V> + Mul<Output = V> + Sub<Output = V> + Div<Output = V> + Copy + Debug +
-             PartialEq + AddAssign + MulAssign + SubAssign + Into<f64> + From<f32> + PartialOrd +
-             MyFloatTrait + 'static
+    where T: UIntTrait<Output = T>,
+          V: FloatTrait<Output = V, Other = V>
 {
     let shape = matrix.copy_shape();
 
@@ -212,7 +203,7 @@ pub(super) fn separate<T, V>(matrix: ExtendedMatrix<T, V>, positions: Vec<Matrix
 
 pub fn is_points_of_quadrilateral_on_the_same_line<V>(point_1: &[V], point_2: &[V], point_3: &[V], point_4: &[V],
     tolerance: V) -> bool
-    where V: Copy + Add<Output = V> + Sub<Output = V> + Mul<Output = V> + From<f32> + MyFloatTrait + PartialOrd,
+    where V: FloatTrait<Output = V, Other = V>,
 {
     let cross_product_handle = |vector_1: &[V], vector_2: &[V]| 
         {
@@ -254,8 +245,7 @@ pub fn is_points_of_quadrilateral_on_the_same_line<V>(point_1: &[V], point_2: &[
 
 pub fn is_points_of_quadrilateral_on_the_same_plane<V>(point_1: &[V], point_2: &[V], point_3: &[V], point_4: &[V],
     tolerance: V) -> bool
-    where V: Copy + Debug + Add<Output = V> + Sub<Output = V> + Mul<Output = V> + PartialOrd + MyFloatTrait + 
-             From<f32>,
+    where V: FloatTrait<Output = V, Other = V>,
 {
     let cross_product_handle = |vector_1: &[V], vector_2: &[V]| 
         {
@@ -285,10 +275,8 @@ pub fn is_points_of_quadrilateral_on_the_same_plane<V>(point_1: &[V], point_2: &
 
 fn rotation_matrix_of_quadrilateral<T, V>(point_2: &[V], point_3: &[V], point_4: &[V], 
     tolerance: V) -> Result<ExtendedMatrix<T, V>, String>
-    where T: Copy + Debug + From<u8> + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Div<Output = T> + 
-             Rem<Output = T> + Hash + AddAssign + SubAssign + Ord + 'static,
-          V: Copy + Debug + Add<Output = V> + Sub<Output = V> + Mul<Output = V> + PartialOrd + MyFloatTrait + 
-             From<f32> + Div<Output = V> + AddAssign + SubAssign + MulAssign + Into<f64> + 'static,
+    where T: UIntTrait<Output = T>,
+          V: FloatTrait<Output = V, Other = V>
 {
     let edge_3_4_x = point_4[0] - point_3[0];
     let edge_3_4_y = point_4[1] - point_3[1];
@@ -347,10 +335,8 @@ fn rotation_matrix_of_quadrilateral<T, V>(point_2: &[V], point_3: &[V], point_4:
 
 pub fn convex_hull_on_four_points_on_plane<T, V>(point_numbers: &[T], points: &[&[V]], tolerance: V) 
     -> Result<Vec<T>, String>
-    where T: Debug + Copy + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Div<Output = T> + Rem<Output = T> + 
-             AddAssign + SubAssign + From<u8> + Hash + Ord + 'static,
-          V: Debug + Copy + Add<Output = V> + Sub<Output = V> + Mul<Output = V> + Div<Output = V> + PartialOrd + 
-             MyFloatTrait + From<f32> + Into<f64> + AddAssign + SubAssign + MulAssign + 'static,
+    where T: UIntTrait<Output = T>,
+          V: FloatTrait<Output = V, Other = V>
 {
     let rotation_matrix = rotation_matrix_of_quadrilateral::<T, V>(points[1], points[2], 
         points[3], tolerance)?;
@@ -410,11 +396,8 @@ pub fn convex_hull_on_four_points_on_plane<T, V>(point_numbers: &[T], points: &[
 pub fn convert_uniformly_distributed_surface_force_to_nodal_forces<T, V>(node_1_data: (T, V, V, V),
     node_2_data: (T, V, V, V), node_3_data: (T, V, V, V), node_4_data: (T, V, V, V), 
     uniformly_distributed_surface_force_value: V, tolerance: V) -> Result<HashMap<T, V>, String>
-    where T: Debug + Copy + Hash + SubAssign + Mul<Output = T> + AddAssign + From<u8> + Ord + 
-             Add<Output = T> + Sub<Output = T> + Div<Output = T> + Rem<Output = T> + 'static,
-          V: Debug + Copy + PartialEq + Sub<Output = V> + Mul<Output = V> + From<f32> + Add<Output = V> +
-             Div<Output = V> + AddAssign + MulAssign + SubAssign + MyFloatTrait + PartialOrd + Into<f64> + 
-             'static,
+    where T: UIntTrait<Output = T>,
+          V: FloatTrait<Output = V, Other = V>
 {
     let mut nodes = HashMap::new();
     nodes.insert(node_1_data.0, FENode::create(node_1_data.1, node_1_data.2, node_1_data.3));
@@ -445,11 +428,8 @@ pub fn convert_uniformly_distributed_surface_force_to_nodal_forces<T, V>(node_1_
 pub fn convert_uniformly_distributed_line_force_to_nodal_forces<T, V>(node_1_data: (T, V, V, V),
     node_2_data: (T, V, V, V), uniformly_distributed_line_force_value: V, tolerance: V) 
     -> Result<HashMap<T, V>, String>
-    where T: Debug + Copy + Hash + SubAssign + Mul<Output = T> + AddAssign + From<u8> + Ord + 
-             Add<Output = T> + Sub<Output = T> + Div<Output = T> + Rem<Output = T> + 'static,
-          V: Debug + Copy + PartialEq + Sub<Output = V> + Mul<Output = V> + From<f32> + Add<Output = V> +
-             Div<Output = V> + AddAssign + MulAssign + SubAssign + MyFloatTrait + PartialOrd + Into<f64> + 
-             MyFloatTrait<Other = V> + 'static,
+    where T: UIntTrait<Output = T>,
+          V: FloatTrait<Output = V, Other = V>
 {
     let mut nodes = HashMap::new();
     nodes.insert(node_1_data.0, FENode::create(node_1_data.1, node_1_data.2, node_1_data.3));

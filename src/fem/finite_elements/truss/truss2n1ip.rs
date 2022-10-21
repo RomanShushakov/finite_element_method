@@ -6,6 +6,7 @@ use std::any::Any;
 
 use extended_matrix::matrix_element_position::MatrixElementPosition;
 use extended_matrix::extended_matrix::ExtendedMatrix;
+use extended_matrix::traits::{UIntTrait, FloatTrait};
 
 use crate::fem::finite_elements::finite_element::{FiniteElementTrait, FEType};
 use crate::fem::finite_elements::fe_node::FENode;
@@ -20,8 +21,6 @@ use crate::fem::element_analysis::fe_element_analysis_result::
 {
     ElementAnalysisData, ElementForces
 };
-
-use extended_matrix_float::MyFloatTrait;
 
 use crate::fem::finite_elements::truss::consts::{TRUSS_NODE_DOF, TRUSS2N1IP_NODES_NUMBER};
 use crate::fem::finite_elements::functions::extract_unique_elements_of_rotation_matrix;
@@ -67,12 +66,8 @@ pub struct Truss2n1ip<T, V>
 
 
 impl<T, V> Truss2n1ip<T, V>
-    where T: Copy + PartialOrd + Add<Output = T> + Sub<Output = T> + Div<Output = T> +
-             Rem<Output = T> + Eq + Hash + SubAssign + Debug + Mul<Output = T> + AddAssign +
-             From<u8> + Ord + 'static,
-          V: Copy + Into<f64> + Sub<Output = V> + Mul<Output = V> + From<f32> + Add<Output = V> +
-             Div<Output = V> + PartialEq + Debug + AddAssign + MulAssign + SubAssign +
-             MyFloatTrait + PartialOrd + 'static
+    where T: UIntTrait<Output = T>,
+          V: FloatTrait<Output = V, Other = V>
 {
     pub fn create(node_1_number: T, node_2_number: T, young_modulus: V, area: V, area_2: Option<V>,
         tolerance: V, nodes: &HashMap<T, FENode<V>>) -> Result<Self, String>
@@ -154,12 +149,8 @@ impl<T, V> Truss2n1ip<T, V>
 
 
 impl<T, V> FiniteElementTrait<T, V> for Truss2n1ip<T, V>
-    where T: Copy + Add<Output = T> + Sub<Output = T> + Div<Output = T> + Rem<Output = T> +
-             Mul<Output = T> + Eq + Hash + Debug + SubAssign + PartialOrd + AddAssign +
-             From<u8> + Ord + 'static,
-          V: Copy + Sub<Output = V> + Mul<Output = V> + Add<Output = V> + Div<Output = V> +
-             Into<f64> + SubAssign + AddAssign + MulAssign + PartialEq + Debug +
-             MyFloatTrait + PartialOrd + From<f32> + 'static,
+    where T: UIntTrait<Output = T>,
+          V: FloatTrait<Output = V, Other = V>,
 {
     fn update(&mut self, nodes_numbers: Vec<T>, properties: Vec<V>, tolerance: V,
         nodes: &HashMap<T, FENode<V>>) -> Result<(), String>
