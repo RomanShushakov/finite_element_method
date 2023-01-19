@@ -1,16 +1,16 @@
 use std::collections::HashMap;
 
-use extended_matrix::matrix_element_position::MatrixElementPosition;
-use extended_matrix::extended_matrix::ExtendedMatrix;
-use extended_matrix::functions::{conversion_uint_into_usize, matrix_element_value_extractor};
-use extended_matrix::traits::{UIntTrait, FloatTrait};
+use extended_matrix::
+{
+    FloatTrait, Matrix, SquareMatrix, Position, BasicOperationsTrait, Vector3, VectorTrait,
+};
 
 use crate::fem::finite_elements::fe_node::FENode;
 use crate::fem::finite_elements::plate::plate4n4ip::Plate4n4ip;
 use crate::fem::finite_elements::beam::beam2n1ipt::Beam2n1ipT;
 use crate::fem::global_analysis::fe_stiffness::
 {
-    stiffness_types_number, StiffnessGroup, StiffnessType, StiffnessGroupKey
+    stiffness_types_number, StiffnessType, StiffnessGroupKey,
 };
 use crate::fem::global_analysis::fe_dof_parameter_data::global_dof;
 
@@ -21,31 +21,32 @@ use crate::fem::finite_elements::functions::compare_with_tolerance;
 use crate::fem::convex_hull_on_plane::{Point, convex_hull_on_plane};
 
 
-pub(super) fn add_new_stiffness_sub_groups<'a, T>(
-    stiffness_groups: &mut HashMap<StiffnessGroupKey<T>, Vec<MatrixElementPosition<T>>>,
-    global_group_position: T, global_group_columns_number: T, global_number_1: T,
-    global_number_2: T) -> Result<(), &'a str>
-    where T: UIntTrait<Output = T>
+pub(super) fn add_new_stiffness_sub_groups(
+    stiffness_groups: &mut HashMap<StiffnessGroupKey, Vec<Position>>,
+    global_group_position: usize, 
+    global_group_columns_number: usize, 
+    global_number_1: usize,
+    global_number_2: usize
+) 
+    -> Result<(), String>
 {
     let row = global_group_position / global_group_columns_number;
     let column = global_group_position % global_group_columns_number;
 
-    let mut k = T::from(0u8);
+    let mut k = 0;
     while k < stiffness_types_number()
     {
-        let start_row = row * global_dof::<T>();
+        let start_row = row * global_dof();
 
-        let row_shift_init = k / T::from(2u8) * (global_dof::<T>() / T::from(2u8));
+        let row_shift_init = k / 2 * (global_dof() / 2);
 
-        let row_shift_final = k / T::from(2u8) * (global_dof::<T>() / T::from(2u8)) +
-            (global_dof::<T>() / T::from(2u8));
+        let row_shift_final = k / 2 * (global_dof() / 2) + (global_dof() / 2);
 
-        let start_column = column * global_dof::<T>();
+        let start_column = column * global_dof();
 
-        let column_shift_init = k % T::from(2u8) * (global_dof::<T>() / T::from(2u8));
+        let column_shift_init = k % 2 * (global_dof() / 2);
 
-        let column_shift_final = k % T::from(2u8) * (global_dof::<T>() / T::from(2u8)) +
-            (global_dof::<T>() / T::from(2u8));
+        let column_shift_final = k % 2 * (global_dof() / 2) + (global_dof() / 2);
 
         let mut element_positions = Vec::new();
         let mut current_row = start_row + row_shift_init;
@@ -54,125 +55,116 @@ pub(super) fn add_new_stiffness_sub_groups<'a, T>(
             let mut current_column  = start_column + column_shift_init;
             while current_column < start_column + column_shift_final
             {
-                element_positions.push(
-                    MatrixElementPosition::create(current_row, current_column));
-                current_column += T::from(1u8);
+                element_positions.push(Position::create(current_row, current_column));
+                current_column += 1;
             }
-            current_row += T::from(1u8);
+            current_row += 1;
         }
-        let converted_index = conversion_uint_into_usize(k);
         let stiffness_type = StiffnessType::iterator()
-            .nth(converted_index)
-            .ok_or("FEModel: Stiffness type could not be defined")?;
+            .nth(k)
+            .ok_or("FEModel: Stiffness type could not be defined".to_string())?;
         let stiffness_group_key = StiffnessGroupKey { stiffness_type: *stiffness_type,
             number_1: global_number_1, number_2: global_number_2 };
         stiffness_groups.insert(stiffness_group_key, element_positions);
-        k += T::from(1u8);
+        k += 1;
     }
     Ok(())
 }
 
 
-pub(super) fn separate<T, V>(matrix: ExtendedMatrix<T, V>, positions: Vec<MatrixElementPosition<T>>,
-    tolerance: V) -> Result<SeparatedMatrix<T, V>, String>
-    where T: UIntTrait<Output = T>,
-          V: FloatTrait<Output = V, Other = V>
+pub(super) fn separate<V>(
+    matrix: SquareMatrix<V>, 
+    positions: Vec<Position>,
+    tolerance: V,
+) 
+    -> Result<SeparatedMatrix<V>, String>
+    where V: FloatTrait<Output = V, Other = V>
 {
-    let shape = matrix.copy_shape();
+    let shape = matrix.get_shape();
 
-    let mut converted_positions_length = T::from(0u8);
-    (0..positions.len()).for_each(|_| converted_positions_length += T::from(1u8));
-
-    let k_aa_rows_number = shape.0 - converted_positions_length;
-
-    let k_aa_columns_number = shape.1 - converted_positions_length;
+    let k_aa_order = shape.0 - positions.len();
 
     let mut k_aa_elements = Vec::new();
 
-    let mut i = T::from(0u8);
+    let mut i = 0;
     while i < shape.0
     {
-        let mut j = T::from(0u8);
+        let mut j = 0;
         while j < shape.1
         {
-            if positions.iter().position(|p| *p.ref_row() == i).is_none() &&
-                positions.iter().position(|p| *p.ref_column() == j).is_none()
+            if positions.iter().position(|p| *p.0 == i).is_none() &&
+                positions.iter().position(|p| *p.1 == j).is_none()
             {
-                let value = matrix_element_value_extractor(i, j, &matrix)?;
+                let value = matrix.get_element_value(&Position(i, j))?;
                 k_aa_elements.push(value);
             }
-            j += T::from(1u8);
+            j += 1;
         }
-        i += T::from(1u8);
+        i += 1;
     }
 
-    let k_aa_matrix = ExtendedMatrix::create(k_aa_rows_number,
-        k_aa_columns_number, k_aa_elements, tolerance)?;
+    let k_aa_matrix = SquareMatrix::create(k_aa_order, k_aa_elements);
 
-    let k_ab_rows_number = shape.0 - converted_positions_length;
+    let k_ab_rows_number = shape.0 - positions.len();
 
-    let k_ab_columns_number = converted_positions_length;
+    let k_ab_columns_number = positions.len();
 
     let mut k_ab_elements = Vec::new();
 
-    let mut i = T::from(0u8);
+    let mut i = 0;
     while i < shape.0
     {
-        if positions.iter().position(|p| *p.ref_row() == i).is_none()
+        if positions.iter().position(|p| *p.0 == i).is_none()
         {
             for j in 0..positions.len()
             {
                 let row = i;
-                let column = positions[j].ref_column();
+                let column = positions[j].1;
                 if *column > shape.1
                 {
                     return Err("Extended matrix: Matrix could not be separated! Matrix Kab \
                         could not be composed!".to_string());
                 }
-                let value = matrix_element_value_extractor(row, *column, &matrix)?;
+                let value = matrix.get_element_value(&Position(row, column))?;
                 k_ab_elements.push(value);
             }
         }
-        i += T::from(1u8);
+        i += 1;
     }
 
-    let k_ab_matrix = ExtendedMatrix::create(k_ab_rows_number,
-        k_ab_columns_number, k_ab_elements, tolerance)?;
+    let k_ab_matrix = Matrix::create(k_ab_rows_number, k_ab_columns_number, k_ab_elements);
 
-    let k_ba_rows_number = converted_positions_length;
+    let k_ba_rows_number = positions.len();
 
-    let k_ba_columns_number = shape.1 - converted_positions_length;
+    let k_ba_columns_number = shape.1 - positions.len();
 
     let mut k_ba_elements = Vec::new();
 
 
     for i in 0..positions.len()
     {
-        let mut j = T::from(0u8);
+        let mut j = 0;
         while j < shape.1
         {
-            if positions.iter().position(|p| *p.ref_column() == j).is_none()
+            if positions.iter().position(|p| *p.1 == j).is_none()
             {
-                let row = positions[i].ref_row();
+                let row = positions[i].0;
                 let column = j;
                 if *row > shape.0
                 {
                     return Err("Extended matrix: Matrix could not be separated! Matrix Kba \
                         could not be composed!".to_string());
                 }
-                let value = matrix_element_value_extractor(*row, column, &matrix)?;
+                let value = matrix.get_element_value(&Position(row, column))?;
                 k_ba_elements.push(value);
             }
-            j += T::from(1u8);
+            j += 1;
         }
     }
 
-    let k_ba_matrix = ExtendedMatrix::create(k_ba_rows_number,
-        k_ba_columns_number, k_ba_elements, tolerance)?;
+    let k_ba_matrix = Matrix::create(k_ba_rows_number, k_ba_columns_number, k_ba_elements);
 
-    let k_bb_rows_number = converted_positions_length;
-
-    let k_bb_columns_number = converted_positions_length;
+    let k_bb_order = positions.len();
 
     let mut k_bb_elements = Vec::new();
 
@@ -180,22 +172,21 @@ pub(super) fn separate<T, V>(matrix: ExtendedMatrix<T, V>, positions: Vec<Matrix
     {
         for j in 0..positions.len()
         {
-            let row = positions[i].ref_row();
-            let column = positions[j].ref_column();
+            let row = positions[i].0;
+            let column = positions[j].1;
             if *row > shape.0 || *column > shape.1
             {
                 return Err("Extended matrix: Matrix could not be separated! Matrix Kbb could \
                     not be composed!".to_string());
             }
-            let value = matrix_element_value_extractor(*row, *column, &matrix)?;
+            let value = matrix.get_element_value(&Position(row, column))?;
             k_bb_elements.push(value);
         }
     }
-    let k_bb_matrix = ExtendedMatrix::create(k_bb_rows_number,
-        k_bb_columns_number, k_bb_elements, tolerance)?;
+    let k_bb_matrix = SquareMatrix::create(k_bb_order, k_bb_elements);
 
-    let separated_matrix = SeparatedMatrix::create(k_aa_matrix,
-        k_ab_matrix, k_ba_matrix, k_bb_matrix);
+    let separated_matrix = SeparatedMatrix::create(k_aa_matrix, k_ab_matrix, k_ba_matrix, 
+        k_bb_matrix);
 
     Ok(separated_matrix)
 }
@@ -272,11 +263,15 @@ pub fn is_points_of_quadrilateral_on_the_same_plane<V>(point_1: &[V], point_2: &
 }
 
 
-
-fn rotation_matrix_of_quadrilateral<T, V>(point_2: &[V], point_3: &[V], point_4: &[V], 
-    tolerance: V) -> Result<ExtendedMatrix<T, V>, String>
-    where T: UIntTrait<Output = T>,
-          V: FloatTrait<Output = V, Other = V>
+fn rotation_matrix_of_quadrilateral<V>(
+    point_2: &[V], 
+    point_3: &[V], 
+    point_4: &[V], 
+    rel_tol: V,
+    abs_tol: V,
+) 
+    -> Result<Matrix<V>, String>
+    where V: FloatTrait<Output = V, Other = V>
 {
     let edge_3_4_x = point_4[0] - point_3[0];
     let edge_3_4_y = point_4[1] - point_3[1];
@@ -289,57 +284,74 @@ fn rotation_matrix_of_quadrilateral<T, V>(point_2: &[V], point_3: &[V], point_4:
     let normal_through_node_3_y = edge_3_4_z * edge_3_2_x - edge_3_4_x * edge_3_2_z;
     let normal_through_node_3_z = edge_3_4_x * edge_3_2_y - edge_3_4_y * edge_3_2_x;
 
-    let normal_through_node_3_length = ((normal_through_node_3_x).my_powi(2) + 
-        (normal_through_node_3_y).my_powi(2) + (normal_through_node_3_z).my_powi(2)).my_sqrt();
-    let (u, v, w) = (V::from(0f32), V::from(0f32), normal_through_node_3_length);
-    let alpha = ((normal_through_node_3_x * u + normal_through_node_3_y * v + normal_through_node_3_z * w) / 
-        (normal_through_node_3_length * normal_through_node_3_length)).my_acos();
+    let normal_through_node_3_vector = Vector3::create(
+        &[normal_through_node_3_x, normal_through_node_3_y, normal_through_node_3_z],
+    );
+    let normal_through_node_3_length = normal_through_node_3_vector.norm()?;
+    let direction_vector = Vector3::create(
+        &[V::from(0f32), V::from(0f32), normal_through_node_3_length],
+    );
 
-    let rotation_axis_coord_x = 
-        {
-            if normal_through_node_3_x == V::from(0f32) && 
-                normal_through_node_3_y == V::from(0f32) && 
-                normal_through_node_3_z != V::from(0f32) 
-            {
-                normal_through_node_3_length
-            }
-            else
-            {
-                normal_through_node_3_y * w - normal_through_node_3_z * v
-            }
-        };
-    let rotation_axis_coord_y = normal_through_node_3_z * u - normal_through_node_3_x * w;
-    let rotation_axis_coord_z = normal_through_node_3_x * v - normal_through_node_3_y * u;
+    let rotation_matrix = normal_through_node_3_vector
+        .rotation_matrix_to_align_with_vector(&direction_vector, rel_tol, abs_tol)?;
 
-    let norm = V::from(1f32) / (rotation_axis_coord_x.my_powi(2) +
-        rotation_axis_coord_y.my_powi(2) + rotation_axis_coord_z.my_powi(2)).my_sqrt();
-    let (x_n, y_n, z_n) = (rotation_axis_coord_x * norm,
-        rotation_axis_coord_y * norm, rotation_axis_coord_z * norm);
-    let (c, s) = (alpha.my_cos(), alpha.my_sin());
-    let t = V::from(1f32) - c;
-    let q_11 = compare_with_tolerance(t * x_n * x_n + c, tolerance);
-    let q_12 = compare_with_tolerance(t * x_n * y_n - z_n * s, tolerance);
-    let q_13 = compare_with_tolerance(t * x_n * z_n + y_n * s, tolerance);
-    let q_21 = compare_with_tolerance(t * x_n * y_n + z_n * s, tolerance);
-    let q_22 = compare_with_tolerance(t * y_n * y_n + c, tolerance);
-    let q_23 = compare_with_tolerance(t * y_n * z_n - x_n * s, tolerance);
-    let q_31 = compare_with_tolerance(t * x_n * z_n - y_n * s, tolerance);
-    let q_32 = compare_with_tolerance(t * y_n * z_n + x_n * s, tolerance);
-    let q_33 = compare_with_tolerance(t * z_n * z_n + c, tolerance);
+    // let normal_through_node_3_length = ((normal_through_node_3_x).my_powi(2) + 
+    //     (normal_through_node_3_y).my_powi(2) + (normal_through_node_3_z).my_powi(2)).my_sqrt();
+    // let (u, v, w) = (V::from(0f32), V::from(0f32), normal_through_node_3_length);
+    // let alpha = ((normal_through_node_3_x * u + normal_through_node_3_y * v + normal_through_node_3_z * w) / 
+    //     (normal_through_node_3_length * normal_through_node_3_length)).my_acos();
+
+    // let rotation_axis_coord_x = 
+    //     {
+    //         if normal_through_node_3_x == V::from(0f32) && 
+    //             normal_through_node_3_y == V::from(0f32) && 
+    //             normal_through_node_3_z != V::from(0f32) 
+    //         {
+    //             normal_through_node_3_length
+    //         }
+    //         else
+    //         {
+    //             normal_through_node_3_y * w - normal_through_node_3_z * v
+    //         }
+    //     };
+    // let rotation_axis_coord_y = normal_through_node_3_z * u - normal_through_node_3_x * w;
+    // let rotation_axis_coord_z = normal_through_node_3_x * v - normal_through_node_3_y * u;
+
+    // let norm = V::from(1f32) / (rotation_axis_coord_x.my_powi(2) +
+    //     rotation_axis_coord_y.my_powi(2) + rotation_axis_coord_z.my_powi(2)).my_sqrt();
+    // let (x_n, y_n, z_n) = (rotation_axis_coord_x * norm,
+    //     rotation_axis_coord_y * norm, rotation_axis_coord_z * norm);
+    // let (c, s) = (alpha.my_cos(), alpha.my_sin());
+    // let t = V::from(1f32) - c;
+    // let q_11 = compare_with_tolerance(t * x_n * x_n + c, tolerance);
+    // let q_12 = compare_with_tolerance(t * x_n * y_n - z_n * s, tolerance);
+    // let q_13 = compare_with_tolerance(t * x_n * z_n + y_n * s, tolerance);
+    // let q_21 = compare_with_tolerance(t * x_n * y_n + z_n * s, tolerance);
+    // let q_22 = compare_with_tolerance(t * y_n * y_n + c, tolerance);
+    // let q_23 = compare_with_tolerance(t * y_n * z_n - x_n * s, tolerance);
+    // let q_31 = compare_with_tolerance(t * x_n * z_n - y_n * s, tolerance);
+    // let q_32 = compare_with_tolerance(t * y_n * z_n + x_n * s, tolerance);
+    // let q_33 = compare_with_tolerance(t * z_n * z_n + c, tolerance);
     
-    let rotation_matrix = ExtendedMatrix::create(T::from(3u8), T::from(3u8),
-        vec![q_11, q_12, q_13, q_21, q_22, q_23, q_31, q_32, q_33], tolerance)?;
+    // let rotation_matrix = SquareMatrix::create(3usize, 
+    //     &[q_11, q_12, q_13, q_21, q_22, q_23, q_31, q_32, q_33]);
+
     Ok(rotation_matrix)
 }
 
 
-pub fn convex_hull_on_four_points_on_plane<T, V>(point_numbers: &[T], points: &[&[V]], tolerance: V) 
-    -> Result<Vec<T>, String>
-    where T: UIntTrait<Output = T>,
-          V: FloatTrait<Output = V, Other = V>
+pub fn convex_hull_on_four_points_on_plane<V>(
+    point_numbers: &[u32], 
+    points: &[&[V]], 
+    rel_tol: V,
+    abs_tol: V,
+) 
+    -> Result<Vec<u32>, String>
+    where V: FloatTrait<Output = V, Other = V>
 {
-    let rotation_matrix = rotation_matrix_of_quadrilateral::<T, V>(points[1], points[2], 
-        points[3], tolerance)?;
+    let rotation_matrix = rotation_matrix_of_quadrilateral::<V>(
+        points[1], points[2], points[3], rel_tol, abs_tol,
+    )?;
 
     let point_1_direction_vector = vec![
         points[0][0] - points[2][0], points[0][1] - points[2][1], points[0][2] - points[2][2],
@@ -351,53 +363,63 @@ pub fn convex_hull_on_four_points_on_plane<T, V>(point_numbers: &[T], points: &[
         points[3][0] - points[2][0], points[3][1] - points[2][1], points[3][2] - points[2][2],
     ];
 
-    let point_1_direction = ExtendedMatrix::create(T::from(3u8),
-        T::from(1u8), point_1_direction_vector, tolerance)?;
-    let point_2_direction = ExtendedMatrix::create(T::from(3u8),
-        T::from(1u8), point_2_direction_vector, tolerance)?;
-    let point_4_direction = ExtendedMatrix::create(T::from(3u8),
-        T::from(1u8), point_4_direction_vector, tolerance)?;
+    let point_1_direction = Matrix::create(
+        3usize, 1, &point_1_direction_vector
+    );
+    let point_2_direction = Matrix::create(
+        3usize, 1, &point_2_direction_vector,
+    );
+    let point_4_direction = Matrix::create(
+        3usize, 1, &point_4_direction_vector, 
+    );
 
-    let transformed_point_1_direction = rotation_matrix.multiply_by_matrix(&point_1_direction)?;
-    let transformed_point_2_direction = rotation_matrix.multiply_by_matrix(&point_2_direction)?;
-    let transformed_point_4_direction = rotation_matrix.multiply_by_matrix(&point_4_direction)?;
+    let transformed_point_1_direction = rotation_matrix.multiply(&point_1_direction)?;
+    let transformed_point_2_direction = rotation_matrix.multiply(&point_2_direction)?;
+    let transformed_point_4_direction = rotation_matrix.multiply(&point_4_direction)?;
 
-    let transformed_point_1_direction_x =
-        matrix_element_value_extractor(T::from(0u8), T::from(0u8), &transformed_point_1_direction)?;
-    let transformed_point_1_direction_y =
-        matrix_element_value_extractor(T::from(1u8), T::from(0u8), &transformed_point_1_direction)?;
-    let transformed_point_2_direction_x =
-        matrix_element_value_extractor(T::from(0u8), T::from(0u8), &transformed_point_2_direction)?;
-    let transformed_point_2_direction_y =
-        matrix_element_value_extractor(T::from(1u8), T::from(0u8), &transformed_point_2_direction)?;
-    let transformed_point_4_direction_x =
-        matrix_element_value_extractor(T::from(0u8), T::from(0u8), &transformed_point_4_direction)?;
-    let transformed_point_4_direction_y =
-        matrix_element_value_extractor(T::from(1u8), T::from(0u8), &transformed_point_4_direction)?;
+    let transformed_point_1_direction_x = transformed_point_1_direction.get_element_value(&Position(0, 0))?;
+    let transformed_point_1_direction_y = transformed_point_1_direction.get_element_value(&Position(1, 0))?;
+    let transformed_point_2_direction_x = transformed_point_2_direction.get_element_value(&Position(0, 0))?;
+    let transformed_point_2_direction_y = transformed_point_2_direction.get_element_value(&Position(1, 0))?;
+    let transformed_point_4_direction_x = transformed_point_4_direction.get_element_value(&Position(0, 0))?;
+    let transformed_point_4_direction_y = transformed_point_4_direction.get_element_value(&Position(1, 0))?;
 
-    let point_1_on_plane = Point::create(point_numbers[0], transformed_point_1_direction_x, 
-        transformed_point_1_direction_y);
-    let point_2_on_plane = Point::create(point_numbers[1], transformed_point_2_direction_x, 
-        transformed_point_2_direction_y);
-    let point_3_on_plane = Point::create(point_numbers[2], V::from(0f32), V::from(0f32));
-    let point_4_on_plane = Point::create(point_numbers[3], transformed_point_4_direction_x, 
-        transformed_point_4_direction_y);
+    let point_1_on_plane = Point::create(
+        point_numbers[0], transformed_point_1_direction_x, transformed_point_1_direction_y,
+    );
+    let point_2_on_plane = Point::create(
+        point_numbers[1], transformed_point_2_direction_x, transformed_point_2_direction_y,
+    );
+    let point_3_on_plane = Point::create(
+        point_numbers[2], V::from(0f32), V::from(0f32),
+    );
+    let point_4_on_plane = Point::create(
+        point_numbers[3], transformed_point_4_direction_x, transformed_point_4_direction_y,
+    );
 
     let convex_hull_on_plane = convex_hull_on_plane(
-        &[point_1_on_plane, point_2_on_plane, point_3_on_plane, point_4_on_plane]);
+        &[point_1_on_plane, point_2_on_plane, point_3_on_plane, point_4_on_plane]
+    );
     
-    let convex_hull_point_numbers = convex_hull_on_plane.iter().map(|point| point.copy_number())
-        .collect::<Vec<T>>();
+    let convex_hull_point_numbers = convex_hull_on_plane
+        .iter()
+        .map(|point| point.copy_number())
+        .collect::<Vec<u32>>();
 
     Ok(convex_hull_point_numbers)
 }
 
 
-pub fn convert_uniformly_distributed_surface_force_to_nodal_forces<T, V>(node_1_data: (T, V, V, V),
-    node_2_data: (T, V, V, V), node_3_data: (T, V, V, V), node_4_data: (T, V, V, V), 
-    uniformly_distributed_surface_force_value: V, tolerance: V) -> Result<HashMap<T, V>, String>
-    where T: UIntTrait<Output = T>,
-          V: FloatTrait<Output = V, Other = V>
+pub fn convert_uniformly_distributed_surface_force_to_nodal_forces<V>(
+    node_1_data: (u32, V, V, V),
+    node_2_data: (u32, V, V, V),
+    node_3_data: (u32, V, V, V),
+    node_4_data: (u32, V, V, V), 
+    uniformly_distributed_surface_force_value: V,
+    tolerance: V
+)
+    -> Result<HashMap<u32, V>, String>
+    where V: FloatTrait<Output = V, Other = V>
 {
     let mut nodes = HashMap::new();
     nodes.insert(node_1_data.0, FENode::create(node_1_data.1, node_1_data.2, node_1_data.3));
@@ -405,18 +427,28 @@ pub fn convert_uniformly_distributed_surface_force_to_nodal_forces<T, V>(node_1_
     nodes.insert(node_3_data.0, FENode::create(node_3_data.1, node_3_data.2, node_3_data.3));
     nodes.insert(node_4_data.0, FENode::create(node_4_data.1, node_4_data.2, node_4_data.3));
 
-    let default_plate_element = Plate4n4ip::create(node_1_data.0, node_2_data.0, 
-        node_3_data.0, node_4_data.0, V::from(1e7f32), V::from(0.3f32), 
-        V::from(0.1f32), V::from(0.833f32), tolerance, &nodes)?;
+    let default_plate_element = Plate4n4ip::create(
+        node_1_data.0, 
+        node_2_data.0, 
+        node_3_data.0, 
+        node_4_data.0, 
+        V::from(1e7f32), 
+        V::from(0.3f32), 
+        V::from(0.1f32), 
+        V::from(0.833f32), 
+        tolerance, 
+        &nodes
+    )?;
     
-    let nodal_forces_matrix = 
-        default_plate_element.convert_uniformly_distributed_surface_force_to_nodal_forces(
-            uniformly_distributed_surface_force_value, &nodes, tolerance)?;
+    let nodal_forces_matrix = default_plate_element
+        .convert_uniformly_distributed_surface_force_to_nodal_forces(
+            uniformly_distributed_surface_force_value, &nodes, tolerance,
+    )?;
 
-    let nodal_force_1 = matrix_element_value_extractor(T::from(0u8), T::from(0u8), &nodal_forces_matrix)?;
-    let nodal_force_2 = matrix_element_value_extractor(T::from(1u8), T::from(0u8), &nodal_forces_matrix)?;
-    let nodal_force_3 = matrix_element_value_extractor(T::from(2u8), T::from(0u8), &nodal_forces_matrix)?;
-    let nodal_force_4 = matrix_element_value_extractor(T::from(3u8), T::from(0u8), &nodal_forces_matrix)?;
+    let nodal_force_1 = nodal_forces_matrix.get_element_value(&Position(0, 0))?;
+    let nodal_force_2 = nodal_forces_matrix.get_element_value(&Position(1, 0))?;
+    let nodal_force_3 = nodal_forces_matrix.get_element_value(&Position(2, 0))?;
+    let nodal_force_4 = nodal_forces_matrix.get_element_value(&Position(3, 0))?;
 
     Ok(HashMap::from([
         (node_1_data.0, nodal_force_1), (node_2_data.0, nodal_force_2), 
@@ -425,27 +457,41 @@ pub fn convert_uniformly_distributed_surface_force_to_nodal_forces<T, V>(node_1_
 }
 
 
-pub fn convert_uniformly_distributed_line_force_to_nodal_forces<T, V>(node_1_data: (T, V, V, V),
-    node_2_data: (T, V, V, V), uniformly_distributed_line_force_value: V, tolerance: V) 
-    -> Result<HashMap<T, V>, String>
-    where T: UIntTrait<Output = T>,
-          V: FloatTrait<Output = V, Other = V>
+pub fn convert_uniformly_distributed_line_force_to_nodal_forces<V>(
+    node_1_data: (u32, V, V, V),
+    node_2_data: (u32, V, V, V), 
+    uniformly_distributed_line_force_value: V, 
+    tolerance: V,
+) 
+    -> Result<HashMap<u32, V>, String>
+    where V: FloatTrait<Output = V, Other = V>
 {
     let mut nodes = HashMap::new();
     nodes.insert(node_1_data.0, FENode::create(node_1_data.1, node_1_data.2, node_1_data.3));
     nodes.insert(node_2_data.0, FENode::create(node_2_data.1, node_2_data.2, node_2_data.3));
 
-    let default_beam_element = Beam2n1ipT::create(node_1_data.0, 
-        node_2_data.0, V::from(1e7f32), V::from(0.3f32), V::from(1f32),
-        V::from(1f32), V::from(1f32), V::from(0f32), V::from(1f32), V::from(0.833f32), 
-        [V::from(0f32), V::from(0f32), V::from(1f32)], tolerance, &nodes)?;
+    let default_beam_element = Beam2n1ipT::create(
+        node_1_data.0,
+        node_2_data.0,
+        V::from(1e7f32),
+        V::from(0.3f32),
+        V::from(1f32),
+        V::from(1f32),
+        V::from(1f32), V::from(0f32),
+        V::from(1f32),
+        V::from(0.833f32), 
+        [V::from(0f32), V::from(0f32), V::from(1f32)],
+        tolerance,
+        &nodes
+    )?;
 
-    let nodal_forces_matrix = 
-        default_beam_element.convert_uniformly_distributed_line_force_to_nodal_forces(
-            uniformly_distributed_line_force_value, &nodes, tolerance)?;
+    let nodal_forces_matrix = default_beam_element
+        .convert_uniformly_distributed_line_force_to_nodal_forces(
+            uniformly_distributed_line_force_value, &nodes, tolerance
+    )?;
     
-    let nodal_force_1 = matrix_element_value_extractor(T::from(0u8), T::from(0u8), &nodal_forces_matrix)?;
-    let nodal_force_2 = matrix_element_value_extractor(T::from(1u8), T::from(0u8), &nodal_forces_matrix)?;
+    let nodal_force_1 = nodal_forces_matrix.get_element_value(&Position(0, 0));
+    let nodal_force_2 = nodal_forces_matrix.get_element_value(&Position(1, 0));
 
     Ok(HashMap::from([(node_1_data.0, nodal_force_1), (node_2_data.0, nodal_force_2)]))
 }

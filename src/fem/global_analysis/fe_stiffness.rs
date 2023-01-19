@@ -1,7 +1,6 @@
 use std::slice::Iter;
-use std::ops::AddAssign;
 
-use extended_matrix::matrix_element_position::MatrixElementPosition;
+use extended_matrix::Position;
 
 use self::StiffnessType::*;
 
@@ -9,12 +8,9 @@ use self::StiffnessType::*;
 const STIFFNESS_TYPES_NUMBER: usize = 4;
 
 
-pub fn stiffness_types_number<T>() -> T
-    where T: AddAssign + From<u8>
+pub fn stiffness_types_number() -> usize
 {
-    let mut n = T::from(0u8);
-    (0..STIFFNESS_TYPES_NUMBER).for_each(|_| n += T::from(1u8));
-    n
+    STIFFNESS_TYPES_NUMBER
 }
 
 
@@ -41,19 +37,19 @@ impl StiffnessType
 }
 
 
-pub struct StiffnessGroup<T>
+pub struct StiffnessGroup
 {
     pub stiffness_type: StiffnessType,
-    pub number_1: T,
-    pub number_2: T,
-    pub positions: Vec<MatrixElementPosition<T>>
+    pub number_1: u32,
+    pub number_2: u32,
+    pub positions: Vec<Position>
 }
 
 
 #[derive(Hash, Eq, PartialEq)]
-pub struct StiffnessGroupKey<T>
+pub struct StiffnessGroupKey
 {
     pub stiffness_type: StiffnessType,
-    pub number_1: T,
-    pub number_2: T,
+    pub number_1: u32,
+    pub number_2: u32,
 }

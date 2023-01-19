@@ -1,9 +1,7 @@
 use std::collections::HashMap;
 use std::any::Any;
 
-use extended_matrix::matrix_element_position::MatrixElementPosition;
-use extended_matrix::extended_matrix::ExtendedMatrix;
-use extended_matrix::traits::{UIntTrait, FloatTrait};
+use extended_matrix::{Position, Matrix, FloatTrait};
 
 use crate::fem::element_analysis::fe_stress_strain_components::StressStrainComponent;
 use crate::fem::finite_elements::finite_element::{FiniteElementTrait, FEType};
@@ -183,8 +181,13 @@ impl<T, V> Plate4n4ip<T, V>
     }
 
 
-    pub fn convert_uniformly_distributed_surface_force_to_nodal_forces(&self, uniformly_distributed_surface_force_value: V, 
-        ref_nodes: &HashMap<T, FENode<V>>, tolerance: V) -> Result<ExtendedMatrix<T, V>, String>
+    pub fn convert_uniformly_distributed_surface_force_to_nodal_forces(
+        &self, 
+        uniformly_distributed_surface_force_value: V, 
+        ref_nodes: &HashMap<T, FENode<V>>, 
+        tolerance: V
+    ) 
+        -> Result<Matrix<V>, String>
     {
         let distributed_force_matrix = ExtendedMatrix::create(T::from(1u8), T::from(1u8),
             vec![uniformly_distributed_surface_force_value], tolerance)?;

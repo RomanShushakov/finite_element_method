@@ -1,5 +1,4 @@
 use std::slice::Iter;
-use std::ops::AddAssign;
 
 use self::GlobalDOFParameter::*;
 
@@ -7,12 +6,9 @@ use self::GlobalDOFParameter::*;
 pub(crate) const GLOBAL_DOF: usize = 6;
 
 
-pub(crate) fn global_dof<T>() -> T
-    where T: AddAssign + From<u8>
+pub(crate) fn global_dof() -> usize
 {
-    let mut global_dof = T::from(0u8);
-    (0..GLOBAL_DOF).for_each(|_| global_dof += T::from(1u8));
-    global_dof
+    GLOBAL_DOF
 }
 
 
