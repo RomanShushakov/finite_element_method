@@ -536,7 +536,6 @@ impl<V> BeamAuxFunctions<V>
         it: V, 
         alpha: V, 
         r: V, 
-        tolerance: V, 
         nodes: &HashMap<u32, FENode<V>>,
     )
         -> Result<Matrix<V>, String>
