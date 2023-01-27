@@ -67,7 +67,7 @@ pub struct Point<V>
 
 
 impl<V> Point<V>
-    where V: FloatTrait<Output = V, Other = V>,
+    where V: FloatTrait<Output = V>,
 {
     pub fn create(n: u32, x: V, y: V) -> Self
     {
@@ -89,7 +89,7 @@ impl<V> Point<V>
 
 
 impl<V> PartialOrd for Point<V>
-    where V: FloatTrait<Output = V, Other = V>
+    where V: FloatTrait<Output = V>
 {
     fn partial_cmp(&self, other: &Point<V>) -> Option<Ordering>
     {
@@ -112,7 +112,7 @@ impl<V> PartialOrd for Point<V>
 
 
 impl<V> PartialEq for Point<V>
-    where V: FloatTrait<Output = V, Other = V>
+    where V: FloatTrait<Output = V>
 {
     fn eq(&self, other: &Point<V>) -> bool
     {
@@ -141,14 +141,14 @@ struct Vector<V>
 
 
 fn double_signed_area<V>(p_1: &Point<V>, p_2: &Point<V>, p_3: &Point<V>) -> V
-    where V: FloatTrait<Output = V, Other = V>
+    where V: FloatTrait<Output = V>
 {
     (p_2.x - p_1.x) * (p_3.y - p_1.y) - (p_2.y - p_1.y) * (p_3.x - p_1.x)
 }
 
 
 impl<V> Vector<V>
-    where V: FloatTrait<Output = V, Other = V>
+    where V: FloatTrait<Output = V>
 {
     fn create_directional_vector() -> Self
     {
@@ -190,7 +190,7 @@ impl<V> Vector<V>
 
 
 pub fn convex_hull_on_plane<V>(data: &[Point<V>]) -> Vec<Point<V>>
-    where V: FloatTrait<Output = V, Other = V>,
+    where V: FloatTrait<Output = V>,
 {
     let mut updated_data = data.to_vec();
     let mut shift_x = updated_data[0].x;

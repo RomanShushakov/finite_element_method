@@ -78,7 +78,7 @@ pub(super) fn separate<V>(
     tolerance: V,
 ) 
     -> Result<SeparatedMatrix<V>, String>
-    where V: FloatTrait<Output = V, Other = V>
+    where V: FloatTrait<Output = V>
 {
     let shape = matrix.get_shape();
 
@@ -194,7 +194,7 @@ pub(super) fn separate<V>(
 
 pub fn is_points_of_quadrilateral_on_the_same_line<V>(point_1: &[V], point_2: &[V], point_3: &[V], point_4: &[V],
     tolerance: V) -> bool
-    where V: FloatTrait<Output = V, Other = V>,
+    where V: FloatTrait<Output = V>,
 {
     let cross_product_handle = |vector_1: &[V], vector_2: &[V]| 
         {
@@ -236,7 +236,7 @@ pub fn is_points_of_quadrilateral_on_the_same_line<V>(point_1: &[V], point_2: &[
 
 pub fn is_points_of_quadrilateral_on_the_same_plane<V>(point_1: &[V], point_2: &[V], point_3: &[V], point_4: &[V],
     tolerance: V) -> bool
-    where V: FloatTrait<Output = V, Other = V>,
+    where V: FloatTrait<Output = V>,
 {
     let cross_product_handle = |vector_1: &[V], vector_2: &[V]| 
         {
@@ -271,7 +271,7 @@ fn rotation_matrix_of_quadrilateral<V>(
     abs_tol: V,
 ) 
     -> Result<Matrix<V>, String>
-    where V: FloatTrait<Output = V, Other = V>
+    where V: FloatTrait<Output = V>
 {
     let edge_3_4_x = point_4[0] - point_3[0];
     let edge_3_4_y = point_4[1] - point_3[1];
@@ -347,7 +347,7 @@ pub fn convex_hull_on_four_points_on_plane<V>(
     abs_tol: V,
 ) 
     -> Result<Vec<u32>, String>
-    where V: FloatTrait<Output = V, Other = V>
+    where V: FloatTrait<Output = V>
 {
     let rotation_matrix = rotation_matrix_of_quadrilateral::<V>(
         points[1], points[2], points[3], rel_tol, abs_tol,
@@ -416,10 +416,11 @@ pub fn convert_uniformly_distributed_surface_force_to_nodal_forces<V>(
     node_3_data: (u32, V, V, V),
     node_4_data: (u32, V, V, V), 
     uniformly_distributed_surface_force_value: V,
-    tolerance: V
+    rel_tol: V,
+    abs_tol: V,
 )
     -> Result<HashMap<u32, V>, String>
-    where V: FloatTrait<Output = V, Other = V>
+    where V: FloatTrait<Output = V>
 {
     let mut nodes = HashMap::new();
     nodes.insert(node_1_data.0, FENode::create(node_1_data.1, node_1_data.2, node_1_data.3));
@@ -436,13 +437,14 @@ pub fn convert_uniformly_distributed_surface_force_to_nodal_forces<V>(
         V::from(0.3f32), 
         V::from(0.1f32), 
         V::from(0.833f32), 
-        tolerance, 
-        &nodes
+        &nodes,
+        rel_tol,
+        abs_tol,
     )?;
     
     let nodal_forces_matrix = default_plate_element
         .convert_uniformly_distributed_surface_force_to_nodal_forces(
-            uniformly_distributed_surface_force_value, &nodes, tolerance,
+            uniformly_distributed_surface_force_value, &nodes, rel_tol,
     )?;
 
     let nodal_force_1 = nodal_forces_matrix.get_element_value(&Position(0, 0))?;
@@ -461,10 +463,11 @@ pub fn convert_uniformly_distributed_line_force_to_nodal_forces<V>(
     node_1_data: (u32, V, V, V),
     node_2_data: (u32, V, V, V), 
     uniformly_distributed_line_force_value: V, 
-    tolerance: V,
+    rel_tol: V,
+    abs_tol: V,
 ) 
     -> Result<HashMap<u32, V>, String>
-    where V: FloatTrait<Output = V, Other = V>
+    where V: FloatTrait<Output = V>
 {
     let mut nodes = HashMap::new();
     nodes.insert(node_1_data.0, FENode::create(node_1_data.1, node_1_data.2, node_1_data.3));
@@ -481,13 +484,14 @@ pub fn convert_uniformly_distributed_line_force_to_nodal_forces<V>(
         V::from(1f32),
         V::from(0.833f32), 
         [V::from(0f32), V::from(0f32), V::from(1f32)],
-        tolerance,
-        &nodes
+        &nodes,
+        rel_tol,
+        abs_tol,
     )?;
 
     let nodal_forces_matrix = default_beam_element
         .convert_uniformly_distributed_line_force_to_nodal_forces(
-            uniformly_distributed_line_force_value, &nodes, tolerance
+            uniformly_distributed_line_force_value, &nodes,
     )?;
     
     let nodal_force_1 = nodal_forces_matrix.get_element_value(&Position(0, 0));

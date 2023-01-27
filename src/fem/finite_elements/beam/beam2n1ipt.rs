@@ -200,7 +200,6 @@ impl<V> Beam2n1ipT<V>
         &self,
         uniformly_distributed_line_force_value: V,
         ref_nodes: &HashMap<u32, FENode<V>>,
-        tolerance: V
     ) 
         -> Result<Matrix<V>, String>
     {
