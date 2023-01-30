@@ -72,12 +72,7 @@ pub(super) fn add_new_stiffness_sub_groups(
 }
 
 
-pub(super) fn separate<V>(
-    matrix: SquareMatrix<V>, 
-    positions: Vec<Position>,
-    tolerance: V,
-) 
-    -> Result<SeparatedMatrix<V>, String>
+pub(super) fn separate<V>(matrix: Matrix<V>, positions: Vec<Position>) -> Result<SeparatedMatrix<V>, String>
     where V: FloatTrait<Output = V>
 {
     let shape = matrix.get_shape();

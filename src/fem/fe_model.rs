@@ -1,11 +1,8 @@
 use std::collections::{HashSet, HashMap};
 use std::iter::FromIterator;
 
-use extended_matrix::extended_matrix::ExtendedMatrix;
-use extended_matrix::matrix_element_position::MatrixElementPosition;
-use extended_matrix::functions::{conversion_uint_into_usize, matrix_element_value_extractor};
-use extended_matrix::basic_matrix::basic_matrix::BasicMatrixType;
-use extended_matrix::traits::{UIntTrait, FloatTrait};
+use extended_matrix::{Matrix, Position, FloatTrait, BasicOperationsTrait, TryIntoSymmetricCompactedMatrixTrait, Vector};
+use colsol::{factorization, find_unknown};
 
 use crate::fem::finite_elements::fe_node::{FENode, DeletedFENodeData};
 use crate::fem::finite_elements::finite_element::{FiniteElement, FEType, DeletedFEData};
@@ -31,25 +28,31 @@ use super::finite_elements::beam::beam2n1ipt::Beam2n1ipT;
 use super::finite_elements::plate::plate4n4ip::Plate4n4ip;
 
 
-struct State<T, V>
+struct State<V>
 {
-    stiffness_groups: HashMap<StiffnessGroupKey<T>, Vec<MatrixElementPosition<T>>>,
-    nodes_dof_parameters_global: Vec<DOFParameterData<T>>,
-    optional_ua_ra_rows_numbers: Option<Vec<T>>,
-    optional_ub_rb_rows_numbers: Option<Vec<T>>,
-    optional_ua_matrix: Option<ExtendedMatrix<T, V>>,
-    optional_ub_matrix: Option<ExtendedMatrix<T, V>>,
-    optional_ra_matrix: Option<ExtendedMatrix<T, V>>,
-    optional_rb_c_matrix: Option<ExtendedMatrix<T, V>>,
-    optional_separated_matrix: Option<SeparatedMatrix<T, V>>,
-    tolerance: V,
+    stiffness_groups: HashMap<StiffnessGroupKey, Vec<Position>>,
+    nodes_dof_parameters_global: Vec<DOFParameterData>,
+    optional_ua_ra_rows_numbers: Option<Vec<u32>>,
+    optional_ub_rb_rows_numbers: Option<Vec<u32>>,
+    optional_ua_matrix: Option<Matrix<V>>,
+    optional_ub_matrix: Option<Matrix<V>>,
+    optional_ra_matrix: Option<Matrix<V>>,
+    optional_rb_c_matrix: Option<Matrix<V>>,
+    optional_separated_matrix: Option<SeparatedMatrix<V>>,
+    rel_tol: V,
+    abs_tol: V,
 }
 
 
-impl<T, V> State<T, V>
+impl<V> State<V>
 {
-    fn create(stiffness_groups: HashMap<StiffnessGroupKey<T>, Vec<MatrixElementPosition<T>>>,
-        nodes_dof_parameters_global: Vec<DOFParameterData<T>>, tolerance: V,) -> Self
+    fn create(
+        stiffness_groups: HashMap<StiffnessGroupKey, Vec<Position>>,
+        nodes_dof_parameters_global: Vec<DOFParameterData>, 
+        rel_tol: V,
+        abs_tol: V,
+    ) 
+        -> Self
     {
         let optional_ua_ra_rows_numbers = None;
         let optional_ub_rb_rows_numbers = None;
@@ -58,35 +61,43 @@ impl<T, V> State<T, V>
         let optional_ra_matrix = None;
         let optional_rb_c_matrix = None;
         let optional_separated_matrix = None;
-        State { 
-            stiffness_groups, nodes_dof_parameters_global, tolerance, 
-            optional_ua_ra_rows_numbers, optional_ub_rb_rows_numbers, optional_ua_matrix, optional_ub_matrix, 
-            optional_ra_matrix, optional_rb_c_matrix, optional_separated_matrix,
+        State 
+        { 
+            stiffness_groups, 
+            nodes_dof_parameters_global, 
+            optional_ua_ra_rows_numbers, 
+            optional_ub_rb_rows_numbers, 
+            optional_ua_matrix, 
+            optional_ub_matrix, 
+            optional_ra_matrix, 
+            optional_rb_c_matrix, 
+            optional_separated_matrix,
+            rel_tol,
+            abs_tol,
         }
     }
 }
 
 
-pub struct FEModel<T, V>
+pub struct FEModel<V>
 {
-    nodes: HashMap<T, FENode<V>>,                           // Hashmap { node_number: Node }
-    elements: HashMap<T, FiniteElement<T, V>>,              // Hashmap { element_number: FiniteElement }
-    boundary_conditions: Vec<BoundaryCondition<T, V>>,
-    state: State<T, V>,
+    nodes: HashMap<u32, FENode<V>>,                           // Hashmap { node_number: Node }
+    elements: HashMap<u32, FiniteElement<V>>,              // Hashmap { element_number: FiniteElement }
+    boundary_conditions: Vec<BoundaryCondition<V>>,
+    state: State<V>,
 }
 
 
-impl<T, V> FEModel<T, V>
-    where T: UIntTrait<Output = T>,
-          V: FloatTrait<Output = V, Other = V>
+impl<V> FEModel<V>
+    where V: FloatTrait<Output = V>
 {
-    pub fn create(tolerance: V) -> Self
+    pub fn create(rel_tol: V, abs_tol: V) -> Self
     {
-        let state = State::create(HashMap::new(),
-            Vec::new(), tolerance);
+        let state = State::create(
+            HashMap::new(), Vec::new(), rel_tol, abs_tol,
+        );
 
-        FEModel { nodes: HashMap::new(), elements: HashMap::new(),
-            boundary_conditions: Vec::new(), state }
+        FEModel { nodes: HashMap::new(), elements: HashMap::new(), boundary_conditions: Vec::new(), state }
     }
 
 
@@ -128,10 +139,9 @@ impl<T, V> FEModel<T, V>
             {
                 nodes_numbers.push(*node_number);
             }
-            let mut position = T::from(0u8);
+            let mut position = 0;
 
-            let mut columns_number = T::from(0u8);
-            (0..nodes_numbers.len()).for_each(|_| columns_number += T::from(1u8));
+            let mut columns_number = nodes_numbers.len();
 
             for i in 1..nodes_numbers.len()
             {
@@ -143,30 +153,44 @@ impl<T, V> FEModel<T, V>
                 {
                     if j + 1 == i
                     {
-                        add_new_stiffness_sub_groups(&mut stiffness_groups,
-                            position, columns_number,
-                            nodes_numbers[j], nodes_numbers[j])?;
-                        position += T::from(1u8);
+                        add_new_stiffness_sub_groups(
+                            &mut stiffness_groups,
+                            position, 
+                            columns_number,
+                            nodes_numbers[j], 
+                            nodes_numbers[j],
+                        )?;
+                        position += 1;
                     }
-                    add_new_stiffness_sub_groups(&mut stiffness_groups,
-                        position, columns_number,
-                        excluded, v_lhs[j])?;
-                    position += T::from(1u8);
+                    add_new_stiffness_sub_groups(
+                        &mut stiffness_groups,
+                        position, 
+                        columns_number,
+                        excluded, 
+                        v_lhs[j],
+                    )?;
+                    position += 1;
                 }
             }
 
             for i in 0..nodes_numbers.len() - 1
             {
-                add_new_stiffness_sub_groups(&mut stiffness_groups,
-                    position, columns_number,
+                add_new_stiffness_sub_groups(
+                    &mut stiffness_groups,
+                    position, 
+                    columns_number,
                     nodes_numbers[nodes_numbers.len() - 1],
-                        nodes_numbers[i])?;
-                position += T::from(1u8);
+                    nodes_numbers[i],
+                )?;
+                position += 1;
             }
-            add_new_stiffness_sub_groups(&mut stiffness_groups,
-                position, columns_number,
+            add_new_stiffness_sub_groups(
+                &mut stiffness_groups,
+                position, 
+                columns_number,
                 nodes_numbers[nodes_numbers.len() - 1],
-                nodes_numbers[nodes_numbers.len() - 1])?;
+                nodes_numbers[nodes_numbers.len() - 1],
+            )?;
         }
         self.state.stiffness_groups = stiffness_groups;
         Ok(())
@@ -180,11 +204,10 @@ impl<T, V> FEModel<T, V>
         {
             for dof in 0..GLOBAL_DOF
             {
-                let dof_parameter =
-                    GlobalDOFParameter::iterator().nth(dof)
-                        .ok_or("FEModel: Could not find dof parameter!")?;
-                let dof_parameter_data = DOFParameterData::create(*node_number,
-                    *dof_parameter);
+                let dof_parameter = GlobalDOFParameter::iterator()
+                    .nth(dof)
+                    .ok_or("FEModel: Could not find dof parameter!")?;
+                let dof_parameter_data = DOFParameterData::create(*node_number, *dof_parameter);
                 nodes_dof_parameters.push(dof_parameter_data);
             }
         }
@@ -193,8 +216,7 @@ impl<T, V> FEModel<T, V>
     }
 
 
-    pub fn add_node(&mut self, number: T, x: V, y: V, z: V, stiffness_groups_update: bool)
-        -> Result<(), String>
+    pub fn add_node(&mut self, number: u32, x: V, y: V, z: V, stiffness_groups_update: bool) -> Result<(), String>
     {
         if self.nodes.contains_key(&number)
         {
@@ -220,10 +242,14 @@ impl<T, V> FEModel<T, V>
     }
 
 
-    pub fn update_node(&mut self, number: T, x: V, y: V, z: V) -> Result<(), String>
+    pub fn update_node(&mut self, number: u32, x: V, y: V, z: V) -> Result<(), String>
     {
-        if self.nodes.iter().position(|(node_number, node)|
-            *node_number != number && node.is_coordinates_same(x, y, z)).is_some()
+        if self.nodes
+            .iter()
+            .position(|(node_number, node)| 
+                *node_number != number && 
+                node.is_coordinates_same(x, y, z))
+            .is_some()
         {
             return Err(format!("FEModel: Node {:?} could not be updated because the node with the \
                 same coordinates does already exist!", number))
@@ -242,10 +268,8 @@ impl<T, V> FEModel<T, V>
     }
 
 
-    pub fn delete_node(&mut self, number: T, stiffness_groups_update: bool) 
-        -> Result<(DeletedFENodeData<T, V>,
-           Option<Vec<DeletedFEData<T, V>>>, 
-           Option<Vec<DeletedBCData<T, V>>>), String>
+    pub fn delete_node(&mut self, number: u32, stiffness_groups_update: bool) 
+        -> Result<(DeletedFENodeData<V>, Option<Vec<DeletedFEData<V>>>, Option<Vec<DeletedBCData<V>>>), String>
     {
         if !self.nodes.contains_key(&number)
         {
@@ -267,14 +291,16 @@ impl<T, V> FEModel<T, V>
         {
             let deleted_element = self.elements.remove(&element_number).unwrap();
             let deleted_element_number = element_number;
-            let deleted_finite_element_data =
-                DeletedFEData::create(deleted_element_number, deleted_element);
+            let deleted_finite_element_data = DeletedFEData::create(
+                deleted_element_number, deleted_element,
+            );
             deleted_finite_elements_data.push(deleted_finite_element_data);
         }
 
         let mut deleted_bcs_data = Vec::new();
-        while let Some(position) = self.boundary_conditions.iter().position(|bc|
-            bc.is_node_number_same(number))
+        while let Some(position) = self.boundary_conditions
+            .iter()
+            .position(|bc| bc.is_node_number_same(number))
         {
             let deleted_bc = self.boundary_conditions.remove(position);
             let deleted_bc_data = DeletedBCData::create(deleted_bc);
@@ -319,8 +345,10 @@ impl<T, V> FEModel<T, V>
     }
 
 
-    pub fn add_element(&mut self, element_number: T, element_type: FEType, nodes_numbers: Vec<T>,
-        properties: Vec<V>) -> Result<(), String>
+    pub fn add_element(
+        &mut self, element_number: u32, element_type: FEType, nodes_numbers: Vec<u32>, properties: Vec<V>,
+    ) 
+        -> Result<(), String>
     {
         if self.elements.contains_key(&element_number)
         {
@@ -328,8 +356,7 @@ impl<T, V> FEModel<T, V>
                 same number does already exist!", element_number));
         }
 
-        let nodes_numbers_set = HashSet::<T>::from_iter(
-            nodes_numbers.iter().cloned());
+        let nodes_numbers_set = HashSet::<u32>::from_iter(nodes_numbers.iter().cloned());
         if nodes_numbers.len() != nodes_numbers_set.len()
         {
             return Err(format!("FEModel: Element {:?} could not be added! All nodes numbers \
@@ -432,9 +459,12 @@ impl<T, V> FEModel<T, V>
                 },
         }
 
-        if self.elements.values().position(|element|
-            element.is_type_same(&element_type) &&
-            element.is_nodes_numbers_same(nodes_numbers.clone())).is_some()
+        if self.elements
+            .values()
+            .position(|element| 
+                element.is_type_same(&element_type) && 
+                element.is_nodes_numbers_same(nodes_numbers.clone()))
+            .is_some()
         {
             return Err(format!("FEModel: Element {:?} could not be added! The element with the same \
                 type and with same nodes numbers does already exist!", element_number));
@@ -480,14 +510,18 @@ impl<T, V> FEModel<T, V>
                         lie on the same plane!", element_number));
                 }
 
-                if convex_hull_on_four_points_on_plane(&nodes_numbers, 
+                if convex_hull_on_four_points_on_plane(
+                    &nodes_numbers, 
                     &[
                         &[node_1.copy_x(), node_1.copy_y(), node_1.copy_z()], 
                         &[node_2.copy_x(), node_2.copy_y(), node_2.copy_z()],  
                         &[node_3.copy_x(), node_3.copy_y(), node_3.copy_z()], 
                         &[node_4.copy_x(), node_4.copy_y(), node_4.copy_z()]
                     ], 
-                    self.state.tolerance)?.len() != 4
+                    self.state.rel_tol,
+                    self.state.abs_tol,
+                )?
+                .len() != 4
                 {
                     return Err(format!("FEModel: Element {:?} could not be added! \
                         Quadrilateral is not convex!", element_number));
@@ -496,19 +530,21 @@ impl<T, V> FEModel<T, V>
             _ => (),
         }
 
-        let element = FiniteElement::create(element_type, nodes_numbers,
-            properties, self.state.tolerance, &self.nodes)?;
+        let element = FiniteElement::create(
+            element_type, nodes_numbers, properties, &self.nodes, self.state.rel_tol, self.state.abs_tol,
+        )?;
         self.elements.insert(element_number, element);
 
         Ok(())
     }
 
 
-    pub fn update_element(&mut self, element_number: T, nodes_numbers: Vec<T>,
-        properties: Vec<V>) -> Result<(), String>
+    pub fn update_element(
+        &mut self, element_number: u32, nodes_numbers: Vec<u32>, properties: Vec<V>,
+    ) 
+        -> Result<(), String>
     {
-        let nodes_numbers_set = HashSet::<T>::from_iter(
-            nodes_numbers.iter().cloned());
+        let nodes_numbers_set = HashSet::<u32>::from_iter(nodes_numbers.iter().cloned());
         if nodes_numbers.len() != nodes_numbers_set.len()
         {
             return Err(format!("FEModel: Element {:?} could not be updated! All nodes numbers \
@@ -524,12 +560,14 @@ impl<T, V> FEModel<T, V>
             }
         }
 
-        if self.elements.iter().position(|(number, element)|
-            element.is_nodes_numbers_same(nodes_numbers.clone()) &&
-                *number != element_number).is_some()
+        if self.elements
+            .iter()
+            .position(|(number, element)| 
+                element.is_nodes_numbers_same(nodes_numbers.clone()) && *number != element_number)
+            .is_some()
         {
             return Err(format!("FEModel: Element {:?} could not be updated! The element with \
-                    the same nodes numbers does already exist!", element_number));
+                the same nodes numbers does already exist!", element_number));
         }
 
         if let Some(element) = self.elements.get_mut(&element_number)
@@ -632,7 +670,7 @@ impl<T, V> FEModel<T, V>
                 },
 
             }
-            element.update(nodes_numbers, properties, self.state.tolerance, &self.nodes)?;
+            element.update(nodes_numbers, properties, &self.nodes, self.state.rel_tol, self.state.abs_tol)?;
             Ok(())
         }
         else
@@ -643,7 +681,7 @@ impl<T, V> FEModel<T, V>
     }
 
 
-    pub fn delete_element(&mut self, number: T) -> Result<DeletedFEData<T, V>, String>
+    pub fn delete_element(&mut self, number: u32) -> Result<DeletedFEData<V>, String>
     {
 
         if let Some(deleted_element) = self.elements.remove(&number)
@@ -659,8 +697,7 @@ impl<T, V> FEModel<T, V>
     }
 
 
-    fn compose_global_stiffness_matrix(&self) 
-        -> Result<(ExtendedMatrix<T, V>, Vec<T>, Vec<T>), String>
+    fn compose_global_stiffness_matrix(&self) -> Result<(Matrix<V>, Vec<u32>, Vec<u32>), String>
     {
         if self.elements.is_empty()
         {
@@ -668,32 +705,32 @@ impl<T, V> FEModel<T, V>
                 no elements in the model!".to_string());
         }
 
-        if self.nodes.keys().any(|node_number|
-            self.elements.values().position(|element|
-                element.is_node_belong_element(*node_number)).is_none())
+        if self.nodes.keys().any(|node_number| self.elements
+            .values()
+            .position(|element| element.is_node_belong_element(*node_number))
+            .is_none())
         {
             return Err("FEModel: Global stiffness matrix could not be composed because there are \
                 free nodes exist!".to_string());
         }
 
-        let mut nodes_len_value = T::from(0u8);
-        (0..self.nodes.len()).for_each(|_| nodes_len_value += T::from(1u8));
+        let mut nodes_len_value = self.nodes.len();
 
-        let mut row_column_number = T::from(0u8);
+        let mut row_column_number = 0;
         let mut zero_rows_numbers = Vec::new();
         let mut zero_columns_numbers = Vec::new();
-        while row_column_number < nodes_len_value * global_dof::<T>()
+        while row_column_number < nodes_len_value * global_dof()
         {
             zero_rows_numbers.push(row_column_number);
             zero_columns_numbers.push(row_column_number);
-            row_column_number += T::from(1u8);
+            row_column_number += 1;
         }
 
-        let mut global_stiffness_matrix = ExtendedMatrix::<T, V>::create(
-            nodes_len_value * global_dof::<T>(),
-            nodes_len_value * global_dof::<T>(),
-            vec![V::from(0f32); (self.nodes.len() * GLOBAL_DOF).pow(2)],
-            self.state.tolerance)?;
+        let mut global_stiffness_matrix = Matrix::<V>::create(
+            nodes_len_value * global_dof(),
+            nodes_len_value * global_dof(),
+            &vec![V::from(0f32); (self.nodes.len() * GLOBAL_DOF).pow(2)],
+        );
 
         for element in self.elements.values()
         {
@@ -706,36 +743,45 @@ impl<T, V> FEModel<T, V>
                 let stiffness_group_key = StiffnessGroupKey {
                     stiffness_type: element_stiffness_group.stiffness_type,
                     number_1: element_stiffness_group.number_1,
-                    number_2: element_stiffness_group.number_2 };
+                    number_2: element_stiffness_group.number_2 
+                };
                 let element_matrix_elements_positions = element_stiffness_group.positions.clone();
-                if let Some(matrix_elements_positions) =
-                    self.state.stiffness_groups.get(&stiffness_group_key)
+                if let Some(matrix_elements_positions) = self.state.stiffness_groups
+                    .get(&stiffness_group_key)
                 {
                     for (matrix_element_position, element_matrix_element_position) in 
                         matrix_elements_positions.iter().zip(element_matrix_elements_positions.into_iter())
                     {
-                        let element_value = element_stiffness_matrix
-                            .copy_element_value_or_zero(element_matrix_element_position)?;
+                        let element_value = element_stiffness_matrix.get_element_value(
+                            &element_matrix_element_position,
+                        )?;
 
-                        let nonzero_row_number = matrix_element_position.ref_row();
-                        if let Some(position) = zero_rows_numbers.iter().position(|row_number| 
-                            row_number == nonzero_row_number && element_value != V::from(0f32))
+                        let nonzero_row_number = matrix_element_position.0;
+                        if let Some(position) = zero_rows_numbers
+                            .iter()
+                            .position(|row_number| 
+                                row_number == nonzero_row_number && element_value != V::from(0f32))
                         {
                             zero_rows_numbers.remove(position);
                         }
 
-                        let nonzero_column_number = matrix_element_position.ref_column();
-                        if let Some(position) = zero_columns_numbers.iter().position(|column_number| 
-                            column_number == nonzero_column_number && element_value != V::from(0f32))
+                        let nonzero_column_number = matrix_element_position.1;
+                        if let Some(position) = zero_columns_numbers
+                            .iter()
+                            .position(|column_number| 
+                                column_number == nonzero_column_number && element_value != V::from(0f32))
                         {
                             zero_columns_numbers.remove(position);
                         }
                     }
 
-                    global_stiffness_matrix.add_submatrix_to_assemblage(
-                        &mut element_stiffness_matrix,
-                        matrix_elements_positions,
-                        &element_stiffness_group.positions);
+                    for (lhs_position, rhs_position) in
+                        matrix_elements_positions.iter().zip(element_stiffness_group.positions.iter())
+                    {
+                        let mut lhs_element_value = global_stiffness_matrix.get_mut_element_value(lhs_position)?;
+                        let rhs_element_value = element_stiffness_matrix.get_element_value(rhs_position)?;
+                        *lhs_element_value += rhs_element_value;
+                    }
                 }
             }
         }
@@ -744,11 +790,20 @@ impl<T, V> FEModel<T, V>
     }
 
 
-    pub fn add_bc(&mut self, bc_type: BCType, number: T, node_number: T,
-        dof_parameter: GlobalDOFParameter, value: V) -> Result<(), String>
+    pub fn add_bc(
+        &mut self, 
+        bc_type: BCType, 
+        number: u32, 
+        node_number: u32,
+        dof_parameter: GlobalDOFParameter, 
+        value: V,
+    ) 
+        -> Result<(), String>
     {
-        if self.boundary_conditions.iter().position(|bc|
-            bc.is_number_same(number) && bc.is_type_same(bc_type)).is_some()
+        if self.boundary_conditions
+            .iter()
+            .position(|bc| bc.is_number_same(number) && bc.is_type_same(bc_type))
+            .is_some()
         {
             return Err(format!("FEModel: {} could not be added because the same {} number does \
                 already exist!", bc_type.as_str(), bc_type.as_str().to_lowercase()));
@@ -768,8 +823,15 @@ impl<T, V> FEModel<T, V>
     }
 
 
-    pub fn update_bc(&mut self, bc_type: BCType, number: T, node_number: T,
-        dof_parameter: GlobalDOFParameter, value: V) -> Result<(), String>
+    pub fn update_bc(
+        &mut self, 
+        bc_type: BCType, 
+        number: u32, 
+        node_number: u32,
+        dof_parameter: GlobalDOFParameter, 
+        value: V,
+    ) 
+        -> Result<(), String>
     {
         if !self.nodes.contains_key(&node_number)
         {
@@ -777,8 +839,9 @@ impl<T, V> FEModel<T, V>
                 does not exist!", bc_type.as_str()));
         }
 
-        if let Some(position) =  self.boundary_conditions.iter().position(|bc|
-            bc.is_number_same(number) && bc.is_type_same(bc_type))
+        if let Some(position) =  self.boundary_conditions
+            .iter()
+            .position(|bc| bc.is_number_same(number) && bc.is_type_same(bc_type))
         {
             self.boundary_conditions[position].update(node_number, dof_parameter, value);
             Ok(())
@@ -791,10 +854,11 @@ impl<T, V> FEModel<T, V>
     }
 
 
-    pub fn delete_bc(&mut self, bc_type: BCType, number: T) -> Result<DeletedBCData<T, V>, String>
+    pub fn delete_bc(&mut self, bc_type: BCType, number: u32) -> Result<DeletedBCData<V>, String>
     {
-        if let Some(position) =  self.boundary_conditions.iter().position(|bc|
-            bc.is_number_same(number) && bc.is_type_same(bc_type))
+        if let Some(position) =  self.boundary_conditions
+            .iter()
+            .position(|bc| bc.is_number_same(number) && bc.is_type_same(bc_type))
         {
             let deleted_bc = self.boundary_conditions.remove(position);
             Ok(DeletedBCData::create(deleted_bc))
@@ -807,28 +871,22 @@ impl<T, V> FEModel<T, V>
     }
 
 
-    fn shrink_of_nodes_dof_parameters(&mut self, zeros_rows_columns: &Vec<MatrixElementPosition<T>>)
-        -> Result<(), String>
+    fn shrink_of_nodes_dof_parameters(&mut self, zeros_rows_columns: &Vec<Position>) -> Result<(), String>
     {
         for row_column in zeros_rows_columns
         {
-            let mut row_column_as_index = 0usize;
-            let mut n = T::from(0u8);
-            while n < *row_column.ref_column()
-            {
-                row_column_as_index += 1usize;
-                n += T::from(1u8);
-            }
+            let mut row_column_as_index = *row_column.1;
 
-            let dof_parameter_data =
-                self.state.nodes_dof_parameters_global.remove(row_column_as_index);
+            let dof_parameter_data = self.state.nodes_dof_parameters_global
+                .remove(row_column_as_index);
 
             if let Some(position) = self.boundary_conditions
                 .iter()
-                .position(|bc|
-                    bc.is_dof_parameter_data_same(
+                .position(|bc| bc
+                    .is_dof_parameter_data_same(
                         dof_parameter_data.copy_dof_parameter(),
-                        dof_parameter_data.copy_node_number()))
+                        dof_parameter_data.copy_node_number()),
+                    )
             {
                 let bc_type = self.boundary_conditions[position].copy_bc_type();
                 let dof_parameter = dof_parameter_data.copy_dof_parameter();
@@ -842,64 +900,60 @@ impl<T, V> FEModel<T, V>
     }
 
 
-    fn compose_separation_positions(&self, ub_rb_rows_numbers: &mut Vec<T>,
-        separation_positions: &mut Vec<MatrixElementPosition<T>>)
+    fn compose_separation_positions(&self, ub_rb_rows_numbers: &mut Vec<u32>, separation_positions: &mut Vec<Position>)
     {
         for bc in &self.boundary_conditions
         {
             if bc.is_type_same(BCType::Displacement)
             {
-                let mut row = T::from(0u8);
-                for dof_parameter_data in
-                    &self.state.nodes_dof_parameters_global
+                let mut row = 0;
+                for dof_parameter_data in self.state.nodes_dof_parameters_global.iter()
                 {
                     if bc.is_dof_parameter_data_same(
-                        dof_parameter_data.copy_dof_parameter(),
-                        dof_parameter_data.copy_node_number())
+                        dof_parameter_data.copy_dof_parameter(),         
+                        dof_parameter_data.copy_node_number(),
+                    )
                     {
-                        separation_positions.push(
-                            MatrixElementPosition::create(row, row));
+                        separation_positions.push(Position(row, row));
                         ub_rb_rows_numbers.push(row);
                     }
-                    row += T::from(1u8);
+                    row += 1;
                 }
             }
         }
     }
 
 
-    fn compose_ua_ra_rows_numbers(&self, ub_rb_rows_numbers: &[T],
-        ua_ra_rows_numbers: &mut Vec<T>)
+    fn compose_ua_ra_rows_numbers(&self, ub_rb_rows_numbers: &[u32], ua_ra_rows_numbers: &mut Vec<u32>)
     {
-        let mut i = T::from(0u8);
+        let mut i = 0;
         (0..self.state.nodes_dof_parameters_global.len()).for_each(|_|
             {
                 if ub_rb_rows_numbers.iter().position(|n| *n == i).is_none()
                 {
                     ua_ra_rows_numbers.push(i);
                 }
-                i += T::from(1u8);
+                i += 1;
             });
     }
 
 
-    fn compose_matrix_by_rows_numbers(&self, rows_numbers: &[T], bc_type: BCType)
-        -> Result<ExtendedMatrix<T, V>, String>
+    fn compose_matrix_by_rows_numbers(&self, rows_numbers: &[u32], bc_type: BCType) -> Result<Vector<V>, String>
     {
         let mut all_elements = Vec::new();
         for row_number in rows_numbers
         {
-            let converted_row_number = conversion_uint_into_usize(*row_number);
+            let converted_row_number = row_number as usize;
 
-            let node_dof_parameter =
-                self.state.nodes_dof_parameters_global[converted_row_number];
+            let node_dof_parameter = self.state.nodes_dof_parameters_global[converted_row_number];
             if let Some(position) = self.boundary_conditions
                 .iter()
-                .position(|bc|
-                    bc.is_dof_parameter_data_same(
+                .position(|bc| bc
+                    .is_dof_parameter_data_same(
                         node_dof_parameter.copy_dof_parameter(),
-                        node_dof_parameter.copy_node_number()) &&
-                        bc.is_type_same(bc_type)
+                        node_dof_parameter.copy_node_number(),
+                    ) &&
+                    bc.is_type_same(bc_type)
                 )
             {
                 let value = self.boundary_conditions[position].copy_value();
@@ -911,59 +965,61 @@ impl<T, V> FEModel<T, V>
             }
         }
 
-        let mut converted_rows_numbers = T::from(0u8);
-        (0..rows_numbers.len()).for_each(|_| converted_rows_numbers += T::from(1u8));
+        let mut converted_rows_numbers = rows_numbers.len();
 
-        let matrix = ExtendedMatrix::create(
-            converted_rows_numbers,
-            T::from(1u8),
-            all_elements, self.state.tolerance)?;
+        let matrix = Vector::create(&all_elements);
         Ok(matrix)
     }
 
 
-    fn compose_displacements_matrix(&self, ua_matrix: ExtendedMatrix<T, V>,
-        ub_matrix: ExtendedMatrix<T, V>, ua_ra_rows_numbers: &[T],
-        ub_rb_rows_numbers: &Vec<T>) -> Result<ExtendedMatrix<T, V>, String>
+    fn compose_displacements_matrix(
+        &self, 
+        ua_matrix: Matrix<V>,
+        ub_matrix: Matrix<V>, 
+        ua_ra_rows_numbers: &[u32],
+        ub_rb_rows_numbers: &[u32]
+    ) 
+        -> Result<Matrix<V>, String>
     {
-        let mut all_displacements_values =
-            vec![V::from(0f32); self.state.nodes_dof_parameters_global.len()];
+        let mut all_displacements_values = vec![V::from(0f32); self.state.nodes_dof_parameters_global.len()];
 
-        let mut i = T::from(0u8);
+        let mut i = 0;
         let mut index = 0usize;
         while index < ua_ra_rows_numbers.len()
         {
-            let displacement_value = matrix_element_value_extractor(i, T::from(0u8), &ua_matrix)?;
-            let converted_index = conversion_uint_into_usize(ua_ra_rows_numbers[index]);
+            let displacement_value =  ua_matrix.get_element_value(&Position(i, 0))?;
+            let converted_index = ua_ra_rows_numbers[index] as usize;
             all_displacements_values[converted_index] = displacement_value;
-            i += T::from(1u8);
+            i += 1;
             index += 1usize;
         }
 
-        let mut j = T::from(0u8);
+        let mut j = 0;
         let mut index = 0usize;
         while index < ub_rb_rows_numbers.len()
         {
-            let displacement_value = matrix_element_value_extractor(j, T::from(0u8), &ub_matrix)?;
-            let converted_index = conversion_uint_into_usize(ub_rb_rows_numbers[index]);
+            let displacement_value = ub_matrix.get_element_value(&Position(j, 0))?;
+            let converted_index = ub_rb_rows_numbers[index] as usize;
             all_displacements_values[converted_index] = displacement_value;
-            j += T::from(1u8);
+            j += 1;
             index += 1usize;
         }
 
-        let mut rows_number = T::from(0u8);
-        (0..self.state.nodes_dof_parameters_global.len()).for_each(|_| rows_number += T::from(1u8));
+        let mut rows_number = self.state.nodes_dof_parameters_global.len();
 
-        let displacement_matrix =
-            ExtendedMatrix::create(
-                rows_number, T::from(1u8), all_displacements_values,
-                self.state.tolerance);
-        displacement_matrix
+        let displacement_matrix = Matrix::create(
+            rows_number, 1, &all_displacements_values,
+        );
+        Ok(displacement_matrix)
     }
 
 
-    pub fn global_analysis(&mut self, colsol_usage: bool, stiffness_groups_update: bool)
-        -> Result<GlobalAnalysisResult<T, V>, String>
+    pub fn global_analysis(
+        &mut self, 
+        stiffness_groups_update: bool, 
+        rel_tol: V,
+    ) 
+        -> Result<GlobalAnalysisResult<V>, String>
     {
         if stiffness_groups_update
         {
@@ -971,8 +1027,10 @@ impl<T, V> FEModel<T, V>
         }
         self.update_nodes_dof_parameters_global()?;
 
-        if self.boundary_conditions.iter().position(|bc|
-            bc.is_type_same(BCType::Displacement)).is_none()
+        if self.boundary_conditions
+            .iter()
+            .position(|bc| bc.is_type_same(BCType::Displacement))
+            .is_none()
         {
             return Err("FEModel: Model could not be analyzed because there are no restraints were \
                 applied!".into())
@@ -983,12 +1041,13 @@ impl<T, V> FEModel<T, V>
 
         let mut removed_zeros_rows_columns = Vec::new();
         for (zero_row_number, zero_column_number) in zero_rows_numbers
-            .iter().rev().zip(zero_columns_numbers.iter().rev())
+            .iter()
+            .rev()
+            .zip(zero_columns_numbers.iter().rev())
         {
-            global_stiffness_matrix.remove_selected_row(*zero_row_number);
-            global_stiffness_matrix.remove_selected_column(*zero_column_number);
-            let matrix_element_position = 
-                MatrixElementPosition::create(*zero_row_number, *zero_column_number);
+            global_stiffness_matrix.remove_row(*zero_row_number);
+            global_stiffness_matrix.remove_column(*zero_column_number);
+            let matrix_element_position = Position(*zero_row_number, *zero_column_number);
             removed_zeros_rows_columns.push(matrix_element_position);
         }
 
@@ -1004,77 +1063,84 @@ impl<T, V> FEModel<T, V>
         let mut ua_ra_rows_numbers = Vec::new();
         self.compose_ua_ra_rows_numbers(&ub_rb_rows_numbers, &mut ua_ra_rows_numbers);
 
-        let ra_matrix = self.compose_matrix_by_rows_numbers(
-            &ua_ra_rows_numbers, BCType::Force)?;
+        let ra_matrix = self.compose_matrix_by_rows_numbers(&ua_ra_rows_numbers, BCType::Force)?;
         let ub_matrix = self.compose_matrix_by_rows_numbers(
-            &ub_rb_rows_numbers, BCType::Displacement)?;
-        let rb_c_matrix = self.compose_matrix_by_rows_numbers(
-            &ub_rb_rows_numbers, BCType::Force)?;
+            &ub_rb_rows_numbers, BCType::Displacement,
+        )?;
+        let rb_c_matrix = self.compose_matrix_by_rows_numbers(&ub_rb_rows_numbers, BCType::Force)?;
 
-        let separated_matrix =
-            separate(global_stiffness_matrix, separation_positions, self.state.tolerance)?;
+        let separated_matrix = separate(global_stiffness_matrix, separation_positions)?;
+
         let mut lhs_matrix = separated_matrix.ref_k_aa().clone();
-        lhs_matrix.try_to_symmetrize(self.state.tolerance);
 
-        let ua_matrix = lhs_matrix
-            .direct_solution(&ra_matrix.subtract_matrix(
-                &separated_matrix.ref_k_ab().multiply_by_matrix(&ub_matrix)?)?, colsol_usage)?;
+        // lhs_matrix.try_to_symmetrize(self.state.tolerance);
 
-        let reactions_values_matrix = separated_matrix.ref_k_ba()
-            .multiply_by_matrix(&ua_matrix)?
-            .subtract_matrix(
-                &separated_matrix.ref_k_bb()
-                    .multiply_by_matrix(&ub_matrix)?)?
-            .subtract_matrix(&rb_c_matrix)?;
+        // let ua_matrix = lhs_matrix
+        // .direct_solution(&ra_matrix.subtract_matrix(
+        //     &separated_matrix.ref_k_ab().multiply_by_matrix(&ub_matrix)?)?, colsol_usage)?;
 
-        let reactions_values_matrix_shape = reactions_values_matrix.copy_shape();
+        let mut b = ra_matrix.subtract(&separated_matrix.ref_k_ab().multiply(&ub_matrix)?)?;
+        let shape = b.get_shape();
+        let mut v = Vec::new();
+        for row in 0..shape.0
+        {
+            for column in 0..shape.1
+            {
+                let value = b.get_element_value(&Position(row, column))?;
+                v.push(*value);
+            }
+        }
+        let nn = v.len();
+        let (a, maxa) = lhs_matrix.try_into_symmetric_compacted_matrix(rel_tol)?;
+        factorization(&mut a, nn, &maxa)?;
+        find_unknown(&a, &mut v, nn, &maxa);
+        let ua_matrix = Vector::create(&v);
+
+        let reactions_values_matrix = separated_matrix
+            .ref_k_ba()
+            .multiply(&ua_matrix)?
+            .subtract(&separated_matrix.ref_k_bb().multiply(&ub_matrix)?)?
+            .subtract(&rb_c_matrix)?;
+
+        let reactions_values_matrix_shape = reactions_values_matrix.get_shape();
         let mut reactions_values = Vec::new();
 
-        let mut row = T::from(0u8);
-        while row < reactions_values_matrix_shape.0
+        for row in 0..reactions_values_matrix_shape.0
         {
-            let mut column = T::from(0u8);
-            while column < reactions_values_matrix_shape.1
+            for column in 0..reactions_values_matrix_shape.1
             {
-                let reaction_value = matrix_element_value_extractor(row, column, &reactions_values_matrix)?;
-                reactions_values.push(reaction_value);
-                column += T::from(1u8);
+                let reaction_value = reactions_values_matrix.get_element_value(&Position(row, column))?;
+                reactions_values.push(*reaction_value);
             }
-            row += T::from(1u8);
         }
 
         let mut reactions_dof_parameters_data = Vec::new();
-        for row_number in &ub_rb_rows_numbers
+        for row_number in ub_rb_rows_numbers.iter()
         {
-            let converted_row_number = conversion_uint_into_usize(*row_number);
-            reactions_dof_parameters_data.push(
-                self.state.nodes_dof_parameters_global[converted_row_number]);
+            let converted_row_number = *row_number as usize;
+            reactions_dof_parameters_data.push(self.state.nodes_dof_parameters_global[converted_row_number]);
         }
-        let displacements_dof_parameters_data =
-            self.state.nodes_dof_parameters_global.clone();
+        let displacements_dof_parameters_data = self.state.nodes_dof_parameters_global.clone();
         let displacements_values_matrix = self.compose_displacements_matrix(
-            ua_matrix, ub_matrix, &ua_ra_rows_numbers, &ub_rb_rows_numbers)?;
+            ua_matrix, ub_matrix, &ua_ra_rows_numbers, &ub_rb_rows_numbers,
+        )?;
 
-        let displacements_values_matrix_shape = displacements_values_matrix.copy_shape();
+        let displacements_values_matrix_shape = displacements_values_matrix.get_shape();
         let mut displacements_values = Vec::new();
 
-        let mut row = T::from(0u8);
-        while row < displacements_values_matrix_shape.0
+        for row in 0..displacements_values_matrix_shape.0
         {
-            let mut column = T::from(0u8);
-            while column < displacements_values_matrix_shape.1
+            for column in 0..displacements_values_matrix_shape.1
             {
-                let displacement_value = matrix_element_value_extractor(row, column, &displacements_values_matrix)?;
-                displacements_values.push(displacement_value);
-                column += T::from(1u8);
+                let displacement_value = displacements_values_matrix
+                    .get_element_value(&Position(row, column))?;
+                displacements_values.push(*displacement_value);
             }
-            row += T::from(1u8);
         }
 
-        let global_analysis_result =
-            GlobalAnalysisResult::create(
-                reactions_values, reactions_dof_parameters_data,
-                displacements_values, displacements_dof_parameters_data);
+        let global_analysis_result = GlobalAnalysisResult::create(
+            reactions_values, reactions_dof_parameters_data,  displacements_values, displacements_dof_parameters_data,
+        );
 
         Ok(global_analysis_result)
     }
@@ -1394,7 +1460,7 @@ impl<T, V> FEModel<T, V>
     }
 
 
-    pub fn extract_unique_elements_of_rotation_matrix(&self, element_number: &T)
+    pub fn extract_unique_elements_of_rotation_matrix(&self, element_number: &u32)
         -> Result<Vec<V>, String>
     {
         if let Some(element) = self.elements.get(element_number)
@@ -1410,9 +1476,9 @@ impl<T, V> FEModel<T, V>
 
     pub fn copy_bc_node_number(&self, bc_type: BCType, number: T) -> Result<T, String>
     {
-        if let Some(position) = self.boundary_conditions.iter()
-            .position(|bc| bc.is_type_same(bc_type) && bc.
-                is_number_same(number))
+        if let Some(position) = self.boundary_conditions
+            .iter()
+            .position(|bc| bc.is_type_same(bc_type) && bc.is_number_same(number))
         {
             Ok(self.boundary_conditions[position].copy_node_number())
         }
