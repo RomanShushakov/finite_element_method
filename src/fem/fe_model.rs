@@ -32,8 +32,8 @@ struct State<V>
 {
     stiffness_groups: HashMap<StiffnessGroupKey, Vec<Position>>,
     nodes_dof_parameters_global: Vec<DOFParameterData>,
-    optional_ua_ra_rows_numbers: Option<Vec<u32>>,
-    optional_ub_rb_rows_numbers: Option<Vec<u32>>,
+    optional_ua_ra_rows_numbers: Option<Vec<usize>>,
+    optional_ub_rb_rows_numbers: Option<Vec<usize>>,
     optional_ua_matrix: Option<Vector<V>>,
     optional_ub_matrix: Option<Vector<V>>,
     optional_ra_matrix: Option<Vector<V>>,
@@ -124,7 +124,7 @@ impl<V> FEModel<V>
     }
 
 
-    fn update_stiffness_groups(&mut self) -> Result<(), &str>
+    fn update_stiffness_groups(&mut self) -> Result<(), String>
     {
         let mut stiffness_groups =
             HashMap::new();
@@ -493,7 +493,7 @@ impl<V> FEModel<V>
                     &[node_2.copy_x(), node_2.copy_y(), node_2.copy_z()],  
                     &[node_3.copy_x(), node_3.copy_y(), node_3.copy_z()], 
                     &[node_4.copy_x(), node_4.copy_y(), node_4.copy_z()], 
-                    self.state.tolerance)
+                    self.state.abs_tol)
                 {
                     return Err(format!("FEModel: Element {:?} could not be added! Three of \
                         four nodes lie on the same line!", element_number));
@@ -504,7 +504,7 @@ impl<V> FEModel<V>
                     &[node_2.copy_x(), node_2.copy_y(), node_2.copy_z()],  
                     &[node_3.copy_x(), node_3.copy_y(), node_3.copy_z()], 
                     &[node_4.copy_x(), node_4.copy_y(), node_4.copy_z()], 
-                    self.state.tolerance)
+                    self.state.abs_tol)
                 {
                     return Err(format!("FEModel: Element {:?} could not be added! Not all nodes \
                         lie on the same plane!", element_number));
@@ -697,7 +697,7 @@ impl<V> FEModel<V>
     }
 
 
-    fn compose_global_stiffness_matrix(&self) -> Result<(Matrix<V>, Vec<u32>, Vec<u32>), String>
+    fn compose_global_stiffness_matrix(&self) -> Result<(Matrix<V>, Vec<usize>, Vec<usize>), String>
     {
         if self.elements.is_empty()
         {
@@ -760,7 +760,7 @@ impl<V> FEModel<V>
                         if let Some(position) = zero_rows_numbers
                             .iter()
                             .position(|row_number| 
-                                row_number == nonzero_row_number && element_value != V::from(0f32))
+                                *row_number == nonzero_row_number && *element_value != V::from(0f32))
                         {
                             zero_rows_numbers.remove(position);
                         }
@@ -769,7 +769,7 @@ impl<V> FEModel<V>
                         if let Some(position) = zero_columns_numbers
                             .iter()
                             .position(|column_number| 
-                                column_number == nonzero_column_number && element_value != V::from(0f32))
+                                *column_number == nonzero_column_number && *element_value != V::from(0f32))
                         {
                             zero_columns_numbers.remove(position);
                         }
@@ -780,7 +780,7 @@ impl<V> FEModel<V>
                     {
                         let mut lhs_element_value = global_stiffness_matrix.get_mut_element_value(lhs_position)?;
                         let rhs_element_value = element_stiffness_matrix.get_element_value(rhs_position)?;
-                        *lhs_element_value += rhs_element_value;
+                        *lhs_element_value += *rhs_element_value;
                     }
                 }
             }
@@ -875,7 +875,7 @@ impl<V> FEModel<V>
     {
         for row_column in zeros_rows_columns
         {
-            let mut row_column_as_index = *row_column.1;
+            let mut row_column_as_index = row_column.1;
 
             let dof_parameter_data = self.state.nodes_dof_parameters_global
                 .remove(row_column_as_index);
@@ -902,7 +902,7 @@ impl<V> FEModel<V>
     }
 
 
-    fn compose_separation_positions(&self, ub_rb_rows_numbers: &mut Vec<u32>, separation_positions: &mut Vec<Position>)
+    fn compose_separation_positions(&self, ub_rb_rows_numbers: &mut Vec<usize>, separation_positions: &mut Vec<Position>)
     {
         for bc in &self.boundary_conditions
         {
@@ -926,28 +926,24 @@ impl<V> FEModel<V>
     }
 
 
-    fn compose_ua_ra_rows_numbers(&self, ub_rb_rows_numbers: &[u32], ua_ra_rows_numbers: &mut Vec<u32>)
+    fn compose_ua_ra_rows_numbers(&self, ub_rb_rows_numbers: &[usize], ua_ra_rows_numbers: &mut Vec<usize>)
     {
-        let mut i = 0;
-        (0..self.state.nodes_dof_parameters_global.len()).for_each(|_|
+        for row in 0..self.state.nodes_dof_parameters_global.len()
+        {
+            if !ub_rb_rows_numbers.contains(&row)
             {
-                if ub_rb_rows_numbers.iter().position(|n| *n == i).is_none()
-                {
-                    ua_ra_rows_numbers.push(i);
-                }
-                i += 1;
-            });
+                ua_ra_rows_numbers.push(row);
+            }
+        }
     }
 
 
-    fn compose_matrix_by_rows_numbers(&self, rows_numbers: &[u32], bc_type: BCType) -> Result<Vector<V>, String>
+    fn compose_matrix_by_rows_numbers(&self, rows_numbers: &[usize], bc_type: BCType) -> Result<Vector<V>, String>
     {
         let mut all_elements = Vec::new();
         for row_number in rows_numbers
         {
-            let converted_row_number = row_number as usize;
-
-            let node_dof_parameter = self.state.nodes_dof_parameters_global[converted_row_number];
+            let node_dof_parameter = self.state.nodes_dof_parameters_global[*row_number];
             if let Some(position) = self.boundary_conditions
                 .iter()
                 .position(|bc| bc
@@ -976,35 +972,27 @@ impl<V> FEModel<V>
 
     fn compose_displacements_matrix(
         &self, 
-        ua_matrix: Matrix<V>,
-        ub_matrix: Matrix<V>, 
-        ua_ra_rows_numbers: &[u32],
-        ub_rb_rows_numbers: &[u32]
+        ua: Vector<V>,
+        ub: Vector<V>, 
+        ua_ra_rows_numbers: &[usize],
+        ub_rb_rows_numbers: &[usize]
     ) 
         -> Result<Matrix<V>, String>
     {
         let mut all_displacements_values = vec![V::from(0f32); self.state.nodes_dof_parameters_global.len()];
 
-        let mut i = 0;
-        let mut index = 0usize;
-        while index < ua_ra_rows_numbers.len()
+        for row in 0..ua_ra_rows_numbers.len()
         {
-            let displacement_value =  ua_matrix.get_element_value(&Position(i, 0))?;
-            let converted_index = ua_ra_rows_numbers[index] as usize;
-            all_displacements_values[converted_index] = displacement_value;
-            i += 1;
-            index += 1usize;
+            let displacement_value =  ua.get_element_value(&Position(row, 0))?;
+            let converted_index = ua_ra_rows_numbers[row];
+            all_displacements_values[converted_index] = *displacement_value;
         }
 
-        let mut j = 0;
-        let mut index = 0usize;
-        while index < ub_rb_rows_numbers.len()
+        for row in 0..ub_rb_rows_numbers.len()
         {
-            let displacement_value = ub_matrix.get_element_value(&Position(j, 0))?;
-            let converted_index = ub_rb_rows_numbers[index] as usize;
-            all_displacements_values[converted_index] = displacement_value;
-            j += 1;
-            index += 1usize;
+            let displacement_value = ub.get_element_value(&Position(row, 0))?;
+            let converted_index = ub_rb_rows_numbers[row];
+            all_displacements_values[converted_index] = *displacement_value;
         }
 
         let mut rows_number = self.state.nodes_dof_parameters_global.len();
@@ -1087,8 +1075,8 @@ impl<V> FEModel<V>
                 v.push(*value);
             }
         }
-        let nn = v.len();
-        let (a, maxa) = lhs_matrix.try_into_symmetric_compacted_matrix(self.state.rel_tol)?;
+        let nn = v.len() as i64;
+        let (mut a, maxa) = lhs_matrix.try_into_symmetric_compacted_matrix(self.state.rel_tol)?;
         factorization(&mut a, nn, &maxa)?;
         find_unknown(&a, &mut v, nn, &maxa);
         let ua_matrix = Vector::create(&v);
@@ -1168,8 +1156,8 @@ impl<V> FEModel<V>
             .rev()
             .zip(zero_columns_numbers.iter().rev())
         {
-            global_stiffness_matrix.remove_selected_row(*zero_row_number);
-            global_stiffness_matrix.remove_selected_column(*zero_column_number);
+            global_stiffness_matrix.remove_row(*zero_row_number);
+            global_stiffness_matrix.remove_column(*zero_column_number);
             let matrix_element_position = Position(*zero_row_number, *zero_column_number);
             removed_zeros_rows_columns.push(matrix_element_position);
         }
@@ -1223,7 +1211,7 @@ impl<V> FEModel<V>
                     .as_ref()
                     .unwrap()
                     .ref_k_ab()
-                    .multiply(&self.state.optional_ub_matrix.as_ref().unwrap())?)?;
+                    .multiply(self.state.optional_ub_matrix.as_ref().unwrap())?)?;
 
             // lhs_matrix.try_to_symmetrize(self.state.tolerance);
             // f(&format!("{:?}, colsol usage: {colsol_usage}", lhs_matrix.ref_matrix_type()));
@@ -1239,8 +1227,8 @@ impl<V> FEModel<V>
                     v.push(*value);
                 }
             }
-            let nn = v.len();
-            let (a, maxa) = lhs_matrix.try_into_symmetric_compacted_matrix(self.state.rel_tol)?;
+            let nn = v.len() as i64;
+            let (mut a, maxa) = lhs_matrix.try_into_symmetric_compacted_matrix(self.state.rel_tol)?;
             factorization(&mut a, nn, &maxa)?;
             find_unknown(&a, &mut v, nn, &maxa);
             let ua_matrix = Vector::create(&v);
@@ -1271,9 +1259,9 @@ impl<V> FEModel<V>
                     .as_ref()
                     .unwrap()
                     .ref_k_ab()
-                    .multiply(&self.state.optional_ub_matrix.as_ref().unwrap())?)?;
+                    .multiply(self.state.optional_ub_matrix.as_ref().unwrap())?)?;
             
-            let lhs_matrix_shape = lhs_matrix.copy_shape();
+            let lhs_matrix_shape = lhs_matrix.get_shape();
             let a_rows_number = lhs_matrix_shape.0;
             let a_columns_number = lhs_matrix_shape.1;
 
@@ -1322,7 +1310,7 @@ impl<V> FEModel<V>
     {
         if a_elements_values.len() != a_rows_number * a_columns_number
         {
-            Err("FEModel: Receiving of Ua matrix: Inapropriate number of elements!".to_string()) 
+            return Err("FEModel: Receiving of Ua matrix: Inapropriate number of elements!".to_string());
         }
         let ua_matrix = Vector::create(&a_elements_values);
         self.state.optional_ua_matrix = Some(ua_matrix);
@@ -1353,9 +1341,9 @@ impl<V> FEModel<V>
 
         let reactions_values_matrix = separated_matrix
             .ref_k_ba()
-            .multiply(&ua_matrix)?
-            .add(&separated_matrix.ref_k_bb().multiply(&ub_matrix)?)?
-            .subtract(&rb_c_matrix)?;
+            .multiply(ua_matrix)?
+            .add(&separated_matrix.ref_k_bb().multiply(ub_matrix)?)?
+            .subtract(rb_c_matrix)?;
 
         let reactions_values_matrix_shape = reactions_values_matrix.get_shape();
         let mut reactions_values = Vec::new();
@@ -1372,7 +1360,7 @@ impl<V> FEModel<V>
         let mut reactions_dof_parameters_data = Vec::new();
         for row_number in ub_rb_rows_numbers
         {
-            reactions_dof_parameters_data.push(self.state.nodes_dof_parameters_global[row_number as usize]);
+            reactions_dof_parameters_data.push(self.state.nodes_dof_parameters_global[*row_number]);
         }
         let displacements_dof_parameters_data = self.state.nodes_dof_parameters_global.clone();
         let displacements_values_matrix = self.compose_displacements_matrix(

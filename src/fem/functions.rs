@@ -187,16 +187,18 @@ pub(super) fn separate<V>(matrix: Matrix<V>, positions: Vec<Position>) -> Result
 }
 
 
-pub fn is_points_of_quadrilateral_on_the_same_line<V>(point_1: &[V], point_2: &[V], point_3: &[V], point_4: &[V],
-    tolerance: V) -> bool
+pub fn is_points_of_quadrilateral_on_the_same_line<V>(
+    point_1: &[V], point_2: &[V], point_3: &[V], point_4: &[V], abs_tol: V,
+) 
+    -> bool
     where V: FloatTrait<Output = V>,
 {
     let cross_product_handle = |vector_1: &[V], vector_2: &[V]| 
         {
             [
-                compare_with_tolerance(vector_1[1] * vector_2[2] - vector_1[2] * vector_2[1], tolerance),
-                compare_with_tolerance(vector_1[2] * vector_2[0] - vector_1[0] * vector_2[2], tolerance),
-                compare_with_tolerance(vector_1[0] * vector_2[1] - vector_1[1] * vector_2[0], tolerance),
+                compare_with_tolerance(vector_1[1] * vector_2[2] - vector_1[2] * vector_2[1], abs_tol),
+                compare_with_tolerance(vector_1[2] * vector_2[0] - vector_1[0] * vector_2[2], abs_tol),
+                compare_with_tolerance(vector_1[0] * vector_2[1] - vector_1[1] * vector_2[0], abs_tol),
             ]
         };
 
