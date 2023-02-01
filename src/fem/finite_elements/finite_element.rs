@@ -84,7 +84,6 @@ pub(crate) trait FiniteElementTrait<V>: Any
         global_displacements: &Displacements<V>,
         nodes: &HashMap<u32, FENode<V>>,
         rel_tol: V,
-        abs_tol: V,
     ) -> Result<ElementAnalysisData<V>, String>;
 
     fn copy_nodes_numbers(&self) -> Vec<u32>;
@@ -332,7 +331,7 @@ impl<V> FiniteElement<V>
         -> Result<ElementAnalysisData<V>, String>
     {
         let element_analysis_data = self.element
-            .extract_element_analysis_data(global_displacements, nodes, rel_tol, abs_tol,
+            .extract_element_analysis_data(global_displacements, nodes, rel_tol,
         )?;
         Ok(element_analysis_data)
     }

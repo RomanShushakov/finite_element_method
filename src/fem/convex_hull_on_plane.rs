@@ -27,19 +27,19 @@ fn _quick_sort<T>(arr: &mut [T], low: isize, high: isize)
 fn partition<T>(arr: &mut [T], low: isize, high: isize) -> isize
     where T: PartialOrd
 {
-    let pivot = high as u32;
+    let pivot = high as usize;
     let mut store_index = low - 1;
     let mut last_index = high;
 
     loop
     {
         store_index += 1;
-        while arr[store_index as u32] < arr[pivot]
+        while arr[store_index as usize] < arr[pivot]
         {
             store_index += 1;
         }
         last_index -= 1;
-        while last_index >= 0 && arr[last_index as u32] > arr[pivot]
+        while last_index >= 0 && arr[last_index as usize] > arr[pivot]
         {
             last_index -= 1;
         }
@@ -49,10 +49,10 @@ fn partition<T>(arr: &mut [T], low: isize, high: isize) -> isize
         }
         else
         {
-            arr.swap(store_index as u32, last_index as u32);
+            arr.swap(store_index as usize, last_index as usize);
         }
     }
-    arr.swap(store_index as u32, pivot as u32);
+    arr.swap(store_index as usize, pivot as usize);
     store_index
 }
 

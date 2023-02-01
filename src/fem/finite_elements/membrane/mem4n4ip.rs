@@ -67,7 +67,7 @@ pub struct Mem4n4ip<V>
 }
 
 
-impl<T, V> Mem4n4ip<V>
+impl<V> Mem4n4ip<V>
     where V: FloatTrait<Output = V>
 {
     pub fn create(
@@ -559,7 +559,6 @@ impl<V> FiniteElementTrait<V> for Mem4n4ip<V>
 
     fn refresh(
         &mut self, 
-        tolerance: V, 
         ref_nodes: &HashMap<u32, FENode<V>>, 
         rel_tol: V, 
         abs_tol: V,

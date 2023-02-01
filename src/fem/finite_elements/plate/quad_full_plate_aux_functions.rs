@@ -1,6 +1,10 @@
 use std::collections::HashMap;
 
-use extended_matrix::{Matrix, FloatTrait, Vector3, Position, BasicOperationsTrait, SquareMatrix, SquareMatrixTrait};
+use extended_matrix::
+{
+    Matrix, FloatTrait, Vector3, Position, BasicOperationsTrait, SquareMatrix, SquareMatrixTrait, Vector,
+    VectorTrait
+};
 
 use crate::fem::global_analysis::fe_dof_parameter_data::{DOFParameterData, GlobalDOFParameter};
 
@@ -54,20 +58,22 @@ impl<V> QuadFullPlateAuxFunctions<V>
         let normal_through_node_3 = edge_3_4_vector.cross_product(&edge_3_2_vector);
         let normal_through_node_3_length = normal_through_node_3.norm()?;
 
-        let direction_vector = Vector3::create(&[0.0, 0.0, normal_through_node_3_length]);
+        let direction_vector = Vector3::create(
+            &[V::from(0f32), V::from(0f32), normal_through_node_3_length],
+        );
 
         let shrinked_rotation_matrix = normal_through_node_3
             .rotation_matrix_to_align_with_vector(&direction_vector, rel_tol, abs_tol)?;
 
-        let q_11 = shrinked_rotation_matrix.get_element_value(&Position(0, 0))?;
-        let q_12 = shrinked_rotation_matrix.get_element_value(&Position(0, 1))?;
-        let q_13 = shrinked_rotation_matrix.get_element_value(&Position(0, 2))?;
-        let q_21 = shrinked_rotation_matrix.get_element_value(&Position(1, 0))?;
-        let q_22 = shrinked_rotation_matrix.get_element_value(&Position(1, 1))?;
-        let q_23 = shrinked_rotation_matrix.get_element_value(&Position(1, 2))?;
-        let q_31 = shrinked_rotation_matrix.get_element_value(&Position(2, 0))?;
-        let q_32 = shrinked_rotation_matrix.get_element_value(&Position(2, 1))?;
-        let q_33 = shrinked_rotation_matrix.get_element_value(&Position(2, 2))?;
+        let q_11 = *shrinked_rotation_matrix.get_element_value(&Position(0, 0))?;
+        let q_12 = *shrinked_rotation_matrix.get_element_value(&Position(0, 1))?;
+        let q_13 = *shrinked_rotation_matrix.get_element_value(&Position(0, 2))?;
+        let q_21 = *shrinked_rotation_matrix.get_element_value(&Position(1, 0))?;
+        let q_22 = *shrinked_rotation_matrix.get_element_value(&Position(1, 1))?;
+        let q_23 = *shrinked_rotation_matrix.get_element_value(&Position(1, 2))?;
+        let q_31 = *shrinked_rotation_matrix.get_element_value(&Position(2, 0))?;
+        let q_32 = *shrinked_rotation_matrix.get_element_value(&Position(2, 1))?;
+        let q_33 = *shrinked_rotation_matrix.get_element_value(&Position(2, 2))?;
 
         // let normal_through_node_3_x = edge_3_4_y * edge_3_2_z - edge_3_4_z * edge_3_2_y;
         // let normal_through_node_3_y = edge_3_4_z * edge_3_2_x - edge_3_4_x * edge_3_2_z;
@@ -119,128 +125,128 @@ impl<V> QuadFullPlateAuxFunctions<V>
         let rotation_matrix = Matrix::create(
             QuadFullPlateAuxFunctions::<V>::nodes_number() * QuadFullPlateAuxFunctions::<V>::node_dof(),
             QuadFullPlateAuxFunctions::<V>::nodes_number() * QuadFullPlateAuxFunctions::<V>::node_dof(),
-            &[[q_11, q_12, q_13, &V::from(0f32), &V::from(0f32), &V::from(0f32)],
-                [&V::from(0f32); PLATE_NODE_DOF], 
-                [&V::from(0f32); PLATE_NODE_DOF],
-                [&V::from(0f32); PLATE_NODE_DOF],
+            &[[q_11, q_12, q_13, V::from(0f32), V::from(0f32), V::from(0f32)],
+                [V::from(0f32); PLATE_NODE_DOF], 
+                [V::from(0f32); PLATE_NODE_DOF],
+                [V::from(0f32); PLATE_NODE_DOF],
 
-                [q_21, q_22, q_23, &V::from(0f32), &V::from(0f32), &V::from(0f32)], 
-                [&V::from(0f32); PLATE_NODE_DOF],
-                [&V::from(0f32); PLATE_NODE_DOF], 
-                [&V::from(0f32); PLATE_NODE_DOF],
+                [q_21, q_22, q_23, V::from(0f32), V::from(0f32), V::from(0f32)], 
+                [V::from(0f32); PLATE_NODE_DOF],
+                [V::from(0f32); PLATE_NODE_DOF], 
+                [V::from(0f32); PLATE_NODE_DOF],
 
-                [q_31, q_32, q_33, &V::from(0f32), &V::from(0f32), &V::from(0f32)], 
-                [&V::from(0f32); PLATE_NODE_DOF],
-                [&V::from(0f32); PLATE_NODE_DOF], 
-                [&V::from(0f32); PLATE_NODE_DOF],
+                [q_31, q_32, q_33, V::from(0f32), V::from(0f32), V::from(0f32)], 
+                [V::from(0f32); PLATE_NODE_DOF],
+                [V::from(0f32); PLATE_NODE_DOF], 
+                [V::from(0f32); PLATE_NODE_DOF],
 
-                [&V::from(0f32), &V::from(0f32), &V::from(0f32), q_11, q_12, q_13],
-                [&V::from(0f32); PLATE_NODE_DOF], 
-                [&V::from(0f32); PLATE_NODE_DOF],
-                [&V::from(0f32); PLATE_NODE_DOF],
+                [V::from(0f32), V::from(0f32), V::from(0f32), q_11, q_12, q_13],
+                [V::from(0f32); PLATE_NODE_DOF], 
+                [V::from(0f32); PLATE_NODE_DOF],
+                [V::from(0f32); PLATE_NODE_DOF],
 
-                [&V::from(0f32), &V::from(0f32), &V::from(0f32), q_21, q_22, q_23],
-                [&V::from(0f32); PLATE_NODE_DOF],
-                [&V::from(0f32); PLATE_NODE_DOF], 
-                [&V::from(0f32); PLATE_NODE_DOF],
+                [V::from(0f32), V::from(0f32), V::from(0f32), q_21, q_22, q_23],
+                [V::from(0f32); PLATE_NODE_DOF],
+                [V::from(0f32); PLATE_NODE_DOF], 
+                [V::from(0f32); PLATE_NODE_DOF],
 
-                [&V::from(0f32), &V::from(0f32), &V::from(0f32), q_31, q_32, q_33],
-                [&V::from(0f32); PLATE_NODE_DOF],
-                [&V::from(0f32); PLATE_NODE_DOF], 
-                [&V::from(0f32); PLATE_NODE_DOF],
-
-
-                [&V::from(0f32); PLATE_NODE_DOF], 
-                [q_11, q_12, q_13, &V::from(0f32), &V::from(0f32), &V::from(0f32)],
-                [&V::from(0f32); PLATE_NODE_DOF],
-                [&V::from(0f32); PLATE_NODE_DOF],
-
-                [&V::from(0f32); PLATE_NODE_DOF],
-                [q_21, q_22, q_23, &V::from(0f32), &V::from(0f32), &V::from(0f32)], 
-                [&V::from(0f32); PLATE_NODE_DOF], 
-                [&V::from(0f32); PLATE_NODE_DOF],
-
-                [&V::from(0f32); PLATE_NODE_DOF],
-                [q_31, q_32, q_33, &V::from(0f32), &V::from(0f32), &V::from(0f32)], 
-                [&V::from(0f32); PLATE_NODE_DOF], 
-                [&V::from(0f32); PLATE_NODE_DOF],
-
-                [&V::from(0f32); PLATE_NODE_DOF], 
-                [&V::from(0f32), &V::from(0f32), &V::from(0f32), q_11, q_12, q_13],
-                [&V::from(0f32); PLATE_NODE_DOF],
-                [&V::from(0f32); PLATE_NODE_DOF],
-
-                [&V::from(0f32); PLATE_NODE_DOF],
-                [&V::from(0f32), &V::from(0f32), &V::from(0f32), q_21, q_22, q_23],
-                [&V::from(0f32); PLATE_NODE_DOF], 
-                [&V::from(0f32); PLATE_NODE_DOF],
-
-                [&V::from(0f32); PLATE_NODE_DOF],
-                [&V::from(0f32), &V::from(0f32), &V::from(0f32), q_31, q_32, q_33],
-                [&V::from(0f32); PLATE_NODE_DOF], 
-                [&V::from(0f32); PLATE_NODE_DOF],
+                [V::from(0f32), V::from(0f32), V::from(0f32), q_31, q_32, q_33],
+                [V::from(0f32); PLATE_NODE_DOF],
+                [V::from(0f32); PLATE_NODE_DOF], 
+                [V::from(0f32); PLATE_NODE_DOF],
 
 
-                [&V::from(0f32); PLATE_NODE_DOF],
-                [&V::from(0f32); PLATE_NODE_DOF], 
-                [q_11, q_12, q_13, &V::from(0f32), &V::from(0f32), &V::from(0f32)],
-                [&V::from(0f32); PLATE_NODE_DOF],
+                [V::from(0f32); PLATE_NODE_DOF], 
+                [q_11, q_12, q_13, V::from(0f32), V::from(0f32), V::from(0f32)],
+                [V::from(0f32); PLATE_NODE_DOF],
+                [V::from(0f32); PLATE_NODE_DOF],
 
-                [&V::from(0f32); PLATE_NODE_DOF], 
-                [&V::from(0f32); PLATE_NODE_DOF],
-                [q_21, q_22, q_23, &V::from(0f32), &V::from(0f32), &V::from(0f32)], 
-                [&V::from(0f32); PLATE_NODE_DOF],
+                [V::from(0f32); PLATE_NODE_DOF],
+                [q_21, q_22, q_23, V::from(0f32), V::from(0f32), V::from(0f32)], 
+                [V::from(0f32); PLATE_NODE_DOF], 
+                [V::from(0f32); PLATE_NODE_DOF],
 
-                [&V::from(0f32); PLATE_NODE_DOF], 
-                [&V::from(0f32); PLATE_NODE_DOF],
-                [q_31, q_32, q_33, &V::from(0f32), &V::from(0f32), &V::from(0f32)], 
-                [&V::from(0f32); PLATE_NODE_DOF],
+                [V::from(0f32); PLATE_NODE_DOF],
+                [q_31, q_32, q_33, V::from(0f32), V::from(0f32), V::from(0f32)], 
+                [V::from(0f32); PLATE_NODE_DOF], 
+                [V::from(0f32); PLATE_NODE_DOF],
 
-                [&V::from(0f32); PLATE_NODE_DOF],
-                [&V::from(0f32); PLATE_NODE_DOF], 
-                [&V::from(0f32), &V::from(0f32), &V::from(0f32), q_11, q_12, q_13],
-                [&V::from(0f32); PLATE_NODE_DOF],
+                [V::from(0f32); PLATE_NODE_DOF], 
+                [V::from(0f32), V::from(0f32), V::from(0f32), q_11, q_12, q_13],
+                [V::from(0f32); PLATE_NODE_DOF],
+                [V::from(0f32); PLATE_NODE_DOF],
 
-                [&V::from(0f32); PLATE_NODE_DOF], 
-                [&V::from(0f32); PLATE_NODE_DOF],
-                [&V::from(0f32), &V::from(0f32), &V::from(0f32), q_21, q_22, q_23],
-                [&V::from(0f32); PLATE_NODE_DOF],
+                [V::from(0f32); PLATE_NODE_DOF],
+                [V::from(0f32), V::from(0f32), V::from(0f32), q_21, q_22, q_23],
+                [V::from(0f32); PLATE_NODE_DOF], 
+                [V::from(0f32); PLATE_NODE_DOF],
 
-                [&V::from(0f32); PLATE_NODE_DOF], 
-                [&V::from(0f32); PLATE_NODE_DOF],
-                [&V::from(0f32), &V::from(0f32), &V::from(0f32), q_31, q_32, q_33],
-                [&V::from(0f32); PLATE_NODE_DOF],
+                [V::from(0f32); PLATE_NODE_DOF],
+                [V::from(0f32), V::from(0f32), V::from(0f32), q_31, q_32, q_33],
+                [V::from(0f32); PLATE_NODE_DOF], 
+                [V::from(0f32); PLATE_NODE_DOF],
 
 
-                [&V::from(0f32); PLATE_NODE_DOF],
-                [&V::from(0f32); PLATE_NODE_DOF],
-                [&V::from(0f32); PLATE_NODE_DOF], 
-                [q_11, q_12, q_13, &V::from(0f32), &V::from(0f32), &V::from(0f32)],
+                [V::from(0f32); PLATE_NODE_DOF],
+                [V::from(0f32); PLATE_NODE_DOF], 
+                [q_11, q_12, q_13, V::from(0f32), V::from(0f32), V::from(0f32)],
+                [V::from(0f32); PLATE_NODE_DOF],
 
-                [&V::from(0f32); PLATE_NODE_DOF],
-                [&V::from(0f32); PLATE_NODE_DOF], 
-                [&V::from(0f32); PLATE_NODE_DOF],
-                [q_21, q_22, q_23, &V::from(0f32), &V::from(0f32), &V::from(0f32)], 
+                [V::from(0f32); PLATE_NODE_DOF], 
+                [V::from(0f32); PLATE_NODE_DOF],
+                [q_21, q_22, q_23, V::from(0f32), V::from(0f32), V::from(0f32)], 
+                [V::from(0f32); PLATE_NODE_DOF],
 
-                [&V::from(0f32); PLATE_NODE_DOF],
-                [&V::from(0f32); PLATE_NODE_DOF], 
-                [&V::from(0f32); PLATE_NODE_DOF],
-                [q_31, q_32, q_33, &V::from(0f32), &V::from(0f32), &V::from(0f32)], 
+                [V::from(0f32); PLATE_NODE_DOF], 
+                [V::from(0f32); PLATE_NODE_DOF],
+                [q_31, q_32, q_33, V::from(0f32), V::from(0f32), V::from(0f32)], 
+                [V::from(0f32); PLATE_NODE_DOF],
 
-                [&V::from(0f32); PLATE_NODE_DOF],
-                [&V::from(0f32); PLATE_NODE_DOF],
-                [&V::from(0f32); PLATE_NODE_DOF], 
-                [&V::from(0f32), &V::from(0f32), &V::from(0f32), q_11, q_12, q_13],
+                [V::from(0f32); PLATE_NODE_DOF],
+                [V::from(0f32); PLATE_NODE_DOF], 
+                [V::from(0f32), V::from(0f32), V::from(0f32), q_11, q_12, q_13],
+                [V::from(0f32); PLATE_NODE_DOF],
+
+                [V::from(0f32); PLATE_NODE_DOF], 
+                [V::from(0f32); PLATE_NODE_DOF],
+                [V::from(0f32), V::from(0f32), V::from(0f32), q_21, q_22, q_23],
+                [V::from(0f32); PLATE_NODE_DOF],
+
+                [V::from(0f32); PLATE_NODE_DOF], 
+                [V::from(0f32); PLATE_NODE_DOF],
+                [V::from(0f32), V::from(0f32), V::from(0f32), q_31, q_32, q_33],
+                [V::from(0f32); PLATE_NODE_DOF],
+
+
+                [V::from(0f32); PLATE_NODE_DOF],
+                [V::from(0f32); PLATE_NODE_DOF],
+                [V::from(0f32); PLATE_NODE_DOF], 
+                [q_11, q_12, q_13, V::from(0f32), V::from(0f32), V::from(0f32)],
+
+                [V::from(0f32); PLATE_NODE_DOF],
+                [V::from(0f32); PLATE_NODE_DOF], 
+                [V::from(0f32); PLATE_NODE_DOF],
+                [q_21, q_22, q_23, V::from(0f32), V::from(0f32), V::from(0f32)], 
+
+                [V::from(0f32); PLATE_NODE_DOF],
+                [V::from(0f32); PLATE_NODE_DOF], 
+                [V::from(0f32); PLATE_NODE_DOF],
+                [q_31, q_32, q_33, V::from(0f32), V::from(0f32), V::from(0f32)], 
+
+                [V::from(0f32); PLATE_NODE_DOF],
+                [V::from(0f32); PLATE_NODE_DOF],
+                [V::from(0f32); PLATE_NODE_DOF], 
+                [V::from(0f32), V::from(0f32), V::from(0f32), q_11, q_12, q_13],
                 
-                [&V::from(0f32); PLATE_NODE_DOF],
-                [&V::from(0f32); PLATE_NODE_DOF], 
-                [&V::from(0f32); PLATE_NODE_DOF],
-                [&V::from(0f32), &V::from(0f32), &V::from(0f32), q_21, q_22, q_23],
+                [V::from(0f32); PLATE_NODE_DOF],
+                [V::from(0f32); PLATE_NODE_DOF], 
+                [V::from(0f32); PLATE_NODE_DOF],
+                [V::from(0f32), V::from(0f32), V::from(0f32), q_21, q_22, q_23],
                 
-                [&V::from(0f32); PLATE_NODE_DOF],
-                [&V::from(0f32); PLATE_NODE_DOF], 
-                [&V::from(0f32); PLATE_NODE_DOF],
-                [&V::from(0f32), &V::from(0f32), &V::from(0f32), q_31, q_32, q_33],
+                [V::from(0f32); PLATE_NODE_DOF],
+                [V::from(0f32); PLATE_NODE_DOF], 
+                [V::from(0f32); PLATE_NODE_DOF],
+                [V::from(0f32), V::from(0f32), V::from(0f32), q_31, q_32, q_33],
             ]
             .concat(),
         );
@@ -469,17 +475,26 @@ impl<V> QuadFullPlateAuxFunctions<V>
         let transformed_node_2_direction = shrinked_rotation_matrix.multiply(&node_2_direction)?;
         let transformed_node_4_direction = shrinked_rotation_matrix.multiply(&node_4_direction)?;
 
-        let transformed_node_1_direction_x = transformed_node_1_direction.get_element_value(&Position(0, 0))?;
-        let transformed_node_1_direction_y = transformed_node_1_direction.get_element_value(&Position(1, 0))?;
-        let transformed_node_1_direction_z = transformed_node_1_direction.get_element_value(&Position(2, 0))?;
+        let transformed_node_1_direction_x = *transformed_node_1_direction
+            .get_element_value(&Position(0, 0))?;
+        let transformed_node_1_direction_y = *transformed_node_1_direction
+            .get_element_value(&Position(1, 0))?;
+        let transformed_node_1_direction_z = *transformed_node_1_direction
+            .get_element_value(&Position(2, 0))?;
 
-        let transformed_node_2_direction_x = transformed_node_2_direction.get_element_value(&Position(0, 0))?;
-        let transformed_node_2_direction_y = transformed_node_2_direction.get_element_value(&Position(1, 0))?;
-        let transformed_node_2_direction_z = transformed_node_2_direction.get_element_value(&Position(2, 0))?;
+        let transformed_node_2_direction_x = *transformed_node_2_direction
+            .get_element_value(&Position(0, 0))?;
+        let transformed_node_2_direction_y = *transformed_node_2_direction
+            .get_element_value(&Position(1, 0))?;
+        let transformed_node_2_direction_z = *transformed_node_2_direction
+            .get_element_value(&Position(2, 0))?;
 
-        let transformed_node_4_direction_x = transformed_node_4_direction.get_element_value(&Position(0, 0))?;
-        let transformed_node_4_direction_y = transformed_node_4_direction.get_element_value(&Position(1, 0))?;
-        let transformed_node_4_direction_z = transformed_node_4_direction.get_element_value(&Position(2, 0))?;
+        let transformed_node_4_direction_x = *transformed_node_4_direction
+            .get_element_value(&Position(0, 0))?;
+        let transformed_node_4_direction_y = *transformed_node_4_direction
+            .get_element_value(&Position(1, 0))?;
+        let transformed_node_4_direction_z = *transformed_node_4_direction
+            .get_element_value(&Position(2, 0))?;
 
         // if compare_with_tolerance(transformed_node_1_direction_z - 
         //     transformed_node_2_direction_z, tolerance) != V::from(0f32) || 
@@ -571,7 +586,7 @@ impl<V> QuadFullPlateAuxFunctions<V>
         let jacobian = QuadFullPlateAuxFunctions::<V>::jacobian(
             node_1_number, node_2_number, node_3_number, node_4_number, r, s, ref_nodes, ref_rotation_matrix,
         )?;
-        let mut x = vec![V::from(0f32); jacobian.get_shape().0];
+        let mut x = Vector::create(&vec![V::from(0f32); jacobian.get_shape().0]);
         let inverse_jacobian = jacobian.inverse(&mut x, rel_tol)?;
         Ok(inverse_jacobian)
     }
@@ -774,31 +789,31 @@ impl<V> QuadFullPlateAuxFunctions<V>
             node_1_number, node_2_number, node_3_number, node_4_number, r, s, ref_nodes, ref_rotation_matrix, rel_tol,
         )?;
 
-        let dh1_dx = dh_dx_dh_dy_matrix.get_element_value(&Position(0, 0))?;
-        let dh2_dx = dh_dx_dh_dy_matrix.get_element_value(&Position(0, 1))?;
-        let dh3_dx = dh_dx_dh_dy_matrix.get_element_value(&Position(0, 2))?;
-        let dh4_dx = dh_dx_dh_dy_matrix.get_element_value(&Position(0, 3))?;
+        let dh1_dx = *dh_dx_dh_dy_matrix.get_element_value(&Position(0, 0))?;
+        let dh2_dx = *dh_dx_dh_dy_matrix.get_element_value(&Position(0, 1))?;
+        let dh3_dx = *dh_dx_dh_dy_matrix.get_element_value(&Position(0, 2))?;
+        let dh4_dx = *dh_dx_dh_dy_matrix.get_element_value(&Position(0, 3))?;
 
-        let dh1_dy = dh_dx_dh_dy_matrix.get_element_value(&Position(1, 0))?;
-        let dh2_dy = dh_dx_dh_dy_matrix.get_element_value(&Position(1, 1))?;
-        let dh3_dy = dh_dx_dh_dy_matrix.get_element_value(&Position(1, 2))?;
-        let dh4_dy = dh_dx_dh_dy_matrix.get_element_value(&Position(1, 3))?;
+        let dh1_dy = *dh_dx_dh_dy_matrix.get_element_value(&Position(1, 0))?;
+        let dh2_dy = *dh_dx_dh_dy_matrix.get_element_value(&Position(1, 1))?;
+        let dh3_dy = *dh_dx_dh_dy_matrix.get_element_value(&Position(1, 2))?;
+        let dh4_dy = *dh_dx_dh_dy_matrix.get_element_value(&Position(1, 3))?;
 
         let elements = vec![
-            dh1_dx, &V::from(0f32), &V::from(0f32), &V::from(0f32), &V::from(0f32), &V::from(0f32),
-            dh2_dx, &V::from(0f32), &V::from(0f32), &V::from(0f32), &V::from(0f32), &V::from(0f32),
-            dh3_dx, &V::from(0f32), &V::from(0f32), &V::from(0f32), &V::from(0f32), &V::from(0f32),
-            dh4_dx, &V::from(0f32), &V::from(0f32), &V::from(0f32), &V::from(0f32), &V::from(0f32),
+            dh1_dx, V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32),
+            dh2_dx, V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32),
+            dh3_dx, V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32),
+            dh4_dx, V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32),
 
-            &V::from(0f32), dh1_dy, &V::from(0f32), &V::from(0f32), &V::from(0f32), &V::from(0f32),
-            &V::from(0f32), dh2_dy, &V::from(0f32), &V::from(0f32), &V::from(0f32), &V::from(0f32),
-            &V::from(0f32), dh3_dy, &V::from(0f32), &V::from(0f32), &V::from(0f32), &V::from(0f32),
-            &V::from(0f32), dh4_dy, &V::from(0f32), &V::from(0f32), &V::from(0f32), &V::from(0f32),
+            V::from(0f32), dh1_dy, V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32),
+            V::from(0f32), dh2_dy, V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32),
+            V::from(0f32), dh3_dy, V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32),
+            V::from(0f32), dh4_dy, V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32),
 
-            dh1_dy, dh1_dx, &V::from(0f32), &V::from(0f32), &V::from(0f32), &V::from(0f32),
-            dh2_dy, dh2_dx, &V::from(0f32), &V::from(0f32), &V::from(0f32), &V::from(0f32),
-            dh3_dy, dh3_dx, &V::from(0f32), &V::from(0f32), &V::from(0f32), &V::from(0f32),
-            dh4_dy, dh4_dx, &V::from(0f32), &V::from(0f32), &V::from(0f32), &V::from(0f32),
+            dh1_dy, dh1_dx, V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32),
+            dh2_dy, dh2_dx, V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32),
+            dh3_dy, dh3_dx, V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32),
+            dh4_dy, dh4_dx, V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32),
         ];
 
         let matrix = Matrix::create(
@@ -828,15 +843,15 @@ impl<V> QuadFullPlateAuxFunctions<V>
             node_1_number, node_2_number, node_3_number, node_4_number, r, s, ref_nodes, ref_rotation_matrix, rel_tol,
         )?;
 
-        let dh1_dx = dh_dx_dh_dy_matrix.get_element_value(&Position(0, 0))?;
-        let dh2_dx = dh_dx_dh_dy_matrix.get_element_value(&Position(0, 1))?;
-        let dh3_dx = dh_dx_dh_dy_matrix.get_element_value(&Position(0, 2))?;
-        let dh4_dx = dh_dx_dh_dy_matrix.get_element_value(&Position(0, 3))?;
+        let dh1_dx = *dh_dx_dh_dy_matrix.get_element_value(&Position(0, 0))?;
+        let dh2_dx = *dh_dx_dh_dy_matrix.get_element_value(&Position(0, 1))?;
+        let dh3_dx = *dh_dx_dh_dy_matrix.get_element_value(&Position(0, 2))?;
+        let dh4_dx = *dh_dx_dh_dy_matrix.get_element_value(&Position(0, 3))?;
 
-        let dh1_dy = dh_dx_dh_dy_matrix.get_element_value(&Position(1, 0))?;
-        let dh2_dy = dh_dx_dh_dy_matrix.get_element_value(&Position(1, 1))?;
-        let dh3_dy = dh_dx_dh_dy_matrix.get_element_value(&Position(1, 2))?;
-        let dh4_dy = dh_dx_dh_dy_matrix.get_element_value(&Position(1, 3))?;
+        let dh1_dy = *dh_dx_dh_dy_matrix.get_element_value(&Position(1, 0))?;
+        let dh2_dy = *dh_dx_dh_dy_matrix.get_element_value(&Position(1, 1))?;
+        let dh3_dy = *dh_dx_dh_dy_matrix.get_element_value(&Position(1, 2))?;
+        let dh4_dy = *dh_dx_dh_dy_matrix.get_element_value(&Position(1, 3))?;
 
         let elements = vec![
             V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), V::from(-1f32) * dh1_dx, V::from(0f32),
@@ -859,7 +874,7 @@ impl<V> QuadFullPlateAuxFunctions<V>
             3, 
             QuadFullPlateAuxFunctions::<V>::nodes_number() * QuadFullPlateAuxFunctions::<V>::node_dof(), 
             &elements,
-        )?;
+        );
 
         Ok(matrix)
     }
@@ -1104,7 +1119,7 @@ impl<V> QuadFullPlateAuxFunctions<V>
         let mut matrix_bend = lhs_matrix_bend
             .multiply(&c_matrix_bend)?
             .multiply(&rhs_matrix_bend)?
-            .multiply_by_number(
+            .multiply_by_scalar(
                 QuadFullPlateAuxFunctions::determinant_of_jacobian(
                     node_1_number, 
                     node_2_number, 
@@ -1135,7 +1150,7 @@ impl<V> QuadFullPlateAuxFunctions<V>
         let mut matrix_shear = lhs_matrix_shear
             .multiply(&c_matrix_shear)?
             .multiply(&rhs_matrix_shear)?
-            .multiply_by_number(
+            .multiply_by_scalar(
                 QuadFullPlateAuxFunctions::determinant_of_jacobian(
                     node_1_number, 
                     node_2_number, 
@@ -1179,7 +1194,7 @@ impl<V> QuadFullPlateAuxFunctions<V>
         -> Result<Vec<V>, String>
     {
         let mut values = Vec::new();
-        let shape = column_matrix.copy_shape();
+        let shape = column_matrix.get_shape();
 
         let mut row = 0;
         while row < shape.0
@@ -1188,7 +1203,7 @@ impl<V> QuadFullPlateAuxFunctions<V>
             while column < shape.1
             {
                 let value = column_matrix.get_element_value(&Position(row, column))?;
-                values.push(value);
+                values.push(*value);
                 column += 1;
             }
             row += 1;

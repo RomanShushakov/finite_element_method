@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::f32::consts::PI;
 
-use extended_matrix::{Matrix, FloatTrait, Vector3, Position, BasicOperationsTrait};
+use extended_matrix::{Matrix, FloatTrait, Vector3, Position, BasicOperationsTrait, VectorTrait};
 
 use crate::fem::global_analysis::fe_dof_parameter_data::{DOFParameterData, GlobalDOFParameter};
 
@@ -111,20 +111,20 @@ impl<V> BeamAuxFunctions<V>
         
         let beam_element_vector = Vector3::create(&[x, y, z]);
         let length = beam_element_vector.norm()?;
-        let direction_vector = Vector3::create(&[length, 0.0, 0.0]);
+        let direction_vector = Vector3::create(&[length, V::from(0f32), V::from(0f32)]);
 
         let shrinked_rotation_matrix = beam_element_vector
             .rotation_matrix_to_align_with_vector(&direction_vector, rel_tol, abs_tol)?;
 
-        let q_11 = shrinked_rotation_matrix.get_element_value(&Position(0, 0))?;
-        let q_12 = shrinked_rotation_matrix.get_element_value(&Position(0, 1))?;
-        let q_13 = shrinked_rotation_matrix.get_element_value(&Position(0, 2))?;
-        let q_21 = shrinked_rotation_matrix.get_element_value(&Position(1, 0))?;
-        let q_22 = shrinked_rotation_matrix.get_element_value(&Position(1, 1))?;
-        let q_23 = shrinked_rotation_matrix.get_element_value(&Position(1, 2))?;
-        let q_31 = shrinked_rotation_matrix.get_element_value(&Position(2, 0))?;
-        let q_32 = shrinked_rotation_matrix.get_element_value(&Position(2, 1))?;
-        let q_33 = shrinked_rotation_matrix.get_element_value(&Position(2, 2))?;
+        let q_11 = *shrinked_rotation_matrix.get_element_value(&Position(0, 0))?;
+        let q_12 = *shrinked_rotation_matrix.get_element_value(&Position(0, 1))?;
+        let q_13 = *shrinked_rotation_matrix.get_element_value(&Position(0, 2))?;
+        let q_21 = *shrinked_rotation_matrix.get_element_value(&Position(1, 0))?;
+        let q_22 = *shrinked_rotation_matrix.get_element_value(&Position(1, 1))?;
+        let q_23 = *shrinked_rotation_matrix.get_element_value(&Position(1, 2))?;
+        let q_31 = *shrinked_rotation_matrix.get_element_value(&Position(2, 0))?;
+        let q_32 = *shrinked_rotation_matrix.get_element_value(&Position(2, 1))?;
+        let q_33 = *shrinked_rotation_matrix.get_element_value(&Position(2, 2))?;
 
         // let length = BeamAuxFunctions::<T, V>::length(node_1_number, node_2_number, nodes);
 
@@ -176,13 +176,13 @@ impl<V> BeamAuxFunctions<V>
             .multiply(&projection_of_beam_section_orientation)?;
 
         let transformed_projection_of_beam_section_orientation_x = 
-            transformed_projection_of_beam_section_orientation.get_element_value(&Position(0, 0))?;
+            *transformed_projection_of_beam_section_orientation.get_element_value(&Position(0, 0))?;
 
         let transformed_projection_of_beam_section_orientation_y =
-            transformed_projection_of_beam_section_orientation.get_element_value(&Position(1, 0))?;
+            *transformed_projection_of_beam_section_orientation.get_element_value(&Position(1, 0))?;
 
         let transformed_projection_of_beam_section_orientation_z =
-            transformed_projection_of_beam_section_orientation.get_element_value(&Position(2, 0))?;
+            *transformed_projection_of_beam_section_orientation.get_element_value(&Position(2, 0))?;
 
         let angle_between_beam_section_local_axis_1_direction_and_axis_t =
             (transformed_projection_of_beam_section_orientation_z /
@@ -719,7 +719,7 @@ impl<V> BeamAuxFunctions<V>
             while column < shape.1
             {
                 let value = column_matrix.get_element_value(&Position(row, column))?;
-                values.push(value);
+                values.push(*value);
                 column += 1;
             }
             row += 1;

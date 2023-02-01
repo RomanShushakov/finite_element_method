@@ -34,15 +34,15 @@ impl<V> TrussAuxFunctions<V>
     }
 
 
-    pub fn nodes_number() -> u32
+    pub fn nodes_number() -> usize
     {
-        TRUSS2N2IP_NODES_NUMBER as u32
+        TRUSS2N2IP_NODES_NUMBER
     }
 
 
-    pub fn node_dof() -> u32
+    pub fn node_dof() -> usize
     {
-        TRUSS_NODE_DOF as u32
+        TRUSS_NODE_DOF
     }
 
 
@@ -64,33 +64,35 @@ impl<V> TrussAuxFunctions<V>
 
         let truss_element_vector = Vector3::create(&[x, y, z]);
         let truss_element_length = truss_element_vector.norm()?;
-        let direction_vector = Vector3::create(&[truss_element_length, 0.0, 0.0]);
+        let direction_vector = Vector3::create(
+            &[truss_element_length, V::from(0f32), V::from(0f32)],
+        );
 
         let shrinked_rotation_matrix = truss_element_vector
             .rotation_matrix_to_align_with_vector(&direction_vector, rel_tol, abs_tol)?;
 
-        let q_11 = shrinked_rotation_matrix.get_element_value(&Position(0, 0))?;
-        let q_12 = shrinked_rotation_matrix.get_element_value(&Position(0, 1))?;
-        let q_13 = shrinked_rotation_matrix.get_element_value(&Position(0, 2))?;
-        let q_21 = shrinked_rotation_matrix.get_element_value(&Position(1, 0))?;
-        let q_22 = shrinked_rotation_matrix.get_element_value(&Position(1, 1))?;
-        let q_23 = shrinked_rotation_matrix.get_element_value(&Position(1, 2))?;
-        let q_31 = shrinked_rotation_matrix.get_element_value(&Position(2, 0))?;
-        let q_32 = shrinked_rotation_matrix.get_element_value(&Position(2, 1))?;
-        let q_33 = shrinked_rotation_matrix.get_element_value(&Position(2, 2))?;
+        let q_11 = *shrinked_rotation_matrix.get_element_value(&Position(0, 0))?;
+        let q_12 = *shrinked_rotation_matrix.get_element_value(&Position(0, 1))?;
+        let q_13 = *shrinked_rotation_matrix.get_element_value(&Position(0, 2))?;
+        let q_21 = *shrinked_rotation_matrix.get_element_value(&Position(1, 0))?;
+        let q_22 = *shrinked_rotation_matrix.get_element_value(&Position(1, 1))?;
+        let q_23 = *shrinked_rotation_matrix.get_element_value(&Position(1, 2))?;
+        let q_31 = *shrinked_rotation_matrix.get_element_value(&Position(2, 0))?;
+        let q_32 = *shrinked_rotation_matrix.get_element_value(&Position(2, 1))?;
+        let q_33 = *shrinked_rotation_matrix.get_element_value(&Position(2, 2))?;
 
         let rotation_matrix = Matrix::create(
             TrussAuxFunctions::<V>::nodes_number() * TrussAuxFunctions::<V>::node_dof(),
             TrussAuxFunctions::<V>::nodes_number() * TrussAuxFunctions::<V>::node_dof(),
             &vec![
-                [q_11, q_12, q_13], [&V::from(0f32); TRUSS_NODE_DOF],
-                [q_21, q_22, q_23], [&V::from(0f32); TRUSS_NODE_DOF],
-                [q_31, q_32, q_33], [&V::from(0f32); TRUSS_NODE_DOF],
-                [&V::from(0f32); TRUSS_NODE_DOF], [q_11, q_12, q_13],
-                [&V::from(0f32); TRUSS_NODE_DOF], [q_21, q_22, q_23],
-                [&V::from(0f32); TRUSS_NODE_DOF], [q_31, q_32, q_33],
+                [q_11, q_12, q_13], [V::from(0f32); TRUSS_NODE_DOF],
+                [q_21, q_22, q_23], [V::from(0f32); TRUSS_NODE_DOF],
+                [q_31, q_32, q_33], [V::from(0f32); TRUSS_NODE_DOF],
+                [V::from(0f32); TRUSS_NODE_DOF], [q_11, q_12, q_13],
+                [V::from(0f32); TRUSS_NODE_DOF], [q_21, q_22, q_23],
+                [V::from(0f32); TRUSS_NODE_DOF], [q_31, q_32, q_33],
             ].concat(),
-        )?;
+        );
 
         // let length = TrussAuxFunctions::<V>::length(node_1_number, node_2_number, nodes);
 
@@ -229,7 +231,7 @@ impl<V> TrussAuxFunctions<V>
             &elements,
         );
         let inverse_jacobian = TrussAuxFunctions::inverse_jacobian(node_1_number, node_2_number, r, nodes);
-        matrix.multiply_by_number(inverse_jacobian);
+        matrix.multiply_by_scalar(inverse_jacobian);
         Ok(matrix)
     }
 
@@ -268,7 +270,7 @@ impl<V> TrussAuxFunctions<V>
 
         lhs_matrix.transpose();
 
-        lhs_matrix.multiply_by_number(young_modulus * current_area);
+        lhs_matrix.multiply_by_scalar(young_modulus * current_area);
 
         let rhs_matrix = TrussAuxFunctions::strain_displacement_matrix(
             node_1_number, node_2_number, r, nodes,
@@ -278,11 +280,11 @@ impl<V> TrussAuxFunctions<V>
         {
             Ok(mut matrix) =>
                 {
-                    matrix.multiply_by_number(
-                        TrussAuxFunctions::determinant_of_jacobian(node_1_number, node_2_number, r, nodes) * alpha
+                    matrix.multiply_by_scalar(
+                        TrussAuxFunctions::determinant_of_jacobian(node_1_number, node_2_number, r, nodes) * alpha,
                     );
 
-                    match local_stiffness_matrix.add_matrix(&matrix)
+                    match local_stiffness_matrix.add(&matrix)
                     {
                         Ok(matrix) => Ok(matrix),
                         Err(e) => Err(format!("Truss element: Local stiffness matrix cannot be calculated! Reason: {e}")),
@@ -320,7 +322,7 @@ impl<V> TrussAuxFunctions<V>
             while column < shape.1
             {
                 let value =  column_matrix.get_element_value(&Position(row, column))?;
-                values.push(value);
+                values.push(*value);
                 column += 1;
             }
             row += 1;

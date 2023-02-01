@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use extended_matrix::
 {
     Matrix, FloatTrait, Vector3, VectorTrait, Position, BasicOperationsTrait, SquareMatrixTrait, SquareMatrix,
+    Vector,
 };
 
 use crate::fem::global_analysis::fe_dof_parameter_data::{DOFParameterData, GlobalDOFParameter};
@@ -58,20 +59,22 @@ impl<V> QuadFullMemAuxFunctions<V>
         let normal_through_node_3 = edge_3_4_vector.cross_product(&edge_3_2_vector);
         let normal_through_node_3_length = normal_through_node_3.norm()?;
 
-        let direction_vector = Vector3::create(&[0.0, 0.0, normal_through_node_3_length]);
+        let direction_vector = Vector3::create(
+            &[V::from(0f32), V::from(0f32), normal_through_node_3_length],
+        );
 
         let shrinked_rotation_matrix = normal_through_node_3
             .rotation_matrix_to_align_with_vector(&direction_vector, rel_tol, abs_tol)?;
 
-        let q_11 = shrinked_rotation_matrix.get_element_value(&Position(0, 0))?;
-        let q_12 = shrinked_rotation_matrix.get_element_value(&Position(0, 1))?;
-        let q_13 = shrinked_rotation_matrix.get_element_value(&Position(0, 2))?;
-        let q_21 = shrinked_rotation_matrix.get_element_value(&Position(1, 0))?;
-        let q_22 = shrinked_rotation_matrix.get_element_value(&Position(1, 1))?;
-        let q_23 = shrinked_rotation_matrix.get_element_value(&Position(1, 2))?;
-        let q_31 = shrinked_rotation_matrix.get_element_value(&Position(2, 0))?;
-        let q_32 = shrinked_rotation_matrix.get_element_value(&Position(2, 1))?;
-        let q_33 = shrinked_rotation_matrix.get_element_value(&Position(2, 2))?;
+        let q_11 = *shrinked_rotation_matrix.get_element_value(&Position(0, 0))?;
+        let q_12 = *shrinked_rotation_matrix.get_element_value(&Position(0, 1))?;
+        let q_13 = *shrinked_rotation_matrix.get_element_value(&Position(0, 2))?;
+        let q_21 = *shrinked_rotation_matrix.get_element_value(&Position(1, 0))?;
+        let q_22 = *shrinked_rotation_matrix.get_element_value(&Position(1, 1))?;
+        let q_23 = *shrinked_rotation_matrix.get_element_value(&Position(1, 2))?;
+        let q_31 = *shrinked_rotation_matrix.get_element_value(&Position(2, 0))?;
+        let q_32 = *shrinked_rotation_matrix.get_element_value(&Position(2, 1))?;
+        let q_33 = *shrinked_rotation_matrix.get_element_value(&Position(2, 2))?;
 
         // let normal_through_node_3_x = edge_3_4_y * edge_3_2_z - edge_3_4_z * edge_3_2_y;
         // let normal_through_node_3_y = edge_3_4_z * edge_3_2_x - edge_3_4_x * edge_3_2_z;
@@ -124,33 +127,33 @@ impl<V> QuadFullMemAuxFunctions<V>
             QuadFullMemAuxFunctions::<V>::nodes_number() * QuadFullMemAuxFunctions::<V>::node_dof(),
             QuadFullMemAuxFunctions::<V>::nodes_number() * QuadFullMemAuxFunctions::<V>::node_dof(),
             &[
-                [q_11, q_12, q_13], [&V::from(0f32); MEMBRANE_NODE_DOF],
-                [&V::from(0f32); MEMBRANE_NODE_DOF], [&V::from(0f32); MEMBRANE_NODE_DOF],
-                [q_21, q_22, q_23], [&V::from(0f32); MEMBRANE_NODE_DOF],
-                [&V::from(0f32); MEMBRANE_NODE_DOF], [&V::from(0f32); MEMBRANE_NODE_DOF],
-                [q_31, q_32, q_33], [&V::from(0f32); MEMBRANE_NODE_DOF],
-                [&V::from(0f32); MEMBRANE_NODE_DOF], [&V::from(0f32); MEMBRANE_NODE_DOF],
+                [q_11, q_12, q_13], [V::from(0f32); MEMBRANE_NODE_DOF],
+                [V::from(0f32); MEMBRANE_NODE_DOF], [V::from(0f32); MEMBRANE_NODE_DOF],
+                [q_21, q_22, q_23], [V::from(0f32); MEMBRANE_NODE_DOF],
+                [V::from(0f32); MEMBRANE_NODE_DOF], [V::from(0f32); MEMBRANE_NODE_DOF],
+                [q_31, q_32, q_33], [V::from(0f32); MEMBRANE_NODE_DOF],
+                [V::from(0f32); MEMBRANE_NODE_DOF], [V::from(0f32); MEMBRANE_NODE_DOF],
 
-                [&V::from(0f32); MEMBRANE_NODE_DOF], [q_11, q_12, q_13],
-                [&V::from(0f32); MEMBRANE_NODE_DOF], [&V::from(0f32); MEMBRANE_NODE_DOF],
-                [&V::from(0f32); MEMBRANE_NODE_DOF], [q_21, q_22, q_23],
-                [&V::from(0f32); MEMBRANE_NODE_DOF], [&V::from(0f32); MEMBRANE_NODE_DOF],
-                [&V::from(0f32); MEMBRANE_NODE_DOF], [q_31, q_32, q_33],
-                [&V::from(0f32); MEMBRANE_NODE_DOF], [&V::from(0f32); MEMBRANE_NODE_DOF],
+                [V::from(0f32); MEMBRANE_NODE_DOF], [q_11, q_12, q_13],
+                [V::from(0f32); MEMBRANE_NODE_DOF], [V::from(0f32); MEMBRANE_NODE_DOF],
+                [V::from(0f32); MEMBRANE_NODE_DOF], [q_21, q_22, q_23],
+                [V::from(0f32); MEMBRANE_NODE_DOF], [V::from(0f32); MEMBRANE_NODE_DOF],
+                [V::from(0f32); MEMBRANE_NODE_DOF], [q_31, q_32, q_33],
+                [V::from(0f32); MEMBRANE_NODE_DOF], [V::from(0f32); MEMBRANE_NODE_DOF],
 
-                [&V::from(0f32); MEMBRANE_NODE_DOF], [&V::from(0f32); MEMBRANE_NODE_DOF],
-                [q_11, q_12, q_13], [&V::from(0f32); MEMBRANE_NODE_DOF],
-                [&V::from(0f32); MEMBRANE_NODE_DOF], [&V::from(0f32); MEMBRANE_NODE_DOF],
-                [q_21, q_22, q_23], [&V::from(0f32); MEMBRANE_NODE_DOF],
-                [&V::from(0f32); MEMBRANE_NODE_DOF], [&V::from(0f32); MEMBRANE_NODE_DOF],
-                [q_31, q_32, q_33], [&V::from(0f32); MEMBRANE_NODE_DOF],
+                [V::from(0f32); MEMBRANE_NODE_DOF], [V::from(0f32); MEMBRANE_NODE_DOF],
+                [q_11, q_12, q_13], [V::from(0f32); MEMBRANE_NODE_DOF],
+                [V::from(0f32); MEMBRANE_NODE_DOF], [V::from(0f32); MEMBRANE_NODE_DOF],
+                [q_21, q_22, q_23], [V::from(0f32); MEMBRANE_NODE_DOF],
+                [V::from(0f32); MEMBRANE_NODE_DOF], [V::from(0f32); MEMBRANE_NODE_DOF],
+                [q_31, q_32, q_33], [V::from(0f32); MEMBRANE_NODE_DOF],
 
-                [&V::from(0f32); MEMBRANE_NODE_DOF], [&V::from(0f32); MEMBRANE_NODE_DOF],
-                [&V::from(0f32); MEMBRANE_NODE_DOF], [q_11, q_12, q_13],
-                [&V::from(0f32); MEMBRANE_NODE_DOF], [&V::from(0f32); MEMBRANE_NODE_DOF],
-                [&V::from(0f32); MEMBRANE_NODE_DOF], [q_21, q_22, q_23],
-                [&V::from(0f32); MEMBRANE_NODE_DOF], [&V::from(0f32); MEMBRANE_NODE_DOF],
-                [&V::from(0f32); MEMBRANE_NODE_DOF], [q_31, q_32, q_33],
+                [V::from(0f32); MEMBRANE_NODE_DOF], [V::from(0f32); MEMBRANE_NODE_DOF],
+                [V::from(0f32); MEMBRANE_NODE_DOF], [q_11, q_12, q_13],
+                [V::from(0f32); MEMBRANE_NODE_DOF], [V::from(0f32); MEMBRANE_NODE_DOF],
+                [V::from(0f32); MEMBRANE_NODE_DOF], [q_21, q_22, q_23],
+                [V::from(0f32); MEMBRANE_NODE_DOF], [V::from(0f32); MEMBRANE_NODE_DOF],
+                [V::from(0f32); MEMBRANE_NODE_DOF], [q_31, q_32, q_33],
             ]
             .concat(),
         );
@@ -406,34 +409,34 @@ impl<V> QuadFullMemAuxFunctions<V>
         
         let jacobian_elements = vec![
             QuadFullMemAuxFunctions::<V>::dx_dr(
-                transformed_node_1_direction_x, 
-                transformed_node_2_direction_x, 
+                *transformed_node_1_direction_x, 
+                *transformed_node_2_direction_x, 
                 V::from(0f32), 
-                transformed_node_4_direction_x, 
+                *transformed_node_4_direction_x, 
                 r,
                 s,
             ),
             QuadFullMemAuxFunctions::<V>::dy_dr(
-                transformed_node_1_direction_y,
-                transformed_node_2_direction_y, 
+                *transformed_node_1_direction_y,
+                *transformed_node_2_direction_y, 
                 V::from(0f32),
-                transformed_node_4_direction_y,
+                *transformed_node_4_direction_y,
                 r,
                 s,
             ),
             QuadFullMemAuxFunctions::<V>::dx_ds(
-                transformed_node_1_direction_x,
-                transformed_node_2_direction_x, 
+                *transformed_node_1_direction_x,
+                *transformed_node_2_direction_x, 
                 V::from(0f32),
-                transformed_node_4_direction_x,
+                *transformed_node_4_direction_x,
                 r,
                 s,
             ),
             QuadFullMemAuxFunctions::<V>::dy_ds(
-                transformed_node_1_direction_y,
-                transformed_node_2_direction_y, 
+                *transformed_node_1_direction_y,
+                *transformed_node_2_direction_y, 
                 V::from(0f32),
-                transformed_node_4_direction_y,
+                *transformed_node_4_direction_y,
                 r,
                 s,
             ),
@@ -456,7 +459,7 @@ impl<V> QuadFullMemAuxFunctions<V>
         ref_rotation_matrix: &Matrix<V>,
         rel_tol: V,
     ) 
-        -> Result<Matrix<V>, String>
+        -> Result<SquareMatrix<V>, String>
     {
         let jacobian = QuadFullMemAuxFunctions::<V>::jacobian(
             node_1_number, 
@@ -468,7 +471,7 @@ impl<V> QuadFullMemAuxFunctions<V>
             ref_nodes, 
             ref_rotation_matrix,
         )?;
-        let mut x = vec![V::from(0f32); jacobian.get_shape().0];
+        let mut x = Vector::create(&vec![V::from(0f32); jacobian.get_shape().0]);
         let inverse_jacobian = jacobian.inverse(&mut x, rel_tol)?;
         Ok(inverse_jacobian)
     }
@@ -625,7 +628,7 @@ impl<V> QuadFullMemAuxFunctions<V>
                 QuadFullMemAuxFunctions::<V>::dh3_ds(r, s), QuadFullMemAuxFunctions::<V>::dh4_ds(r, s),
             ], 
         );
-        Ok(inverse_jacobian.multiply_by_matrix(&dh_dr_dh_ds)?)
+        Ok(inverse_jacobian.multiply(&dh_dr_dh_ds)?)
 
     }
 
@@ -729,7 +732,7 @@ impl<V> QuadFullMemAuxFunctions<V>
         {
             Ok(mut matrix) =>
                 {
-                    matrix.multiply_by_number(QuadFullMemAuxFunctions::determinant_of_jacobian(
+                    matrix.multiply_by_scalar(QuadFullMemAuxFunctions::determinant_of_jacobian(
                             node_1_number, 
                             node_2_number, 
                             node_3_number, 
@@ -776,7 +779,7 @@ impl<V> QuadFullMemAuxFunctions<V>
     pub fn extract_column_matrix_values(column_matrix: &Matrix<V>) -> Result<Vec<V>, String>
     {
         let mut values = Vec::new();
-        let shape = column_matrix.copy_shape();
+        let shape = column_matrix.get_shape();
 
         let mut row = 0;
         while row < shape.0
@@ -785,7 +788,7 @@ impl<V> QuadFullMemAuxFunctions<V>
             while column < shape.1
             {
                 let value = column_matrix.get_element_value(&Position(row, column))?;
-                values.push(value);
+                values.push(*value);
                 column += 1;
             }
             row += 1;

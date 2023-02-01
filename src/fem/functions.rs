@@ -25,8 +25,8 @@ pub(super) fn add_new_stiffness_sub_groups(
     stiffness_groups: &mut HashMap<StiffnessGroupKey, Vec<Position>>,
     global_group_position: usize, 
     global_group_columns_number: usize, 
-    global_number_1: usize,
-    global_number_2: usize
+    global_number_1: u32,
+    global_number_2: u32
 ) 
     -> Result<(), String>
 {
@@ -55,7 +55,7 @@ pub(super) fn add_new_stiffness_sub_groups(
             let mut current_column  = start_column + column_shift_init;
             while current_column < start_column + column_shift_final
             {
-                element_positions.push(Position::create(current_row, current_column));
+                element_positions.push(Position(current_row, current_column));
                 current_column += 1;
             }
             current_row += 1;
@@ -87,18 +87,18 @@ pub(super) fn separate<V>(matrix: Matrix<V>, positions: Vec<Position>) -> Result
         let mut j = 0;
         while j < shape.1
         {
-            if positions.iter().position(|p| *p.0 == i).is_none() &&
-                positions.iter().position(|p| *p.1 == j).is_none()
+            if positions.iter().position(|p| p.0 == i).is_none() &&
+                positions.iter().position(|p| p.1 == j).is_none()
             {
                 let value = matrix.get_element_value(&Position(i, j))?;
-                k_aa_elements.push(value);
+                k_aa_elements.push(*value);
             }
             j += 1;
         }
         i += 1;
     }
 
-    let k_aa_matrix = SquareMatrix::create(k_aa_order, k_aa_elements);
+    let k_aa_matrix = SquareMatrix::create(k_aa_order, &k_aa_elements);
 
     let k_ab_rows_number = shape.0 - positions.len();
 
@@ -109,25 +109,25 @@ pub(super) fn separate<V>(matrix: Matrix<V>, positions: Vec<Position>) -> Result
     let mut i = 0;
     while i < shape.0
     {
-        if positions.iter().position(|p| *p.0 == i).is_none()
+        if positions.iter().position(|p| p.0 == i).is_none()
         {
             for j in 0..positions.len()
             {
                 let row = i;
                 let column = positions[j].1;
-                if *column > shape.1
+                if column > shape.1
                 {
                     return Err("Extended matrix: Matrix could not be separated! Matrix Kab \
                         could not be composed!".to_string());
                 }
                 let value = matrix.get_element_value(&Position(row, column))?;
-                k_ab_elements.push(value);
+                k_ab_elements.push(*value);
             }
         }
         i += 1;
     }
 
-    let k_ab_matrix = Matrix::create(k_ab_rows_number, k_ab_columns_number, k_ab_elements);
+    let k_ab_matrix = Matrix::create(k_ab_rows_number, k_ab_columns_number, &k_ab_elements);
 
     let k_ba_rows_number = positions.len();
 
@@ -141,23 +141,23 @@ pub(super) fn separate<V>(matrix: Matrix<V>, positions: Vec<Position>) -> Result
         let mut j = 0;
         while j < shape.1
         {
-            if positions.iter().position(|p| *p.1 == j).is_none()
+            if positions.iter().position(|p| p.1 == j).is_none()
             {
                 let row = positions[i].0;
                 let column = j;
-                if *row > shape.0
+                if row > shape.0
                 {
                     return Err("Extended matrix: Matrix could not be separated! Matrix Kba \
                         could not be composed!".to_string());
                 }
                 let value = matrix.get_element_value(&Position(row, column))?;
-                k_ba_elements.push(value);
+                k_ba_elements.push(*value);
             }
             j += 1;
         }
     }
 
-    let k_ba_matrix = Matrix::create(k_ba_rows_number, k_ba_columns_number, k_ba_elements);
+    let k_ba_matrix = Matrix::create(k_ba_rows_number, k_ba_columns_number, &k_ba_elements);
 
     let k_bb_order = positions.len();
 
@@ -169,16 +169,16 @@ pub(super) fn separate<V>(matrix: Matrix<V>, positions: Vec<Position>) -> Result
         {
             let row = positions[i].0;
             let column = positions[j].1;
-            if *row > shape.0 || *column > shape.1
+            if row > shape.0 || column > shape.1
             {
                 return Err("Extended matrix: Matrix could not be separated! Matrix Kbb could \
                     not be composed!".to_string());
             }
             let value = matrix.get_element_value(&Position(row, column))?;
-            k_bb_elements.push(value);
+            k_bb_elements.push(*value);
         }
     }
-    let k_bb_matrix = SquareMatrix::create(k_bb_order, k_bb_elements);
+    let k_bb_matrix = SquareMatrix::create(k_bb_order, &k_bb_elements);
 
     let separated_matrix = SeparatedMatrix::create(k_aa_matrix, k_ab_matrix, k_ba_matrix, 
         k_bb_matrix);
@@ -372,12 +372,12 @@ pub fn convex_hull_on_four_points_on_plane<V>(
     let transformed_point_2_direction = rotation_matrix.multiply(&point_2_direction)?;
     let transformed_point_4_direction = rotation_matrix.multiply(&point_4_direction)?;
 
-    let transformed_point_1_direction_x = transformed_point_1_direction.get_element_value(&Position(0, 0))?;
-    let transformed_point_1_direction_y = transformed_point_1_direction.get_element_value(&Position(1, 0))?;
-    let transformed_point_2_direction_x = transformed_point_2_direction.get_element_value(&Position(0, 0))?;
-    let transformed_point_2_direction_y = transformed_point_2_direction.get_element_value(&Position(1, 0))?;
-    let transformed_point_4_direction_x = transformed_point_4_direction.get_element_value(&Position(0, 0))?;
-    let transformed_point_4_direction_y = transformed_point_4_direction.get_element_value(&Position(1, 0))?;
+    let transformed_point_1_direction_x = *transformed_point_1_direction.get_element_value(&Position(0, 0))?;
+    let transformed_point_1_direction_y = *transformed_point_1_direction.get_element_value(&Position(1, 0))?;
+    let transformed_point_2_direction_x = *transformed_point_2_direction.get_element_value(&Position(0, 0))?;
+    let transformed_point_2_direction_y = *transformed_point_2_direction.get_element_value(&Position(1, 0))?;
+    let transformed_point_4_direction_x = *transformed_point_4_direction.get_element_value(&Position(0, 0))?;
+    let transformed_point_4_direction_y = *transformed_point_4_direction.get_element_value(&Position(1, 0))?;
 
     let point_1_on_plane = Point::create(
         point_numbers[0], transformed_point_1_direction_x, transformed_point_1_direction_y,
@@ -442,10 +442,10 @@ pub fn convert_uniformly_distributed_surface_force_to_nodal_forces<V>(
             uniformly_distributed_surface_force_value, &nodes, rel_tol,
     )?;
 
-    let nodal_force_1 = nodal_forces_matrix.get_element_value(&Position(0, 0))?;
-    let nodal_force_2 = nodal_forces_matrix.get_element_value(&Position(1, 0))?;
-    let nodal_force_3 = nodal_forces_matrix.get_element_value(&Position(2, 0))?;
-    let nodal_force_4 = nodal_forces_matrix.get_element_value(&Position(3, 0))?;
+    let nodal_force_1 = *nodal_forces_matrix.get_element_value(&Position(0, 0))?;
+    let nodal_force_2 = *nodal_forces_matrix.get_element_value(&Position(1, 0))?;
+    let nodal_force_3 = *nodal_forces_matrix.get_element_value(&Position(2, 0))?;
+    let nodal_force_4 = *nodal_forces_matrix.get_element_value(&Position(3, 0))?;
 
     Ok(HashMap::from([
         (node_1_data.0, nodal_force_1), (node_2_data.0, nodal_force_2), 
@@ -489,8 +489,8 @@ pub fn convert_uniformly_distributed_line_force_to_nodal_forces<V>(
             uniformly_distributed_line_force_value, &nodes,
     )?;
     
-    let nodal_force_1 = nodal_forces_matrix.get_element_value(&Position(0, 0));
-    let nodal_force_2 = nodal_forces_matrix.get_element_value(&Position(1, 0));
+    let nodal_force_1 = *nodal_forces_matrix.get_element_value(&Position(0, 0))?;
+    let nodal_force_2 = *nodal_forces_matrix.get_element_value(&Position(1, 0))?;
 
     Ok(HashMap::from([(node_1_data.0, nodal_force_1), (node_2_data.0, nodal_force_2)]))
 }

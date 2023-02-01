@@ -95,7 +95,7 @@ impl<V> Truss2n2ip<V>
             TrussAuxFunctions::<V>::nodes_number() * TrussAuxFunctions::<V>::node_dof(),
             TrussAuxFunctions::<V>::nodes_number() * TrussAuxFunctions::<V>::node_dof(),
             &[V::from(0f32); (TRUSS2N2IP_NODES_NUMBER * TRUSS_NODE_DOF).pow(2)],
-        )?;
+        );
 
         for integration_point in integration_points.iter()
         {
@@ -238,10 +238,10 @@ impl<V> FiniteElementTrait<V> for Truss2n2ip<V>
         let mut interim_matrix = self.state.rotation_matrix.clone();
         interim_matrix.transpose();
         if let Ok(matrix) =
-        interim_matrix.multiply_by_matrix(&self.state.local_stiffness_matrix)
+        interim_matrix.multiply(&self.state.local_stiffness_matrix)
         {
             if let Ok(matrix) =
-            matrix.multiply_by_matrix(&self.state.rotation_matrix)
+            matrix.multiply(&self.state.rotation_matrix)
             {
                 return Ok(matrix);
             }
@@ -334,7 +334,7 @@ impl<V> FiniteElementTrait<V> for Truss2n2ip<V>
             TrussAuxFunctions::<V>::nodes_number() * TrussAuxFunctions::<V>::node_dof(),
             TrussAuxFunctions::<V>::nodes_number() * TrussAuxFunctions::<V>::node_dof(),
             &[V::from(0f32); (TRUSS2N2IP_NODES_NUMBER * TRUSS_NODE_DOF).pow(2)],
-        )?;
+        );
 
         for integration_point in self.state.integration_points.iter()
         {
@@ -370,7 +370,6 @@ impl<V> FiniteElementTrait<V> for Truss2n2ip<V>
         global_displacements: &Displacements<V>,
         nodes: &HashMap<u32, FENode<V>>,
         rel_tol: V,
-        abs_tol: V,
     ) 
         -> Result<ElementAnalysisData<V>, String>
     {

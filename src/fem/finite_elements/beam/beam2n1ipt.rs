@@ -124,7 +124,7 @@ impl<V> Beam2n1ipT<V>
             )?;
 
             local_stiffness_matrix = local_stiffness_matrix
-                .add_matrix(&matrix)
+                .add(&matrix)
                 .map_err(|e| format!("Beam2n2ipT: Local stiffness matrix could not be \
                     calculated! Reason: {}", e))?;
         }
@@ -188,10 +188,10 @@ impl<V> Beam2n1ipT<V>
             rows_number,
             1,
             &element_global_displacements_values,    
-        )?;
+        );
 
         let element_local_displacements =
-            self.state.rotation_matrix.multiply_by_matrix(&element_global_displacements)?;
+            self.state.rotation_matrix.multiply(&element_global_displacements)?;
         Ok(element_local_displacements)
     }
 
@@ -307,7 +307,7 @@ impl<V> FiniteElementTrait<V> for Beam2n1ipT<V>
                 nodes,
             )?;
             local_stiffness_matrix = local_stiffness_matrix
-                .add_matrix(&matrix)
+                .add(&matrix)
                 .map_err(|e| format!("Beam2n2ipT: Local stiffness matrix could not be \
                     calculated! Reason: {}", e))?;
         }
@@ -627,7 +627,7 @@ impl<V> FiniteElementTrait<V> for Beam2n1ipT<V>
                 nodes
             )?;
             local_stiffness_matrix = local_stiffness_matrix
-                .add_matrix(&matrix)
+                .add(&matrix)
                 .map_err(|e| format!("Beam2n2ipT: Local stiffness matrix could not be \
                     calculated! Reason: {}", e))?;
         }
@@ -649,6 +649,7 @@ impl<V> FiniteElementTrait<V> for Beam2n1ipT<V>
         &self, 
         global_displacements: &Displacements<V>,
         nodes: &HashMap<u32, FENode<V>>,
+        rel_tol: V,
     ) 
         -> Result<ElementAnalysisData<V>, String>
     {

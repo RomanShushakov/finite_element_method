@@ -183,7 +183,7 @@ impl<V> FiniteElementTrait<V> for Truss2n1ip<V>
             TrussAuxFunctions::<V>::nodes_number() * TrussAuxFunctions::<V>::node_dof(),
             TrussAuxFunctions::<V>::nodes_number() * TrussAuxFunctions::<V>::node_dof(),
             &[V::from(0f32); (TRUSS2N1IP_NODES_NUMBER * TRUSS_NODE_DOF).pow(2)],
-        )?;
+        );
 
         for integration_point in self.state.integration_points.iter()
         {
@@ -323,7 +323,7 @@ impl<V> FiniteElementTrait<V> for Truss2n1ip<V>
             TrussAuxFunctions::<V>::nodes_number() * TrussAuxFunctions::<V>::node_dof(),
             TrussAuxFunctions::<V>::nodes_number() * TrussAuxFunctions::<V>::node_dof(),
             &[V::from(0f32); (TRUSS2N1IP_NODES_NUMBER * TRUSS_NODE_DOF).pow(2)],
-        )?;
+        );
 
         for integration_point in self.state.integration_points.iter()
         {
@@ -359,7 +359,6 @@ impl<V> FiniteElementTrait<V> for Truss2n1ip<V>
         global_displacements: &Displacements<V>,
         nodes: &HashMap<u32, FENode<V>>,
         rel_tol: V,
-        abs_tol: V,
     ) 
         -> Result<ElementAnalysisData<V>, String>
     {

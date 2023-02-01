@@ -6,7 +6,7 @@ use colsol::{factorization, find_unknown};
 
 use crate::fem::finite_elements::fe_node::{FENode, DeletedFENodeData};
 use crate::fem::finite_elements::finite_element::{FiniteElement, FEType, DeletedFEData};
-use crate::fem::global_analysis::fe_stiffness::{StiffnessGroup, StiffnessGroupKey};
+use crate::fem::global_analysis::fe_stiffness::StiffnessGroupKey;
 use crate::fem::global_analysis::fe_boundary_condition::{BoundaryCondition, BCType, DeletedBCData};
 use crate::fem::global_analysis::fe_global_analysis_result::{GlobalAnalysisResult, Displacements};
 use crate::fem::global_analysis::fe_dof_parameter_data::
@@ -14,7 +14,7 @@ use crate::fem::global_analysis::fe_dof_parameter_data::
     global_dof, DOFParameterData, GLOBAL_DOF, GlobalDOFParameter
 };
 
-use crate::fem::element_analysis::fe_element_analysis_result::{ElementsAnalysisResult, EARType};
+use crate::fem::element_analysis::fe_element_analysis_result::ElementsAnalysisResult;
 
 use crate::fem::functions::
 {
@@ -1402,15 +1402,19 @@ impl<V> FEModel<V>
     }
 
 
-    pub fn elements_analysis(&self, global_displacements: &Displacements<T, V>)
-        -> Result<ElementsAnalysisResult<T, V>, String>
+    pub fn elements_analysis(
+        &self, 
+        global_displacements: &Displacements<V>,
+    ) 
+        -> Result<ElementsAnalysisResult<V>, String>
     {
         let mut elements_analysis_result = ElementsAnalysisResult::create();
         for (element_number, element) in self.elements.iter()
         {
             let fe_type = element.copy_fe_type();
             let element_analysis_data = element.extract_element_analysis_data(
-                global_displacements, self.state.tolerance, &self.nodes)?;
+                global_displacements, &self.nodes, self.state.rel_tol, self.state.abs_tol,
+            )?;
 
             elements_analysis_result.add_to_analysis_data(*element_number, element_analysis_data);
             elements_analysis_result.add_to_types(fe_type, *element_number)?;
@@ -1420,7 +1424,7 @@ impl<V> FEModel<V>
     }
 
 
-    pub fn copy_node_coordinates(&self, node_number: &T) -> Result<(V, V, V), String>
+    pub fn copy_node_coordinates(&self, node_number: &u32) -> Result<(V, V, V), String>
     {
         if let Some(node) = self.nodes.get(node_number)
         {
@@ -1433,7 +1437,7 @@ impl<V> FEModel<V>
     }
 
 
-    pub fn copy_element_type(&self, element_number: &T) -> Result<FEType, String>
+    pub fn copy_element_type(&self, element_number: &u32) -> Result<FEType, String>
     {
         if let Some(element) = self.elements.get(element_number)
         {
@@ -1446,7 +1450,7 @@ impl<V> FEModel<V>
     }
 
 
-    pub fn copy_element_nodes_numbers(&self, element_number: &T) -> Result<Vec<T>, String>
+    pub fn copy_element_nodes_numbers(&self, element_number: &u32) -> Result<Vec<u32>, String>
     {
         if let Some(element) = self.elements.get(element_number)
         {
@@ -1459,7 +1463,7 @@ impl<V> FEModel<V>
     }
 
 
-    pub fn copy_element_properties(&self, element_number: &T) -> Result<Vec<V>, String>
+    pub fn copy_element_properties(&self, element_number: &u32) -> Result<Vec<V>, String>
     {
         if let Some(element) = self.elements.get(element_number)
         {
@@ -1472,8 +1476,7 @@ impl<V> FEModel<V>
     }
 
 
-    pub fn extract_unique_elements_of_rotation_matrix(&self, element_number: &u32)
-        -> Result<Vec<V>, String>
+    pub fn extract_unique_elements_of_rotation_matrix(&self, element_number: &u32) -> Result<Vec<V>, String>
     {
         if let Some(element) = self.elements.get(element_number)
         {
@@ -1486,7 +1489,7 @@ impl<V> FEModel<V>
     }
 
 
-    pub fn copy_bc_node_number(&self, bc_type: BCType, number: T) -> Result<T, String>
+    pub fn copy_bc_node_number(&self, bc_type: BCType, number: u32) -> Result<u32, String>
     {
         if let Some(position) = self.boundary_conditions
             .iter()
@@ -1502,7 +1505,7 @@ impl<V> FEModel<V>
     }
 
 
-    pub fn copy_bc_dof_parameter(&self, bc_type: BCType, number: T)
+    pub fn copy_bc_dof_parameter(&self, bc_type: BCType, number: u32)
         -> Result<GlobalDOFParameter, String>
     {
         if let Some(position) = self.boundary_conditions.iter()
@@ -1519,9 +1522,10 @@ impl<V> FEModel<V>
     }
 
 
-    pub fn copy_bc_value(&self, bc_type: BCType, number: T) -> Result<V, String>
+    pub fn copy_bc_value(&self, bc_type: BCType, number: u32) -> Result<V, String>
     {
-        if let Some(position) = self.boundary_conditions.iter()
+        if let Some(position) = self.boundary_conditions
+            .iter()
             .position(|bc| bc.is_type_same(bc_type) && bc.is_number_same(number))
         {
             Ok(self.boundary_conditions[position].copy_value())
@@ -1534,22 +1538,24 @@ impl<V> FEModel<V>
     }
 
 
-    pub fn is_node_number_exist(&self, number: T) -> bool
+    pub fn is_node_number_exist(&self, number: u32) -> bool
     {
         self.nodes.contains_key(&number)
     }
 
 
-    pub fn is_element_number_exist(&self, number: T) -> bool
+    pub fn is_element_number_exist(&self, number: u32) -> bool
     {
         self.elements.contains_key(&number)
     }
 
 
-    pub fn is_bc_key_exist(&self, number: T, bc_type: BCType) -> bool
+    pub fn is_bc_key_exist(&self, number: u32, bc_type: BCType) -> bool
     {
-        if self.boundary_conditions.iter().position(|bc|
-            bc.is_number_same(number) && bc.is_type_same(bc_type)).is_some()
+        if self.boundary_conditions
+            .iter()
+            .position(|bc| bc.is_number_same(number) && bc.is_type_same(bc_type))
+            .is_some()
         {
             return true;
         }
@@ -1557,7 +1563,7 @@ impl<V> FEModel<V>
     }
 
 
-    pub fn extract_all_nodes_numbers(&self) -> Vec<T>
+    pub fn extract_all_nodes_numbers(&self) -> Vec<u32>
     {
         let mut nodes_numbers = Vec::new();
         for node_number in self.nodes.keys()
@@ -1568,7 +1574,7 @@ impl<V> FEModel<V>
     }
 
 
-    pub fn extract_all_elements_numbers(&self) -> Vec<T>
+    pub fn extract_all_elements_numbers(&self) -> Vec<u32>
     {
         let mut elements_numbers = Vec::new();
         for element_number in self.elements.keys()
@@ -1579,7 +1585,7 @@ impl<V> FEModel<V>
     }
 
 
-    pub fn extract_all_bc_types_numbers(&self) -> Vec<(BCType, T)>
+    pub fn extract_all_bc_types_numbers(&self) -> Vec<(BCType, u32)>
     {
         let mut bc_types_numbers = Vec::new();
         for bc in self.boundary_conditions.iter()
@@ -1592,8 +1598,10 @@ impl<V> FEModel<V>
     }
 
 
-    pub fn convert_uniformly_distributed_surface_force_to_nodal_forces(&self, element_number: T,
-        uniformly_distributed_surface_force_value: V) -> Result<ExtendedMatrix<T, V>, String>
+    pub fn convert_uniformly_distributed_surface_force_to_nodal_forces(
+        &self, element_number: u32, uniformly_distributed_surface_force_value: V,
+    ) 
+        -> Result<Matrix<V>, String>
     {
         if let Some(finite_element) = self.elements.get(&element_number) 
         {
@@ -1601,10 +1609,13 @@ impl<V> FEModel<V>
             {
                 FEType::Plate4n4ip => 
                 {
-                    if let Some(element) = finite_element.element.as_any().downcast_ref::<Plate4n4ip<T, V>>()
+                    if let Some(element) = finite_element.element
+                        .as_any()
+                        .downcast_ref::<Plate4n4ip<V>>()
                     {
-                        element.convert_uniformly_distributed_surface_force_to_nodal_forces(uniformly_distributed_surface_force_value, 
-                            &self.nodes, self.state.tolerance)
+                        element.convert_uniformly_distributed_surface_force_to_nodal_forces(
+                            uniformly_distributed_surface_force_value, &self.nodes, self.state.rel_tol,
+                        )
                     }
                     else 
                     {
@@ -1624,8 +1635,10 @@ impl<V> FEModel<V>
     }
 
 
-    pub fn convert_uniformly_distributed_line_force_to_nodal_forces(&self, element_number: T,
-        uniformly_distributed_line_force_value: V) -> Result<ExtendedMatrix<T, V>, String>
+    pub fn convert_uniformly_distributed_line_force_to_nodal_forces(
+        &self, element_number: u32, uniformly_distributed_line_force_value: V,
+    ) 
+        -> Result<Matrix<V>, String>
     {
         if let Some(finite_element) = self.elements.get(&element_number) 
         {
@@ -1633,10 +1646,13 @@ impl<V> FEModel<V>
             {
                 FEType::Beam2n1ipT => 
                 {
-                    if let Some(element) = finite_element.element.as_any().downcast_ref::<Beam2n1ipT<T, V>>()
+                    if let Some(element) = finite_element.element
+                        .as_any()
+                        .downcast_ref::<Beam2n1ipT<V>>()
                     {
-                        element.convert_uniformly_distributed_line_force_to_nodal_forces(uniformly_distributed_line_force_value, 
-                            &self.nodes, self.state.tolerance)
+                        element.convert_uniformly_distributed_line_force_to_nodal_forces(
+                            uniformly_distributed_line_force_value, &self.nodes,
+                        )
                     }
                     else 
                     {
