@@ -149,7 +149,7 @@ impl<V> Truss2n2ip<V>
             }
         }
 
-        let mut rows_number = self.state.nodes_dof_parameters_global.len();
+        let rows_number = self.state.nodes_dof_parameters_global.len();
 
         let element_global_displacements = Matrix::create(
             rows_number, 1, &element_global_displacements_values,
@@ -235,13 +235,10 @@ impl<V> FiniteElementTrait<V> for Truss2n2ip<V>
 
     fn extract_stiffness_matrix(&self) -> Result<Matrix<V>, String>
     {
-        let mut interim_matrix = self.state.rotation_matrix.clone();
-        interim_matrix.transpose();
-        if let Ok(matrix) =
-        interim_matrix.multiply(&self.state.local_stiffness_matrix)
+        let interim_matrix = self.state.rotation_matrix.clone().transpose();
+        if let Ok(matrix) = interim_matrix.multiply(&self.state.local_stiffness_matrix)
         {
-            if let Ok(matrix) =
-            matrix.multiply(&self.state.rotation_matrix)
+            if let Ok(matrix) = matrix.multiply(&self.state.rotation_matrix)
             {
                 return Ok(matrix);
             }
@@ -369,7 +366,7 @@ impl<V> FiniteElementTrait<V> for Truss2n2ip<V>
         &self, 
         global_displacements: &Displacements<V>,
         nodes: &HashMap<u32, FENode<V>>,
-        rel_tol: V,
+        _rel_tol: V,
     ) 
         -> Result<ElementAnalysisData<V>, String>
     {
