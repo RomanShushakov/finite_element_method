@@ -226,8 +226,7 @@ impl<V> FiniteElementTrait<V> for Truss2n1ip<V>
 
     fn extract_stiffness_matrix(&self) -> Result<Matrix<V>, String>
     {
-        let mut interim_matrix = self.state.rotation_matrix.clone();
-        interim_matrix.transpose();
+        let mut interim_matrix = self.state.rotation_matrix.clone().transpose();
         if let Ok(matrix) = interim_matrix.multiply(&self.state.local_stiffness_matrix)
         {
             if let Ok(matrix) = matrix.multiply(&self.state.rotation_matrix)

@@ -225,13 +225,13 @@ impl<V> TrussAuxFunctions<V>
             TrussAuxFunctions::<V>::dh1_dr(r), V::from(0f32), V::from(0f32), 
             TrussAuxFunctions::<V>::dh2_dr(r), V::from(0f32), V::from(0f32),
         ];
-        let mut matrix = Matrix::create(
-            1,
-            TrussAuxFunctions::<V>::nodes_number() * TrussAuxFunctions::<V>::node_dof(),
-            &elements,
-        );
         let inverse_jacobian = TrussAuxFunctions::inverse_jacobian(node_1_number, node_2_number, r, nodes);
-        matrix.multiply_by_scalar(inverse_jacobian);
+        let mut matrix = Matrix::create(
+                1,
+                TrussAuxFunctions::<V>::nodes_number() * TrussAuxFunctions::<V>::node_dof(),
+                &elements,
+            )
+            .multiply_by_scalar(inverse_jacobian);
         Ok(matrix)
     }
 
@@ -265,13 +265,10 @@ impl<V> TrussAuxFunctions<V>
         let current_area = TrussAuxFunctions::<V>::area(area_1, area_2, r);
 
         let mut lhs_matrix = TrussAuxFunctions::strain_displacement_matrix(
-            node_1_number, node_2_number, r, nodes,
-        )?;
-
-        lhs_matrix.transpose();
-
-        lhs_matrix.multiply_by_scalar(young_modulus * current_area);
-
+                node_1_number, node_2_number, r, nodes,
+            )?
+            .transpose()
+            .multiply_by_scalar(young_modulus * current_area);
         let rhs_matrix = TrussAuxFunctions::strain_displacement_matrix(
             node_1_number, node_2_number, r, nodes,
         )?;
@@ -279,17 +276,17 @@ impl<V> TrussAuxFunctions<V>
         return match lhs_matrix.multiply(&rhs_matrix)
         {
             Ok(mut matrix) =>
-                {
-                    matrix.multiply_by_scalar(
-                        TrussAuxFunctions::determinant_of_jacobian(node_1_number, node_2_number, r, nodes) * alpha,
-                    );
+            {
+                matrix = matrix.multiply_by_scalar(
+                    TrussAuxFunctions::determinant_of_jacobian(node_1_number, node_2_number, r, nodes) * alpha,
+                );
 
-                    match local_stiffness_matrix.add(&matrix)
-                    {
-                        Ok(matrix) => Ok(matrix),
-                        Err(e) => Err(format!("Truss element: Local stiffness matrix cannot be calculated! Reason: {e}")),
-                    }
-                },
+                match local_stiffness_matrix.add(&matrix)
+                {
+                    Ok(matrix) => Ok(matrix),
+                    Err(e) => Err(format!("Truss element: Local stiffness matrix cannot be calculated! Reason: {e}")),
+                }
+            },
             Err(e) => Err(format!("Truss element: Local stiffness matrix cannot be calculated! Reason: {e}")),
         }
     }

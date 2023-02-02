@@ -1030,8 +1030,8 @@ impl<V> FEModel<V>
             .rev()
             .zip(zero_columns_numbers.iter().rev())
         {
-            global_stiffness_matrix.remove_row(*zero_row_number);
-            global_stiffness_matrix.remove_column(*zero_column_number);
+            global_stiffness_matrix = global_stiffness_matrix.remove_row(*zero_row_number)?;
+            global_stiffness_matrix = global_stiffness_matrix.remove_column(*zero_column_number)?;
             let matrix_element_position = Position(*zero_row_number, *zero_column_number);
             removed_zeros_rows_columns.push(matrix_element_position);
         }
