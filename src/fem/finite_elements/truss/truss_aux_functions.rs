@@ -226,7 +226,7 @@ impl<V> TrussAuxFunctions<V>
             TrussAuxFunctions::<V>::dh2_dr(r), V::from(0f32), V::from(0f32),
         ];
         let inverse_jacobian = TrussAuxFunctions::inverse_jacobian(node_1_number, node_2_number, r, nodes);
-        let mut matrix = Matrix::create(
+        let matrix = Matrix::create(
                 1,
                 TrussAuxFunctions::<V>::nodes_number() * TrussAuxFunctions::<V>::node_dof(),
                 &elements,
@@ -264,7 +264,7 @@ impl<V> TrussAuxFunctions<V>
     {
         let current_area = TrussAuxFunctions::<V>::area(area_1, area_2, r);
 
-        let mut lhs_matrix = TrussAuxFunctions::strain_displacement_matrix(
+        let lhs_matrix = TrussAuxFunctions::strain_displacement_matrix(
                 node_1_number, node_2_number, r, nodes,
             )?
             .transpose()
