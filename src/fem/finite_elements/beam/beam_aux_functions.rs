@@ -357,13 +357,13 @@ impl<V> BeamAuxFunctions<V>
             BeamAuxFunctions::<V>::dh2_dr(r), V::from(0f32), V::from(0f32),
             V::from(0f32), V::from(0f32), V::from(0f32),
         ];
-        let mut matrix = Matrix::create(
-            1,
-            BeamAuxFunctions::<V>::nodes_number() * BeamAuxFunctions::<V>::node_dof(),
-            &elements,
-        );
         let inverse_jacobian = BeamAuxFunctions::inverse_jacobian(node_1_number, node_2_number, r, nodes);
-        matrix.multiply_by_scalar(inverse_jacobian);
+        let matrix = Matrix::create(
+                1,
+                BeamAuxFunctions::<V>::nodes_number() * BeamAuxFunctions::<V>::node_dof(),
+                &elements,
+            )
+            .multiply_by_scalar(inverse_jacobian);
         Ok(matrix)
     }
 
@@ -382,13 +382,13 @@ impl<V> BeamAuxFunctions<V>
             V::from(0f32), BeamAuxFunctions::<V>::dh2_dr(r), V::from(0f32),
             V::from(0f32), V::from(0f32), V::from(0f32),
         ];
-        let mut lhs_matrix = Matrix::create(
-            1,
-            BeamAuxFunctions::<V>::nodes_number() * BeamAuxFunctions::<V>::node_dof(),
-            &lhs_elements,
-        );
         let inverse_jacobian = BeamAuxFunctions::inverse_jacobian(node_1_number, node_2_number, r, nodes);
-        lhs_matrix.multiply_by_scalar(inverse_jacobian);
+        let lhs_matrix = Matrix::create(
+                1,
+                BeamAuxFunctions::<V>::nodes_number() * BeamAuxFunctions::<V>::node_dof(),
+                &lhs_elements,
+            )
+            .multiply_by_scalar(inverse_jacobian);
 
         let rhs_elements = [
             V::from(0f32), V::from(0f32), V::from(0f32),
@@ -423,13 +423,13 @@ impl<V> BeamAuxFunctions<V>
             V::from(0f32), V::from(0f32), BeamAuxFunctions::<V>::dh2_dr(r),
             V::from(0f32), V::from(0f32), V::from(0f32),
         ];
-        let mut lhs_matrix = Matrix::create(
-            1,
-            BeamAuxFunctions::<V>::nodes_number() * BeamAuxFunctions::<V>::node_dof(),
-            &lhs_elements,
-        );
         let inverse_jacobian = BeamAuxFunctions::inverse_jacobian(node_1_number, node_2_number, r, nodes);
-        lhs_matrix.multiply_by_scalar(inverse_jacobian);
+        let lhs_matrix = Matrix::create(
+                1,
+                BeamAuxFunctions::<V>::nodes_number() * BeamAuxFunctions::<V>::node_dof(),
+                &lhs_elements,
+            )
+            .multiply_by_scalar(inverse_jacobian);
 
         let rhs_elements = [
             V::from(0f32), V::from(0f32), V::from(0f32),
@@ -463,13 +463,13 @@ impl<V> BeamAuxFunctions<V>
             V::from(0f32), V::from(0f32), V::from(0f32),
             BeamAuxFunctions::<V>::dh2_dr(r), V::from(0f32), V::from(0f32),
         ];
-        let mut matrix = Matrix::create(
-            1,
-            BeamAuxFunctions::<V>::nodes_number() * BeamAuxFunctions::<V>::node_dof(),
-            &elements,
-        );
         let inverse_jacobian = BeamAuxFunctions::inverse_jacobian(node_1_number, node_2_number, r, nodes);
-        matrix.multiply_by_scalar(inverse_jacobian);
+        let matrix = Matrix::create(
+                1,
+                BeamAuxFunctions::<V>::nodes_number() * BeamAuxFunctions::<V>::node_dof(),
+                &elements,
+            )
+            .multiply_by_scalar(inverse_jacobian);
         Ok(matrix)
     }
 
@@ -488,13 +488,13 @@ impl<V> BeamAuxFunctions<V>
             V::from(0f32), V::from(0f32), V::from(0f32),
             V::from(0f32), BeamAuxFunctions::<V>::dh2_dr(r), V::from(0f32),
         ];
-        let mut matrix = Matrix::create(
-            1,
-            BeamAuxFunctions::<V>::nodes_number() * BeamAuxFunctions::<V>::node_dof(),
-            &elements,
-        );
         let inverse_jacobian = BeamAuxFunctions::inverse_jacobian(node_1_number, node_2_number, r, nodes);
-        matrix.multiply_by_scalar(inverse_jacobian);
+        let matrix = Matrix::create(
+                1,
+                BeamAuxFunctions::<V>::nodes_number() * BeamAuxFunctions::<V>::node_dof(),
+                &elements,
+            )
+            .multiply_by_scalar(inverse_jacobian);
         Ok(matrix)
     }
 
@@ -513,13 +513,13 @@ impl<V> BeamAuxFunctions<V>
             V::from(0f32), V::from(0f32), V::from(0f32),
             V::from(0f32), V::from(0f32), BeamAuxFunctions::<V>::dh2_dr(r),
         ];
-        let mut matrix = Matrix::create(
-            1,
-            BeamAuxFunctions::<V>::nodes_number() * BeamAuxFunctions::<V>::node_dof(),
-            &elements,
-        );
         let inverse_jacobian = BeamAuxFunctions::inverse_jacobian(node_1_number, node_2_number, r, nodes);
-        matrix.multiply_by_scalar(inverse_jacobian);
+        let matrix = Matrix::create(
+                1,
+                BeamAuxFunctions::<V>::nodes_number() * BeamAuxFunctions::<V>::node_dof(),
+                &elements,
+            )
+            .multiply_by_scalar(inverse_jacobian);
         Ok(matrix)
     }
 
@@ -540,7 +540,7 @@ impl<V> BeamAuxFunctions<V>
     )
         -> Result<Matrix<V>, String>
     {
-        let mut lhs_matrix_u = BeamAuxFunctions::strain_displacement_matrix_u(
+        let lhs_matrix_u = BeamAuxFunctions::strain_displacement_matrix_u(
                 node_1_number, node_2_number, r, nodes,
             )?
             .transpose();
@@ -549,7 +549,7 @@ impl<V> BeamAuxFunctions<V>
             node_1_number, node_2_number, r, nodes,
         )?;
 
-        let mut matrix_u = lhs_matrix_u
+        let matrix_u = lhs_matrix_u
             .multiply(&rhs_matrix_u)
             .map_err(|e| format!("Beam2n2ipT: Local stiffness matrix could not be calculated! \
                 Reason: {e}"))?
@@ -560,7 +560,7 @@ impl<V> BeamAuxFunctions<V>
                 alpha
             );
 
-        let mut lhs_matrix_v = BeamAuxFunctions::strain_displacement_matrix_v(
+        let lhs_matrix_v = BeamAuxFunctions::strain_displacement_matrix_v(
                 node_1_number, node_2_number, r, nodes,
             )
             .map_err(|e| format!("Beam2n2ipT: Local stiffness matrix could not be calculated! \
@@ -574,7 +574,7 @@ impl<V> BeamAuxFunctions<V>
                 Reason: {}", e))?;
 
         let shear_modulus = young_modulus / (V::from(2f32) * (V::from(1f32) + poisson_ratio));
-        let mut matrix_v = lhs_matrix_v
+        let matrix_v = lhs_matrix_v
             .multiply(&rhs_matrix_v)
             .map_err(|e| format!("Beam2n2ipT: Local stiffness matrix could not be calculated! \
                 Reason: {}", e))?
@@ -586,7 +586,7 @@ impl<V> BeamAuxFunctions<V>
                 alpha
             );
 
-        let mut lhs_matrix_w = BeamAuxFunctions::strain_displacement_matrix_w(
+        let lhs_matrix_w = BeamAuxFunctions::strain_displacement_matrix_w(
                 node_1_number, node_2_number, r, nodes,
             )
             .map_err(|e| format!("Beam2n2ipT: Local stiffness matrix could not be calculated! \
@@ -599,7 +599,7 @@ impl<V> BeamAuxFunctions<V>
             .map_err(|e| format!("Beam2n2ipT: Local stiffness matrix could not be calculated! \
                 Reason: {}", e))?;
 
-        let mut matrix_w = lhs_matrix_w.multiply(&rhs_matrix_w)
+        let matrix_w = lhs_matrix_w.multiply(&rhs_matrix_w)
             .map_err(|e| format!("Beam2n2ipT: Local stiffness matrix could not be calculated! \
                 Reason: {}", e))?
             .multiply_by_scalar(
@@ -610,7 +610,7 @@ impl<V> BeamAuxFunctions<V>
                 alpha
             );
 
-        let mut lhs_matrix_thu = BeamAuxFunctions::strain_displacement_matrix_thu(
+        let lhs_matrix_thu = BeamAuxFunctions::strain_displacement_matrix_thu(
                 node_1_number, node_2_number, r, nodes
             )?
             .transpose();
@@ -619,7 +619,7 @@ impl<V> BeamAuxFunctions<V>
             node_1_number, node_2_number, r, nodes,
         )?;
 
-        let mut matrix_thu = lhs_matrix_thu
+        let matrix_thu = lhs_matrix_thu
             .multiply(&rhs_matrix_thu)
             .map_err(|e| format!("Beam2n2ipT: Local stiffness matrix could not be calculated! \
                 Reason: {}", e))?
@@ -630,7 +630,7 @@ impl<V> BeamAuxFunctions<V>
                 alpha
             );
 
-        let mut lhs_matrix_thv = BeamAuxFunctions::strain_displacement_matrix_thv(
+        let lhs_matrix_thv = BeamAuxFunctions::strain_displacement_matrix_thv(
                 node_1_number, node_2_number, r, nodes,
             )?
             .transpose();
@@ -639,7 +639,7 @@ impl<V> BeamAuxFunctions<V>
             node_1_number, node_2_number, r, nodes,
         )?;
 
-        let mut matrix_thv = lhs_matrix_thv
+        let matrix_thv = lhs_matrix_thv
             .multiply(&rhs_matrix_thv)
             .map_err(|e| format!("Beam2n2ipT: Local stiffness matrix could not be calculated! \
                 Reason: {}", e))?
@@ -650,7 +650,7 @@ impl<V> BeamAuxFunctions<V>
                 alpha
             );
 
-        let mut lhs_matrix_thw = BeamAuxFunctions::strain_displacement_matrix_thw(
+        let lhs_matrix_thw = BeamAuxFunctions::strain_displacement_matrix_thw(
                 node_1_number, node_2_number, r, nodes
             )?
             .transpose();
@@ -659,7 +659,7 @@ impl<V> BeamAuxFunctions<V>
             node_1_number, node_2_number, r, nodes,
         )?;
 
-        let mut matrix_thw = lhs_matrix_thw
+        let matrix_thw = lhs_matrix_thw
             .multiply(&rhs_matrix_thw)
             .map_err(|e| format!("Beam2n2ipT: Local stiffness matrix could not be calculated! \
                 Reason: {}", e))?
