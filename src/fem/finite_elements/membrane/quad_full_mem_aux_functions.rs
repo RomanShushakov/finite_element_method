@@ -389,13 +389,13 @@ impl<V> QuadFullMemAuxFunctions<V>
 
         let transformed_node_1_direction_x = transformed_node_1_direction.get_element_value(&Position(0, 0))?;
         let transformed_node_1_direction_y = transformed_node_1_direction.get_element_value(&Position(1, 0))?;
-        let transformed_node_1_direction_z = transformed_node_1_direction.get_element_value(&Position(2, 0))?;
+        // let transformed_node_1_direction_z = transformed_node_1_direction.get_element_value(&Position(2, 0))?;
         let transformed_node_2_direction_x = transformed_node_2_direction.get_element_value(&Position(0, 0))?;
         let transformed_node_2_direction_y = transformed_node_2_direction.get_element_value(&Position(1, 0))?;
-        let transformed_node_2_direction_z = transformed_node_2_direction.get_element_value(&Position(2, 0))?;
+        // let transformed_node_2_direction_z = transformed_node_2_direction.get_element_value(&Position(2, 0))?;
         let transformed_node_4_direction_x = transformed_node_4_direction.get_element_value(&Position(0, 0))?;
         let transformed_node_4_direction_y = transformed_node_4_direction.get_element_value(&Position(1, 0))?;
-        let transformed_node_4_direction_z = transformed_node_4_direction.get_element_value(&Position(2, 0))?;
+        // let transformed_node_4_direction_z = transformed_node_4_direction.get_element_value(&Position(2, 0))?;
 
         // if compare_with_tolerance(transformed_node_1_direction_z - 
         //     transformed_node_2_direction_z, tolerance) != V::from(0f32) || 
@@ -700,7 +700,7 @@ impl<V> QuadFullMemAuxFunctions<V>
         -> Result<Matrix<V>, String>
     {
         let c_matrix_multiplier = young_modulus * thickness / (V::from(1f32) - poisson_ratio.my_powi(2));
-        let mut c_matrix = Matrix::create(
+        let c_matrix = Matrix::create(
                 3,
                 3, 
                 &[
@@ -711,7 +711,7 @@ impl<V> QuadFullMemAuxFunctions<V>
             )
             .multiply_by_scalar(c_matrix_multiplier);
 
-        let mut lhs_matrix = QuadFullMemAuxFunctions::strain_displacement_matrix(
+        let lhs_matrix = QuadFullMemAuxFunctions::strain_displacement_matrix(
                 node_1_number, 
                 node_2_number, 
                 node_3_number, 
@@ -731,29 +731,30 @@ impl<V> QuadFullMemAuxFunctions<V>
         return match (lhs_matrix.multiply(&c_matrix)?).multiply(&rhs_matrix)
         {
             Ok(mut matrix) =>
-                {
-                    matrix.multiply_by_scalar(QuadFullMemAuxFunctions::determinant_of_jacobian(
-                            node_1_number, 
-                            node_2_number, 
-                            node_3_number, 
-                            node_4_number, 
-                            r, 
-                            s, 
-                            ref_nodes, 
-                            ref_rotation_matrix, 
-                            rel_tol,
-                        )? * 
-                        alpha,
-                    );
+            {
+                matrix = matrix.multiply_by_scalar(
+                    QuadFullMemAuxFunctions::determinant_of_jacobian(
+                        node_1_number, 
+                        node_2_number, 
+                        node_3_number, 
+                        node_4_number, 
+                        r, 
+                        s, 
+                        ref_nodes, 
+                        ref_rotation_matrix, 
+                        rel_tol,
+                    )? * 
+                    alpha,
+                );
 
-                    match ref_local_stiffness_matrix.add(&matrix)
-                    {
-                        Ok(matrix) => Ok(matrix),
-                        Err(e) =>
-                            Err(format!("Quad mem aux functions: Local stiffness matrix cannot be \
-                                calculated! Reason: {}", e)),
-                    }
-                },
+                match ref_local_stiffness_matrix.add(&matrix)
+                {
+                    Ok(matrix) => Ok(matrix),
+                    Err(e) =>
+                        Err(format!("Quad mem aux functions: Local stiffness matrix cannot be \
+                            calculated! Reason: {}", e)),
+                }
+            },
             Err(e) => Err(format!("Quad mem aux functions: Local stiffness matrix cannot be \
                                 calculated! Reason: {}", e)),
         }

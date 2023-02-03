@@ -195,7 +195,7 @@ impl<V> Mem4n4ip<V>
             }
         }
 
-        let mut rows_number = self.state.nodes_dof_parameters_global.len();
+        let rows_number = self.state.nodes_dof_parameters_global.len();
 
         let element_global_displacements = Matrix::create(
             rows_number,
@@ -237,7 +237,8 @@ impl<V> FiniteElementTrait<V> for Mem4n4ip<V>
         let thickness = properties[2];
 
         let rotation_matrix = QuadFullMemAuxFunctions::rotation_matrix(
-            node_2_number, node_3_number, node_4_number, ref_nodes, rel_tol, abs_tol)?;
+            node_2_number, node_3_number, node_4_number, ref_nodes, rel_tol, abs_tol,
+        )?;
 
         let mut local_stiffness_matrix = Matrix::create(
             QuadFullMemAuxFunctions::<V>::nodes_number() * QuadFullMemAuxFunctions::<V>::node_dof(),
@@ -303,12 +304,10 @@ impl<V> FiniteElementTrait<V> for Mem4n4ip<V>
 
     fn extract_stiffness_matrix(&self) -> Result<Matrix<V>, String>
     {
-        let mut interim_matrix = self.state.rotation_matrix.clone().transpose();
-        if let Ok(matrix) =
-        interim_matrix.multiply(&self.state.local_stiffness_matrix)
+        let interim_matrix = self.state.rotation_matrix.transpose();
+        if let Ok(matrix) = interim_matrix.multiply(&self.state.local_stiffness_matrix)
         {
-            if let Ok(matrix) =
-            matrix.multiply(&self.state.rotation_matrix)
+            if let Ok(matrix) = matrix.multiply(&self.state.rotation_matrix)
             {
                 return Ok(matrix);
             }
@@ -622,7 +621,7 @@ impl<V> FiniteElementTrait<V> for Mem4n4ip<V>
         let element_local_displacements = self.extract_local_displacements(global_displacements)?;
 
         let c_matrix_multiplier = self.young_modulus / (V::from(1f32) - self.poisson_ratio.my_powi(2));
-        let mut c_matrix = Matrix::create(
+        let c_matrix = Matrix::create(
                 3, 
                 3, 
                 &[
