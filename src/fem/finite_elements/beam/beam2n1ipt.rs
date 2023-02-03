@@ -182,7 +182,7 @@ impl<V> Beam2n1ipT<V>
             }
         }
 
-        let mut rows_number = self.state.nodes_dof_parameters_global.len();
+        let rows_number = self.state.nodes_dof_parameters_global.len();
 
         let element_global_displacements = Matrix::create(
             rows_number,
@@ -190,8 +190,8 @@ impl<V> Beam2n1ipT<V>
             &element_global_displacements_values,    
         );
 
-        let element_local_displacements =
-            self.state.rotation_matrix.multiply(&element_global_displacements)?;
+        let element_local_displacements = self.state.rotation_matrix
+            .multiply(&element_global_displacements)?;
         Ok(element_local_displacements)
     }
 
@@ -223,14 +223,14 @@ impl<V> Beam2n1ipT<V>
                 self.node_1_number, self.node_2_number, r, ref_nodes,
             );
 
-            let mut displacement_interpolation_matrix = Matrix::create(
+            let displacement_interpolation_matrix = Matrix::create(
                     1,
                     2, 
                     &[BeamAuxFunctions::<V>::h1_r(r), BeamAuxFunctions::<V>::h2_r(r)],
                 )
                 .transpose();
 
-            let mut matrix = displacement_interpolation_matrix
+            let matrix = displacement_interpolation_matrix
                 .multiply(&distributed_force_matrix)?
                 .multiply_by_scalar(determinant_of_jacobian * alpha);
             nodal_forces = nodal_forces.add(&matrix)?;
@@ -343,9 +343,7 @@ impl<V> FiniteElementTrait<V> for Beam2n1ipT<V>
 
     fn extract_stiffness_matrix(&self) -> Result<Matrix<V>, String>
     {
-        let mut interim_matrix = self.state.rotation_matrix
-            .clone()
-            .transpose();
+        let interim_matrix = self.state.rotation_matrix.transpose();
 
         if let Ok(matrix) = interim_matrix.multiply(&self.state.local_stiffness_matrix)
         {
@@ -649,7 +647,7 @@ impl<V> FiniteElementTrait<V> for Beam2n1ipT<V>
         &self, 
         global_displacements: &Displacements<V>,
         nodes: &HashMap<u32, FENode<V>>,
-        rel_tol: V,
+        _rel_tol: V,
     ) 
         -> Result<ElementAnalysisData<V>, String>
     {
