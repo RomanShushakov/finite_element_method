@@ -1,1 +1,3 @@
-pub mod fem;
+mod fem;
+
+pub use fem::FEM;

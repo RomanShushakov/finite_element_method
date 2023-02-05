@@ -1,5 +1,5 @@
 use std::collections::{HashSet, HashMap};
-use std::iter::FromIterator;
+use std::time::Instant;
 
 use extended_matrix::{Matrix, Position, FloatTrait, BasicOperationsTrait, TryIntoSymmetricCompactedMatrixTrait, Vector, SquareMatrixTrait};
 use colsol::{factorization, find_unknown};
@@ -1009,11 +1009,19 @@ impl<V> FEModel<V>
     ) 
         -> Result<GlobalAnalysisResult<V>, String>
     {
+        let start = Instant::now();
+
         if stiffness_groups_update
         {
             self.update_stiffness_groups()?;
         }
+        let duration = start.elapsed();
+        println!("update_stiffness_groups finished. Elapsed time: {:?}", duration);
+
         self.update_nodes_dof_parameters_global()?;
+
+        let duration = start.elapsed();
+        println!("update_nodes_dof_parameters_global finished. Elapsed time: {:?}", duration);
 
         if self.boundary_conditions
             .iter()
@@ -1026,6 +1034,9 @@ impl<V> FEModel<V>
 
         let (mut global_stiffness_matrix, zero_rows_numbers, zero_columns_numbers) =
             self.compose_global_stiffness_matrix()?;
+
+        let duration = start.elapsed();
+        println!("compose_global_stiffness_matrix finished. Elapsed time: {:?}", duration);
 
         let mut removed_zeros_rows_columns = Vec::new();
         for (zero_row_number, zero_column_number) in zero_rows_numbers
@@ -1041,12 +1052,21 @@ impl<V> FEModel<V>
 
         self.shrink_of_nodes_dof_parameters(&removed_zeros_rows_columns)?;
 
+        let duration = start.elapsed();
+        println!("shrink_of_nodes_dof_parameters finished. Elapsed time: {:?}", duration);
+
         let mut ub_rb_rows_numbers = Vec::new();
         let mut separation_positions = Vec::new();
         self.compose_separation_positions(&mut ub_rb_rows_numbers, &mut separation_positions);
 
+        let duration = start.elapsed();
+        println!("compose_separation_positions finished. Elapsed time: {:?}", duration);
+
         let mut ua_ra_rows_numbers = Vec::new();
         self.compose_ua_ra_rows_numbers(&ub_rb_rows_numbers, &mut ua_ra_rows_numbers);
+
+        let duration = start.elapsed();
+        println!("compose_ua_ra_rows_numbers finished. Elapsed time: {:?}", duration);
 
         let ra_matrix = self.compose_matrix_by_rows_numbers(&ua_ra_rows_numbers, BCType::Force)?;
         let ub_matrix = self.compose_matrix_by_rows_numbers(
@@ -1054,7 +1074,14 @@ impl<V> FEModel<V>
         )?;
         let rb_c_matrix = self.compose_matrix_by_rows_numbers(&ub_rb_rows_numbers, BCType::Force)?;
 
+        let duration = start.elapsed();
+        println!("ra_matrix, ub_matrix, rb_c_matrix found. Elapsed time: {:?}", duration);
+
+
         let separated_matrix = separate(global_stiffness_matrix, separation_positions)?;
+
+        let duration = start.elapsed();
+        println!("separate finished. Elapsed time: {:?}", duration);
 
         let lhs_matrix = separated_matrix.ref_k_aa().clone();
 
@@ -1070,6 +1097,9 @@ impl<V> FEModel<V>
             }
         }
 
+        let duration = start.elapsed();
+        println!("b finished. Elapsed time: {:?}", duration);
+
         let nn = v.len() as i64;
 
         // let (mut a, maxa) = lhs_matrix.try_into_symmetric_compacted_matrix(self.state.rel_tol)?;
@@ -1077,6 +1107,9 @@ impl<V> FEModel<V>
         let (mut a, maxa) = lhs_matrix.forced_into_symmetric_compacted_matrix(
             self.state.rel_tol, warnings
         );
+
+        let duration = start.elapsed();
+        println!("forced_into_symmetric_compacted_matrix finished. Elapsed time: {:?}", duration);
 
         factorization(&mut a, nn, &maxa)?;
         find_unknown(&a, &mut v, nn, &maxa);
