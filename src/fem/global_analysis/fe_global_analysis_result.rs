@@ -1,21 +1,20 @@
-use std::ops::{Mul, Add, Sub, Div, Rem, SubAssign, AddAssign, MulAssign};
-use std::hash::Hash;
+use std::ops::{Mul, Add, Sub, Div, SubAssign, AddAssign, MulAssign};
 use std::fmt::Debug;
 
 use crate::fem::global_analysis::fe_dof_parameter_data::DOFParameterData;
 
 
 #[derive(Debug, Clone)]
-pub struct Displacements<T, V>
+pub struct Displacements<V>
 {
     displacements_values: Vec<V>,
-    dof_parameters_data: Vec<DOFParameterData<T>>,
+    dof_parameters_data: Vec<DOFParameterData>,
 }
 
 
-impl<T, V> Displacements<T, V>
+impl<V> Displacements<V>
 {
-    fn create(displacements_values: Vec<V>, dof_parameters_data: Vec<DOFParameterData<T>>) -> Self
+    fn create(displacements_values: Vec<V>, dof_parameters_data: Vec<DOFParameterData>) -> Self
     {
         Displacements { displacements_values, dof_parameters_data }
     }
@@ -27,7 +26,7 @@ impl<T, V> Displacements<T, V>
     }
 
 
-    pub(crate) fn dof_parameters_data(&self) -> &[DOFParameterData<T>]
+    pub(crate) fn dof_parameters_data(&self) -> &[DOFParameterData]
     {
         self.dof_parameters_data.as_slice()
     }
@@ -35,16 +34,16 @@ impl<T, V> Displacements<T, V>
 
 
 #[derive(Debug, Clone)]
-struct Reactions<T, V>
+struct Reactions<V>
 {
     reactions_values: Vec<V>,
-    dof_parameters_data: Vec<DOFParameterData<T>>,
+    dof_parameters_data: Vec<DOFParameterData>,
 }
 
 
-impl<T, V> Reactions<T, V>
+impl<V> Reactions<V>
 {
-    fn create(reactions_values: Vec<V>, dof_parameters_data: Vec<DOFParameterData<T>>) -> Self
+    fn create(reactions_values: Vec<V>, dof_parameters_data: Vec<DOFParameterData>) -> Self
     {
         Reactions { reactions_values, dof_parameters_data }
     }
@@ -55,7 +54,7 @@ impl<T, V> Reactions<T, V>
     }
 
 
-    fn dof_parameters_data(&self) -> &[DOFParameterData<T>]
+    fn dof_parameters_data(&self) -> &[DOFParameterData]
     {
         self.dof_parameters_data.as_slice()
     }
@@ -63,26 +62,22 @@ impl<T, V> Reactions<T, V>
 
 
 #[derive(Debug, Clone)]
-pub struct GlobalAnalysisResult<T, V>
+pub struct GlobalAnalysisResult<V>
 {
-    displacements: Displacements<T, V>,
-    reactions: Reactions<T, V>,
+    displacements: Displacements<V>,
+    reactions: Reactions<V>,
 }
 
 
-impl<T, V> GlobalAnalysisResult<T, V>
-    where T: Copy +PartialEq + Mul<Output = T> + Add<Output = T> + Sub<Output = T> +
-             Div<Output = T> + Rem<Output = T> + Eq + Hash + SubAssign + Debug +
-             PartialOrd + 'static,
-          V: Copy + Mul<Output = V> + Div<Output = V> + Sub<Output = V> +
-             Add<Output = V> + Debug + PartialEq + AddAssign + MulAssign +
-             SubAssign + Into<f64> + 'static,
+impl<V> GlobalAnalysisResult<V>
+    where V: Copy + Mul<Output = V> + Div<Output = V> + Sub<Output = V> + Add<Output = V> + Debug + PartialEq + 
+             AddAssign + MulAssign + SubAssign + Into<f64> + 'static,
 {
     pub(crate) fn create(
         reactions_values: Vec<V>,
-        reactions_dof_parameters_data: Vec<DOFParameterData<T>>,
+        reactions_dof_parameters_data: Vec<DOFParameterData>,
         displacements_values: Vec<V>,
-        displacements_dof_parameters_data: Vec<DOFParameterData<T>>,) -> Self
+        displacements_dof_parameters_data: Vec<DOFParameterData>,) -> Self
     {
         let reactions = Reactions::create(reactions_values,
             reactions_dof_parameters_data);
@@ -98,13 +93,13 @@ impl<T, V> GlobalAnalysisResult<T, V>
     }
 
 
-    pub fn reactions_dof_parameters_data(&self) -> &[DOFParameterData<T>]
+    pub fn reactions_dof_parameters_data(&self) -> &[DOFParameterData]
     {
         self.reactions.dof_parameters_data()
     }
 
 
-    pub fn displacements(&self) -> &Displacements<T, V>
+    pub fn displacements(&self) -> &Displacements<V>
     {
         &self.displacements
     }
@@ -116,7 +111,7 @@ impl<T, V> GlobalAnalysisResult<T, V>
     }
 
 
-    pub fn displacements_dof_parameters_data(&self) -> &[DOFParameterData<T>]
+    pub fn displacements_dof_parameters_data(&self) -> &[DOFParameterData]
     {
         self.displacements.dof_parameters_data()
     }

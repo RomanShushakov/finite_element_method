@@ -1,5 +1,4 @@
 use std::slice::Iter;
-use std::ops::AddAssign;
 
 use self::GlobalDOFParameter::*;
 
@@ -7,12 +6,9 @@ use self::GlobalDOFParameter::*;
 pub(crate) const GLOBAL_DOF: usize = 6;
 
 
-pub(crate) fn global_dof<T>() -> T
-    where T: AddAssign + From<u8>
+pub(crate) fn global_dof() -> usize
 {
-    let mut global_dof = T::from(0u8);
-    (0..GLOBAL_DOF).for_each(|_| global_dof += T::from(1u8));
-    global_dof
+    GLOBAL_DOF
 }
 
 
@@ -42,23 +38,22 @@ impl GlobalDOFParameter
 
 
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub struct DOFParameterData<T>
+pub struct DOFParameterData
 {
-    node_number: T,
+    node_number: u32,
     dof_parameter: GlobalDOFParameter,
 }
 
 
-impl<T> DOFParameterData<T>
-    where T: Copy + PartialEq
+impl DOFParameterData
 {
-    pub(crate) fn create(node_number: T, dof_parameter: GlobalDOFParameter) -> Self
+    pub(crate) fn create(node_number: u32, dof_parameter: GlobalDOFParameter) -> Self
     {
         DOFParameterData { node_number, dof_parameter }
     }
 
 
-    pub fn copy_node_number(&self) -> T
+    pub fn copy_node_number(&self) -> u32
     {
         self.node_number
     }
@@ -70,19 +65,19 @@ impl<T> DOFParameterData<T>
     }
 
 
-    pub(crate) fn is_node_number_same(&self, node_number: T) -> bool
+    pub(crate) fn is_node_number_same(&self, node_number: u32) -> bool
     {
         self.node_number == node_number
     }
 
 
-    pub(crate) fn is_same(&self, dof_parameter: GlobalDOFParameter, node_number: T) -> bool
+    pub(crate) fn is_same(&self, dof_parameter: GlobalDOFParameter, node_number: u32) -> bool
     {
         self.dof_parameter == dof_parameter && self.is_node_number_same(node_number)
     }
 
 
-    pub(crate) fn update(&mut self, node_number: T, dof_parameter: GlobalDOFParameter)
+    pub(crate) fn update(&mut self, node_number: u32, dof_parameter: GlobalDOFParameter)
     {
         self.node_number = node_number;
         self.dof_parameter = dof_parameter;

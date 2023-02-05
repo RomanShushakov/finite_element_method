@@ -1,16 +1,10 @@
-use std::ops::{Add, Sub, Mul, Div, Rem, AddAssign, SubAssign, MulAssign};
-use std::fmt::Debug;
-use std::hash::Hash;
-
-use extended_matrix_float::MyFloatTrait;
-use extended_matrix::extended_matrix::ExtendedMatrix;
-use extended_matrix::functions::matrix_element_value_extractor;
+use extended_matrix::{Matrix, FloatTrait, BasicOperationsTrait, Position};
 
 
-pub fn compare_with_tolerance<V>(value: V, tolerance: V) -> V
-    where V: MyFloatTrait + PartialOrd + From<f32>
+pub fn compare_with_tolerance<V>(value: V, abs_tol: V) -> V
+    where V: FloatTrait<Output = V>
 {
-    if value.my_abs() < tolerance
+    if value.my_abs() < abs_tol
     {
         V::from(0f32)
     }
@@ -21,23 +15,17 @@ pub fn compare_with_tolerance<V>(value: V, tolerance: V) -> V
 }
 
 
-pub fn extract_unique_elements_of_rotation_matrix<T, V>(rotation_matrix: &ExtendedMatrix<T, V>)
-    -> Result<Vec<V>, String>
-    where T: Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Div<Output = T> +
-             Rem<Output = T> + Copy + Debug + Eq + Hash + AddAssign + SubAssign + From<u8> +
-             PartialOrd + Ord + 'static,
-          V: Add<Output = V> + Sub<Output = V> + Mul<Output = V> + Div<Output = V> + Copy +
-             Debug + AddAssign + SubAssign + MulAssign + PartialEq + From<f32> + Into<f64> +
-             PartialOrd + MyFloatTrait + 'static
+pub fn extract_unique_elements_of_rotation_matrix<V>(rotation_matrix: &Matrix<V>) -> Result<Vec<V>, String>
+    where V: FloatTrait<Output = V>
 {
-    let r11 = matrix_element_value_extractor(T::from(0u8), T::from(0u8), &rotation_matrix)?;
-    let r12 = matrix_element_value_extractor(T::from(0u8), T::from(1u8), &rotation_matrix)?;
-    let r13 = matrix_element_value_extractor(T::from(0u8), T::from(2u8), &rotation_matrix)?;
-    let r21 = matrix_element_value_extractor(T::from(1u8), T::from(0u8), &rotation_matrix)?;
-    let r22 = matrix_element_value_extractor(T::from(1u8), T::from(1u8), &rotation_matrix)?;
-    let r23 = matrix_element_value_extractor(T::from(1u8), T::from(2u8), &rotation_matrix)?;
-    let r31 = matrix_element_value_extractor(T::from(2u8), T::from(0u8), &rotation_matrix)?;
-    let r32 = matrix_element_value_extractor(T::from(2u8), T::from(1u8), &rotation_matrix)?;
-    let r33 = matrix_element_value_extractor(T::from(2u8), T::from(2u8), &rotation_matrix)?;
+    let r11 = *rotation_matrix.get_element_value(&Position(0, 0))?;
+    let r12 = *rotation_matrix.get_element_value(&Position(0, 1))?;
+    let r13 = *rotation_matrix.get_element_value(&Position(0, 2))?;
+    let r21 = *rotation_matrix.get_element_value(&Position(1, 0))?;
+    let r22 = *rotation_matrix.get_element_value(&Position(1, 1))?;
+    let r23 = *rotation_matrix.get_element_value(&Position(1, 2))?;
+    let r31 = *rotation_matrix.get_element_value(&Position(2, 0))?;
+    let r32 = *rotation_matrix.get_element_value(&Position(2, 1))?;
+    let r33 = *rotation_matrix.get_element_value(&Position(2, 2))?;
     Ok(vec![r11, r12, r13, r21, r22, r23, r31, r32, r33])
 }

@@ -1,4 +1,3 @@
-use std::ops::{Sub, Div, Rem, SubAssign, Mul, Add, AddAssign, MulAssign};
 use std::hash::Hash;
 use std::fmt::Debug;
 use std::slice::Iter;
@@ -6,9 +5,7 @@ use std::collections::HashMap;
 use std::any::Any;
 
 
-use extended_matrix::extended_matrix::ExtendedMatrix;
-
-use extended_matrix_float::MyFloatTrait;
+use extended_matrix::{Matrix, FloatTrait};
 
 use crate::fem::finite_elements::fe_node::FENode;
 use crate::fem::finite_elements::truss::truss2n1ip::Truss2n1ip;
@@ -61,37 +58,59 @@ impl FEType
 }
 
 
-pub(crate) trait FiniteElementTrait<T, V>: Any
+pub(crate) trait FiniteElementTrait<V>: Any
 {
-    fn update(&mut self, nodes_numbers: Vec<T>, properties: Vec<V>, tolerance: V,
-        nodes: &HashMap<T, FENode<V>>) -> Result<(), String>;
-    fn extract_stiffness_matrix(&self) -> Result<ExtendedMatrix<T, V>, String>;
-    fn extract_stiffness_groups(&self) -> Vec<StiffnessGroup<T>>;
-    fn is_node_belongs_to_element(&self, node_number: T) -> bool;
-    fn refresh(&mut self, tolerance: V, nodes: &HashMap<T, FENode<V>>) -> Result<(), String>;
-    fn is_nodes_numbers_same(&self, nodes_numbers: Vec<T>) -> bool;
-    fn extract_element_analysis_data(&self, global_displacements: &Displacements<T, V>,
-        tolerance: V, nodes: &HashMap<T, FENode<V>>) -> Result<ElementAnalysisData<T, V>, String>;
-    fn copy_nodes_numbers(&self) -> Vec<T>;
+    fn update(
+        &mut self, 
+        nodes_numbers: Vec<u32>, 
+        properties: Vec<V>,  
+        nodes: &HashMap<u32, FENode<V>>,
+        rel_tol: V,
+        abs_tol: V,
+    ) -> Result<(), String>;
+
+    fn extract_stiffness_matrix(&self) -> Result<Matrix<V>, String>;
+
+    fn extract_stiffness_groups(&self) -> Vec<StiffnessGroup>;
+
+    fn is_node_belongs_to_element(&self, node_number: u32) -> bool;
+
+    fn refresh(&mut self, nodes: &HashMap<u32, FENode<V>>, rel_tol: V, abs_tol: V) -> Result<(), String>;
+
+    fn is_nodes_numbers_same(&self, nodes_numbers: Vec<u32>) -> bool;
+
+    fn extract_element_analysis_data(
+        &self, 
+        global_displacements: &Displacements<V>,
+        nodes: &HashMap<u32, FENode<V>>,
+        rel_tol: V,
+    ) -> Result<ElementAnalysisData<V>, String>;
+
+    fn copy_nodes_numbers(&self) -> Vec<u32>;
+
     fn extract_unique_elements_of_rotation_matrix(&self) -> Result<Vec<V>, String>;
+
     fn copy_properties(&self) -> Vec<V>;
+
     fn as_any(&self) -> &dyn Any;
 }
 
 
-struct FECreator<T, V>(T, V);
+struct FECreator<V>(V);
 
 
-impl<T, V> FECreator<T, V>
-    where T: Copy + Sub<Output = T> + Div<Output = T> + Rem<Output = T> + Eq + Hash + SubAssign +
-             Debug + Mul<Output = T> + PartialOrd + Add<Output = T> + AddAssign + From<u8> +
-             Ord + 'static,
-          V: Copy + Sub<Output = V> + Mul<Output = V> + Add<Output = V> + Div<Output = V> +
-             PartialEq + Debug + AddAssign + MulAssign + SubAssign + MyFloatTrait + PartialOrd +
-             Into<f64> + From<f32> + MyFloatTrait<Other = V> + 'static,
+impl<V> FECreator<V>
+    where V: FloatTrait<Output = V>
 {
-    fn create(fe_type: FEType, nodes_numbers: Vec<T>, properties: Vec<V>, tolerance: V,
-        ref_nodes: &HashMap<T, FENode<V>>) -> Result<Box<dyn FiniteElementTrait<T, V>>, String>
+    fn create(
+        fe_type: FEType, 
+        nodes_numbers: Vec<u32>, 
+        properties: Vec<V>, 
+        ref_nodes: &HashMap<u32, FENode<V>>,
+        rel_tol: V,
+        abs_tol: V,
+    ) 
+        -> Result<Box<dyn FiniteElementTrait<V>>, String>
     {
         match fe_type
         {
@@ -102,8 +121,13 @@ impl<T, V> FECreator<T, V>
                         let truss_element = Truss2n1ip::create(
                             nodes_numbers[0],
                             nodes_numbers[1],
-                            properties[0], properties[1],
-                            Some(properties[2]), tolerance, ref_nodes)?;
+                            properties[0], 
+                            properties[1],
+                            Some(properties[2]), 
+                            ref_nodes,
+                            rel_tol,
+                            abs_tol,
+                        )?;
 
                         Ok(Box::new(truss_element))
                     }
@@ -112,8 +136,13 @@ impl<T, V> FECreator<T, V>
                         let truss_element = Truss2n1ip::create(
                             nodes_numbers[0],
                             nodes_numbers[1],
-                            properties[0], properties[1],
-                            None, tolerance, ref_nodes)?;
+                            properties[0], 
+                            properties[1],
+                            None, 
+                            ref_nodes,
+                            rel_tol,
+                            abs_tol,
+                        )?;
 
                         Ok(Box::new(truss_element))
                     }
@@ -125,8 +154,13 @@ impl<T, V> FECreator<T, V>
                         let truss_element = Truss2n2ip::create(
                             nodes_numbers[0],
                             nodes_numbers[1],
-                            properties[0], properties[1],
-                            Some(properties[2]), tolerance, ref_nodes)?;
+                            properties[0], 
+                            properties[1],
+                            Some(properties[2]), 
+                            ref_nodes,
+                            rel_tol,
+                            abs_tol,
+                        )?;
 
                         Ok(Box::new(truss_element))
                     }
@@ -135,8 +169,13 @@ impl<T, V> FECreator<T, V>
                         let truss_element = Truss2n2ip::create(
                             nodes_numbers[0],
                             nodes_numbers[1],
-                            properties[0], properties[1],
-                            None, tolerance, ref_nodes)?;
+                            properties[0], 
+                            properties[1],
+                            None, 
+                            ref_nodes,
+                            rel_tol,
+                            abs_tol,
+                        )?;
 
                         Ok(Box::new(truss_element))
                     }
@@ -144,15 +183,21 @@ impl<T, V> FECreator<T, V>
             FEType::Beam2n1ipT =>
                 {
                     let beam_element = Beam2n1ipT::create(
-                    nodes_numbers[0],
-                    nodes_numbers[1],
-                    properties[0], properties[1],
-                    properties[2], properties[3],
-                    properties[4], properties[5],
-                    properties[6],
-                    properties[7],
-                    [properties[8], properties[9], properties[10]],
-                    tolerance, ref_nodes)?;
+                        nodes_numbers[0],
+                        nodes_numbers[1],
+                        properties[0], 
+                        properties[1],
+                        properties[2], 
+                        properties[3],
+                        properties[4], 
+                        properties[5],
+                        properties[6],
+                        properties[7],
+                        [properties[8], properties[9], properties[10]],
+                        ref_nodes,
+                        rel_tol, 
+                        abs_tol,
+                    )?;
 
                     Ok(Box::new(beam_element))
                 },
@@ -166,7 +211,10 @@ impl<T, V> FECreator<T, V>
                         properties[0], 
                         properties[1], 
                         properties[2], 
-                        tolerance, ref_nodes)?;
+                        ref_nodes,
+                        rel_tol,
+                        abs_tol,
+                    )?;
                     
                     Ok(Box::new(membrane_element))
                 },
@@ -181,7 +229,10 @@ impl<T, V> FECreator<T, V>
                         properties[1], 
                         properties[2],
                         properties[3], 
-                        tolerance, ref_nodes)?;
+                        ref_nodes,
+                        rel_tol,
+                        abs_tol,
+                    )?;
                     
                     Ok(Box::new(plate_element))
                 }
@@ -190,60 +241,70 @@ impl<T, V> FECreator<T, V>
 }
 
 
-pub(crate) struct FiniteElement<T, V>
+pub(crate) struct FiniteElement<V>
 {
     element_type: FEType,
-    pub(crate) element: Box<dyn FiniteElementTrait<T, V>>,
+    pub(crate) element: Box<dyn FiniteElementTrait<V>>,
 }
 
 
-impl<T, V> FiniteElement<T, V>
-    where T: Copy + Sub<Output = T> + Div<Output = T> + Rem<Output = T> + Eq + Hash + SubAssign +
-             Debug + Mul<Output = T> + PartialOrd + Add<Output = T> + AddAssign + From<u8> +
-             Ord + 'static,
-          V: Copy + Sub<Output = V> + Mul<Output = V> + Add<Output = V> + Div<Output = V> +
-             PartialEq + Debug + AddAssign + MulAssign + SubAssign + MyFloatTrait + PartialOrd +
-             Into<f64> + From<f32> + MyFloatTrait<Other = V> + 'static,
+impl<V> FiniteElement<V>
+    where V: FloatTrait<Output = V>
 {
-    pub fn create(fe_type: FEType, nodes_numbers: Vec<T>, properties: Vec<V>, tolerance: V,
-        nodes: &HashMap<T, FENode<V>>) -> Result<Self, String>
+    pub fn create(
+        fe_type: FEType, 
+        nodes_numbers: Vec<u32>, 
+        properties: Vec<V>, 
+        nodes: &HashMap<u32, FENode<V>>,
+        rel_tol: V,
+        abs_tol: V,
+    ) 
+        -> Result<Self, String>
     {
-        let element = FECreator::create(fe_type,
-            nodes_numbers, properties, tolerance, nodes)?;
+        let element = FECreator::create(
+            fe_type, nodes_numbers, properties, nodes, rel_tol, abs_tol,
+        )?;
         Ok(FiniteElement { element_type: fe_type, element })
     }
 
 
-    pub fn update(&mut self, nodes_numbers: Vec<T>, properties: Vec<V>, tolerance: V,
-        nodes: &HashMap<T, FENode<V>>) -> Result<(), String>
+    pub fn update(
+        &mut self, 
+        nodes_numbers: Vec<u32>, 
+        properties: Vec<V>, 
+        nodes: &HashMap<u32, FENode<V>>,
+        rel_tol: V,
+        abs_tol: V,
+    )
+        -> Result<(), String>
     {
-        self.element.update(nodes_numbers, properties, tolerance, nodes)?;
+        self.element.update(nodes_numbers, properties, nodes, rel_tol, abs_tol)?;
         Ok(())
     }
 
 
-    pub fn extract_stiffness_matrix(&self) -> Result<ExtendedMatrix<T, V>, String>
+    pub fn extract_stiffness_matrix(&self) -> Result<Matrix<V>, String>
     {
         let stiffness_matrix = self.element.extract_stiffness_matrix()?;
         Ok(stiffness_matrix)
     }
 
 
-    pub fn extract_stiffness_groups(&self) -> Vec<StiffnessGroup<T>>
+    pub fn extract_stiffness_groups(&self) -> Vec<StiffnessGroup>
     {
         self.element.extract_stiffness_groups()
     }
 
 
-    pub fn is_node_belong_element(&self, node_number: T) -> bool
+    pub fn is_node_belong_element(&self, node_number: u32) -> bool
     {
         self.element.is_node_belongs_to_element(node_number)
     }
 
 
-    pub fn refresh(&mut self, tolerance: V, nodes: &HashMap<T, FENode<V>>) -> Result<(), String>
+    pub fn refresh(&mut self, nodes: &HashMap<u32, FENode<V>>, rel_tol: V, abs_tol: V) -> Result<(), String>
     {
-        self.element.refresh(tolerance, nodes)?;
+        self.element.refresh(nodes, rel_tol, abs_tol)?;
         Ok(())
     }
 
@@ -254,17 +315,23 @@ impl<T, V> FiniteElement<T, V>
     }
 
 
-    pub fn is_nodes_numbers_same(&self, nodes_numbers: Vec<T>) -> bool
+    pub fn is_nodes_numbers_same(&self, nodes_numbers: Vec<u32>) -> bool
     {
         self.element.is_nodes_numbers_same(nodes_numbers)
     }
 
 
-    pub fn extract_element_analysis_data(&self, global_displacements: &Displacements<T, V>,
-        tolerance: V, nodes: &HashMap<T, FENode<V>>) -> Result<ElementAnalysisData<T, V>, String>
+    pub fn extract_element_analysis_data(
+        &self, 
+        global_displacements: &Displacements<V>,
+        nodes: &HashMap<u32, FENode<V>>,
+        rel_tol: V,
+    )
+        -> Result<ElementAnalysisData<V>, String>
     {
-        let element_analysis_data = self.element.extract_element_analysis_data(
-            global_displacements, tolerance, nodes)?;
+        let element_analysis_data = self.element
+            .extract_element_analysis_data(global_displacements, nodes, rel_tol,
+        )?;
         Ok(element_analysis_data)
     }
 
@@ -275,7 +342,7 @@ impl<T, V> FiniteElement<T, V>
     }
 
 
-    pub fn copy_nodes_numbers(&self) -> Vec<T>
+    pub fn copy_nodes_numbers(&self) -> Vec<u32>
     {
         self.element.copy_nodes_numbers()
     }
@@ -295,24 +362,19 @@ impl<T, V> FiniteElement<T, V>
 
 
 #[derive(Debug, Clone)]
-pub struct DeletedFEData<T, V>
+pub struct DeletedFEData<V>
 {
-    element_number: T,
+    element_number: u32,
     element_type: FEType,
-    nodes_numbers: Vec<T>,
+    nodes_numbers: Vec<u32>,
     properties: Vec<V>
 }
 
 
-impl<T, V> DeletedFEData<T, V>
-    where T: Copy + Sub<Output = T> + Div<Output = T> + Rem<Output = T> + Eq + Hash + SubAssign +
-             Debug + Mul<Output = T> + PartialOrd + Add<Output = T> + AddAssign + From<u8> +
-             Ord + 'static,
-          V: Copy + Sub<Output = V> + Mul<Output = V> + Add<Output = V> + Div<Output = V> +
-             PartialEq + Debug + AddAssign + MulAssign + SubAssign + MyFloatTrait + PartialOrd +
-             Into<f64> + From<f32> + MyFloatTrait<Other = V> + 'static,
+impl<V> DeletedFEData<V>
+    where V: FloatTrait<Output = V>
 {
-    pub(crate) fn create(element_number: T, deleted_element: FiniteElement<T, V>) -> Self
+    pub(crate) fn create(element_number: u32, deleted_element: FiniteElement<V>) -> Self
     {
         let element_type = deleted_element.copy_fe_type();
         let nodes_numbers = deleted_element.copy_nodes_numbers();
@@ -321,7 +383,7 @@ impl<T, V> DeletedFEData<T, V>
     }
 
 
-    pub fn copy_number(&self) -> T
+    pub fn copy_number(&self) -> u32
     {
         self.element_number
     }
@@ -333,7 +395,7 @@ impl<T, V> DeletedFEData<T, V>
     }
 
 
-    pub fn ref_nodes_numbers(&self) -> &[T]
+    pub fn ref_nodes_numbers(&self) -> &[u32]
     {
         self.nodes_numbers.as_slice()
     }

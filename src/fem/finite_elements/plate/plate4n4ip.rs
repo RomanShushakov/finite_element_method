@@ -1,28 +1,21 @@
-use std::hash::Hash;
-use std::fmt::Debug;
-use std::ops::{Sub, Mul, Add, Div, Rem, SubAssign, AddAssign, MulAssign};
 use std::collections::HashMap;
 use std::any::Any;
 
-use extended_matrix::matrix_element_position::MatrixElementPosition;
-use extended_matrix::extended_matrix::ExtendedMatrix;
+use extended_matrix::{Position, Matrix, FloatTrait, BasicOperationsTrait};
 
-use crate::fem::element_analysis::fe_stress_strain_components::StressStrainComponent;
-use crate::fem::finite_elements::finite_element::{FiniteElementTrait, FEType};
+use crate::fem::finite_elements::finite_element::FiniteElementTrait;
 use crate::fem::finite_elements::fe_node::FENode;
 use crate::fem::finite_elements::plate::quad_full_plate_aux_functions::QuadFullPlateAuxFunctions;
 
 use crate::fem::global_analysis::fe_stiffness::{StiffnessGroup, StiffnessType};
-use crate::fem::global_analysis::fe_dof_parameter_data::{DOFParameterData};
+use crate::fem::global_analysis::fe_dof_parameter_data::DOFParameterData;
 use crate::fem::global_analysis::fe_global_analysis_result::Displacements;
 
 use crate::fem::element_analysis::fe_force_moment_components::ForceComponent;
 use crate::fem::element_analysis::fe_element_analysis_result::
 {
-    ElementAnalysisData, ElementForces, ElementStrains, ElementStresses
+    ElementAnalysisData, ElementForces,
 };
-
-use extended_matrix_float::MyFloatTrait;
 
 use crate::fem::finite_elements::plate::consts::{PLATE_NODE_DOF, PLATE4N4IP_NODES_NUMBER};
 use crate::fem::finite_elements::functions::extract_unique_elements_of_rotation_matrix;
@@ -37,52 +30,61 @@ struct IntegrationPoint<V>
 }
 
 
-struct State<T, V>
+struct State<V>
 {
-    rotation_matrix: ExtendedMatrix<T, V>,
+    rotation_matrix: Matrix<V>,
     integration_points: Vec<IntegrationPoint<V>>,
-    local_stiffness_matrix: ExtendedMatrix<T, V>,
-    nodes_dof_parameters_global: Vec<DOFParameterData<T>>,
+    local_stiffness_matrix: Matrix<V>,
+    nodes_dof_parameters_global: Vec<DOFParameterData>,
 }
 
 
-impl<T, V> State<T, V>
+impl<V> State<V>
 {
-    fn create(rotation_matrix: ExtendedMatrix<T, V>, integration_points: Vec<IntegrationPoint<V>>,
-        local_stiffness_matrix: ExtendedMatrix<T, V>,
-        nodes_dof_parameters_global: Vec<DOFParameterData<T>>) -> Self
+    fn create(
+        rotation_matrix: Matrix<V>, 
+        integration_points: Vec<IntegrationPoint<V>>,
+        local_stiffness_matrix: Matrix<V>,
+        nodes_dof_parameters_global: Vec<DOFParameterData>,
+    ) 
+        -> Self
     {
-        State { rotation_matrix, integration_points, local_stiffness_matrix,
-            nodes_dof_parameters_global }
+        State { rotation_matrix, integration_points, local_stiffness_matrix, nodes_dof_parameters_global }
     }
 }
 
 
-pub struct Plate4n4ip<T, V>
+pub struct Plate4n4ip<V>
 {
-    node_1_number: T,
-    node_2_number: T,
-    node_3_number: T,
-    node_4_number: T,
+    node_1_number: u32,
+    node_2_number: u32,
+    node_3_number: u32,
+    node_4_number: u32,
     young_modulus: V,
     poisson_ratio: V,
     thickness: V,
     shear_factor: V,
-    state: State<T, V>,
+    state: State<V>,
 }
 
 
-impl<T, V> Plate4n4ip<T, V>
-    where T: Copy + PartialOrd + Add<Output = T> + Sub<Output = T> + Div<Output = T> +
-             Rem<Output = T> + Eq + Hash + SubAssign + Debug + Mul<Output = T> + AddAssign +
-             From<u8> + Ord + 'static,
-          V: Copy + Into<f64> + Sub<Output = V> + Mul<Output = V> + From<f32> + Add<Output = V> +
-             Div<Output = V> + PartialEq + Debug + AddAssign + MulAssign + SubAssign +
-             MyFloatTrait + PartialOrd + 'static
+impl<V> Plate4n4ip<V>
+    where V: FloatTrait<Output = V>
 {
-    pub fn create(node_1_number: T, node_2_number: T, node_3_number: T, node_4_number: T, 
-        young_modulus: V, poisson_ratio: V, thickness: V, shear_factor: V, tolerance: V, 
-        ref_nodes: &HashMap<T, FENode<V>>) -> Result<Self, String>
+    pub fn create(
+        node_1_number: u32, 
+        node_2_number: u32, 
+        node_3_number: u32, 
+        node_4_number: u32, 
+        young_modulus: V, 
+        poisson_ratio: V, 
+        thickness: V, 
+        shear_factor: V, 
+        ref_nodes: &HashMap<u32, FENode<V>>,
+        rel_tol: V,
+        abs_tol: V,
+    ) 
+        -> Result<Self, String>
     {
         let integration_point_1 = IntegrationPoint {
             r: V::from(1f32 / 3f32).my_sqrt() * V::from(1f32), 
@@ -110,12 +112,14 @@ impl<T, V> Plate4n4ip<T, V>
         ];
 
         let rotation_matrix = QuadFullPlateAuxFunctions::rotation_matrix(
-            node_2_number, node_3_number, node_4_number, tolerance, ref_nodes)?;
+            node_2_number, node_3_number, node_4_number, ref_nodes, rel_tol, abs_tol,
+        )?;
 
-        let mut local_stiffness_matrix = ExtendedMatrix::create(
-            QuadFullPlateAuxFunctions::<T, V>::nodes_number() * QuadFullPlateAuxFunctions::<T, V>::node_dof(),
-            QuadFullPlateAuxFunctions::<T, V>::nodes_number() * QuadFullPlateAuxFunctions::<T, V>::node_dof(),
-            vec![V::from(0f32); (PLATE4N4IP_NODES_NUMBER * PLATE_NODE_DOF).pow(2)], tolerance)?;
+        let mut local_stiffness_matrix = Matrix::create(
+            QuadFullPlateAuxFunctions::<V>::nodes_number() * QuadFullPlateAuxFunctions::<V>::node_dof(),
+            QuadFullPlateAuxFunctions::<V>::nodes_number() * QuadFullPlateAuxFunctions::<V>::node_dof(),
+            &[V::from(0f32); (PLATE4N4IP_NODES_NUMBER * PLATE_NODE_DOF).pow(2)], 
+        );
 
         for i in 0..integration_points.len()
         {
@@ -124,45 +128,72 @@ impl<T, V> Plate4n4ip<T, V>
             let alpha = integration_points[i].weight_r * integration_points[i].weight_s;
 
             let matrix = QuadFullPlateAuxFunctions::local_stiffness_matrix(
-                node_1_number, node_2_number, node_3_number, node_4_number, young_modulus, poisson_ratio, 
-                thickness, shear_factor, alpha, r, s, ref_nodes, &rotation_matrix, tolerance)?;
+                node_1_number, 
+                node_2_number, 
+                node_3_number, 
+                node_4_number, 
+                young_modulus, 
+                poisson_ratio, 
+                thickness, 
+                shear_factor, 
+                alpha, 
+                r, 
+                s, 
+                ref_nodes, 
+                &rotation_matrix, 
+                rel_tol,
+            )?;
 
-            local_stiffness_matrix = local_stiffness_matrix.add_matrix(&matrix)
-                .map_err(|e| format!("Plate4n4ip: Local stiffness matrix could not be \
-                    calculated! Reason: {}", e))?;
+            local_stiffness_matrix = local_stiffness_matrix
+                .add(&matrix)
+                .map_err(|e| format!("Plate4n4ip: Local stiffness matrix could not be calculated! Reason: {}", e))?;
         }
 
         let mut nodes_dof_parameters =
-            QuadFullPlateAuxFunctions::<T, V>::compose_node_dof_parameters(node_1_number)?;
+            QuadFullPlateAuxFunctions::<V>::compose_node_dof_parameters(node_1_number)?;
         let node_2_dof_parameters =
-            QuadFullPlateAuxFunctions::<T, V>::compose_node_dof_parameters(node_2_number)?;
+            QuadFullPlateAuxFunctions::<V>::compose_node_dof_parameters(node_2_number)?;
         let node_3_dof_parameters =
-            QuadFullPlateAuxFunctions::<T, V>::compose_node_dof_parameters(node_3_number)?;
+            QuadFullPlateAuxFunctions::<V>::compose_node_dof_parameters(node_3_number)?;
         let node_4_dof_parameters =
-            QuadFullPlateAuxFunctions::<T, V>::compose_node_dof_parameters(node_4_number)?;
+            QuadFullPlateAuxFunctions::<V>::compose_node_dof_parameters(node_4_number)?;
 
         nodes_dof_parameters.extend(node_2_dof_parameters);
         nodes_dof_parameters.extend(node_3_dof_parameters);
         nodes_dof_parameters.extend(node_4_dof_parameters);
 
-        let state = State::create(rotation_matrix, integration_points,
-            local_stiffness_matrix, nodes_dof_parameters);
+        let state = State::create(
+            rotation_matrix, 
+            integration_points, 
+            local_stiffness_matrix, 
+            nodes_dof_parameters,
+        );
 
-        Ok(Plate4n4ip { node_1_number, node_2_number, node_3_number, node_4_number,
-            young_modulus, poisson_ratio, thickness, shear_factor, state })
+        Ok(
+            Plate4n4ip
+            { 
+                node_1_number, 
+                node_2_number, 
+                node_3_number,
+                node_4_number,
+                young_modulus, 
+                poisson_ratio, 
+                thickness, 
+                shear_factor, 
+                state,
+            }
+        )
     }
 
 
-    fn extract_local_displacements(&self, global_displacements: &Displacements<T, V>, tolerance: V)
-        -> Result<ExtendedMatrix<T, V>, String>
+    fn extract_local_displacements(&self, global_displacements: &Displacements<V>) -> Result<Matrix<V>, String>
     {
         let mut element_global_displacements_values = Vec::new();
         for lhs_dof_parameter_data in &self.state.nodes_dof_parameters_global
         {
             if let Some(position) = global_displacements.dof_parameters_data()
                 .iter()
-                .position(|rhs_dof_parameter_data|
-                    rhs_dof_parameter_data == lhs_dof_parameter_data)
+                .position(|rhs_dof_parameter_data| rhs_dof_parameter_data == lhs_dof_parameter_data)
             {
                 let displacement_value = global_displacements.displacements_values()[position];
                 element_global_displacements_values.push(displacement_value);
@@ -173,56 +204,65 @@ impl<T, V> Plate4n4ip<T, V>
             }
         }
 
-        let mut m = 0usize;
-        let mut rows_number = T::from(0u8);
-        while m < self.state.nodes_dof_parameters_global.len()
-        {
-            m += 1usize;
-            rows_number += T::from(1u8);
-        }
+        let mut rows_number = self.state.nodes_dof_parameters_global.len();
 
-        let element_global_displacements = ExtendedMatrix::create(rows_number,
-            T::from(1u8), element_global_displacements_values,
-            tolerance)?;
+        let element_global_displacements = Matrix::create(
+            rows_number, 1, &element_global_displacements_values,
+        );
 
-        let element_local_displacements =
-            self.state.rotation_matrix.multiply_by_matrix(&element_global_displacements)?;
+        let element_local_displacements = self.state.rotation_matrix
+            .multiply(&element_global_displacements)?;
         Ok(element_local_displacements)
     }
 
 
-    pub fn convert_uniformly_distributed_surface_force_to_nodal_forces(&self, uniformly_distributed_surface_force_value: V, 
-        ref_nodes: &HashMap<T, FENode<V>>, tolerance: V) -> Result<ExtendedMatrix<T, V>, String>
+    pub fn convert_uniformly_distributed_surface_force_to_nodal_forces(
+        &self, 
+        uniformly_distributed_surface_force_value: V, 
+        ref_nodes: &HashMap<u32, FENode<V>>, 
+        rel_tol: V,
+    ) 
+        -> Result<Matrix<V>, String>
     {
-        let distributed_force_matrix = ExtendedMatrix::create(T::from(1u8), T::from(1u8),
-            vec![uniformly_distributed_surface_force_value], tolerance)?;
+        let distributed_force_matrix = Matrix::create(
+            1, 1, &[uniformly_distributed_surface_force_value],
+        );
 
-        let mut nodal_forces = ExtendedMatrix::create(
-            T::from(4u8), T::from(1u8), vec![V::from(0f32); 4], tolerance)?;
+        let mut nodal_forces = Matrix::create(
+            4, 1, &[V::from(0f32); 4],
+        );
         for integration_point in self.state.integration_points.iter()
         {
             let r = integration_point.r;
             let s = integration_point.s;
             let alpha = integration_point.weight_r * integration_point.weight_s;
 
-            let determinant_of_jacobian = QuadFullPlateAuxFunctions::<T, V>::determinant_of_jacobian(
-                self.node_1_number, self.node_2_number, self.node_3_number, self.node_4_number, r, s, ref_nodes, 
-                &self.state.rotation_matrix, tolerance)?;
+            let determinant_of_jacobian = QuadFullPlateAuxFunctions::<V>::determinant_of_jacobian(
+                self.node_1_number, 
+                self.node_2_number, 
+                self.node_3_number, 
+                self.node_4_number, 
+                r, 
+                s, 
+                ref_nodes, 
+                &self.state.rotation_matrix, 
+                rel_tol,
+            )?;
 
-            let mut displacement_interpolation_matrix = ExtendedMatrix::create(
-                T::from(1u8), T::from(4u8), 
-                vec![
-                    QuadFullPlateAuxFunctions::<T, V>::h1_r_s(r, s),
-                    QuadFullPlateAuxFunctions::<T, V>::h2_r_s(r, s),
-                    QuadFullPlateAuxFunctions::<T, V>::h3_r_s(r, s),
-                    QuadFullPlateAuxFunctions::<T, V>::h4_r_s(r, s),
-                ], tolerance)?;
-
-            displacement_interpolation_matrix.transpose();
-            let mut matrix = displacement_interpolation_matrix.multiply_by_matrix(&distributed_force_matrix)?;
-            matrix.multiply_by_number(determinant_of_jacobian);
-            matrix.multiply_by_number(alpha);
-            nodal_forces = nodal_forces.add_matrix(&matrix)?;
+            let displacement_interpolation_matrix = Matrix::create(
+                    1, 
+                    4, 
+                    &[
+                        QuadFullPlateAuxFunctions::<V>::h1_r_s(r, s),
+                        QuadFullPlateAuxFunctions::<V>::h2_r_s(r, s),
+                        QuadFullPlateAuxFunctions::<V>::h3_r_s(r, s),
+                        QuadFullPlateAuxFunctions::<V>::h4_r_s(r, s),
+                    ],
+                )
+                .transpose()
+                .multiply(&distributed_force_matrix)?
+                .multiply_by_scalar(determinant_of_jacobian * alpha);
+            nodal_forces = nodal_forces.add(&displacement_interpolation_matrix)?;
         }
 
         Ok(nodal_forces)
@@ -230,16 +270,18 @@ impl<T, V> Plate4n4ip<T, V>
 }
 
 
-impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
-    where T: Copy + Add<Output = T> + Sub<Output = T> + Div<Output = T> + Rem<Output = T> +
-             Mul<Output = T> + Eq + Hash + Debug + SubAssign + PartialOrd + AddAssign +
-             From<u8> + Ord + 'static,
-          V: Copy + Sub<Output = V> + Mul<Output = V> + Add<Output = V> + Div<Output = V> +
-             Into<f64> + SubAssign + AddAssign + MulAssign + PartialEq + Debug +
-             MyFloatTrait + PartialOrd + From<f32> + 'static,
+impl<V> FiniteElementTrait<V> for Plate4n4ip<V>
+    where V: FloatTrait<Output = V>
 {
-    fn update(&mut self, nodes_numbers: Vec<T>, properties: Vec<V>, tolerance: V,
-        ref_nodes: &HashMap<T, FENode<V>>) -> Result<(), String>
+    fn update(
+        &mut self, 
+        nodes_numbers: Vec<u32>, 
+        properties: Vec<V>, 
+        ref_nodes: &HashMap<u32, FENode<V>>,
+        rel_tol: V,
+        abs_tol: V,
+    ) 
+        -> Result<(), String>
     {
         let node_1_number = nodes_numbers[0];
 
@@ -258,12 +300,14 @@ impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
         let shear_factor = properties[3];
 
         let rotation_matrix = QuadFullPlateAuxFunctions::rotation_matrix(
-            node_2_number, node_3_number, node_4_number, tolerance, ref_nodes)?;
+            node_2_number, node_3_number, node_4_number, ref_nodes, rel_tol, abs_tol,
+        )?;
 
-        let mut local_stiffness_matrix = ExtendedMatrix::create(
-            QuadFullPlateAuxFunctions::<T, V>::nodes_number() * QuadFullPlateAuxFunctions::<T, V>::node_dof(),
-            QuadFullPlateAuxFunctions::<T, V>::nodes_number() * QuadFullPlateAuxFunctions::<T, V>::node_dof(),
-            vec![V::from(0f32); (PLATE4N4IP_NODES_NUMBER * PLATE_NODE_DOF).pow(2)], tolerance)?;
+        let mut local_stiffness_matrix = Matrix::create(
+            QuadFullPlateAuxFunctions::<V>::nodes_number() * QuadFullPlateAuxFunctions::<V>::node_dof(),
+            QuadFullPlateAuxFunctions::<V>::nodes_number() * QuadFullPlateAuxFunctions::<V>::node_dof(),
+            &[V::from(0f32); (PLATE4N4IP_NODES_NUMBER * PLATE_NODE_DOF).pow(2)], 
+        );
 
         for i in 0..self.state.integration_points.len()
         {
@@ -272,22 +316,35 @@ impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
             let alpha = self.state.integration_points[i].weight_r * self.state.integration_points[i].weight_s;
 
             let matrix = QuadFullPlateAuxFunctions::local_stiffness_matrix(
-                node_1_number, node_2_number, node_3_number, node_4_number, young_modulus, poisson_ratio, 
-                thickness, shear_factor, alpha, r, s, ref_nodes, &rotation_matrix, tolerance)?;
+                node_1_number, 
+                node_2_number, 
+                node_3_number, 
+                node_4_number, 
+                young_modulus, 
+                poisson_ratio, 
+                thickness, 
+                shear_factor, 
+                alpha, 
+                r, 
+                s, 
+                ref_nodes, 
+                &rotation_matrix, 
+                rel_tol,
+            )?;
 
-            local_stiffness_matrix = local_stiffness_matrix.add_matrix(&matrix)
-                .map_err(|e| format!("Plate4n4ip: Local stiffness matrix could not be \
-                    calculated! Reason: {}", e))?;
+            local_stiffness_matrix = local_stiffness_matrix
+                .add(&matrix)
+                .map_err(|e| format!("Plate4n4ip: Local stiffness matrix could not be calculated! Reason: {}", e))?;
         }
 
         let mut nodes_dof_parameters =
-            QuadFullPlateAuxFunctions::<T, V>::compose_node_dof_parameters(node_1_number)?;
+            QuadFullPlateAuxFunctions::<V>::compose_node_dof_parameters(node_1_number)?;
         let node_2_dof_parameters =
-            QuadFullPlateAuxFunctions::<T, V>::compose_node_dof_parameters(node_2_number)?;
+            QuadFullPlateAuxFunctions::<V>::compose_node_dof_parameters(node_2_number)?;
         let node_3_dof_parameters =
-            QuadFullPlateAuxFunctions::<T, V>::compose_node_dof_parameters(node_3_number)?;
+            QuadFullPlateAuxFunctions::<V>::compose_node_dof_parameters(node_3_number)?;
         let node_4_dof_parameters =
-            QuadFullPlateAuxFunctions::<T, V>::compose_node_dof_parameters(node_4_number)?;
+            QuadFullPlateAuxFunctions::<V>::compose_node_dof_parameters(node_4_number)?;
 
         nodes_dof_parameters.extend(node_2_dof_parameters);
         nodes_dof_parameters.extend(node_3_dof_parameters);
@@ -309,15 +366,12 @@ impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
     }
 
 
-    fn extract_stiffness_matrix(&self) -> Result<ExtendedMatrix<T, V>, String>
+    fn extract_stiffness_matrix(&self) -> Result<Matrix<V>, String>
     {
-        let mut interim_matrix = self.state.rotation_matrix.clone();
-        interim_matrix.transpose();
-        if let Ok(matrix) =
-        interim_matrix.multiply_by_matrix(&self.state.local_stiffness_matrix)
+        let interim_matrix = self.state.rotation_matrix.clone().transpose();
+        if let Ok(matrix) = interim_matrix.multiply(&self.state.local_stiffness_matrix)
         {
-            if let Ok(matrix) =
-            matrix.multiply_by_matrix(&self.state.rotation_matrix)
+            if let Ok(matrix) = matrix.multiply(&self.state.rotation_matrix)
             {
                 return Ok(matrix);
             }
@@ -326,526 +380,848 @@ impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
     }
 
 
-    fn extract_stiffness_groups(&self) -> Vec<StiffnessGroup<T>>
+    fn extract_stiffness_groups(&self) -> Vec<StiffnessGroup>
     {
-        let (rows_number, columns_number) =
-            (QuadFullPlateAuxFunctions::<T, V>::nodes_number() * QuadFullPlateAuxFunctions::<T, V>::node_dof(),
-             QuadFullPlateAuxFunctions::<T, V>::nodes_number() * QuadFullPlateAuxFunctions::<T, V>::node_dof());
+        let (rows_number, columns_number) = (
+            QuadFullPlateAuxFunctions::<V>::nodes_number() * QuadFullPlateAuxFunctions::<V>::node_dof(),
+            QuadFullPlateAuxFunctions::<V>::nodes_number() * QuadFullPlateAuxFunctions::<V>::node_dof(),
+        );
 
-            let mut positions_kuu_1_1 = Vec::new();
-            let mut positions_kuth_1_1 = Vec::new();
-            let mut positions_kuu_1_2 = Vec::new();
-            let mut positions_kuth_1_2 = Vec::new();
-            let mut positions_kuu_1_3 = Vec::new();
-            let mut positions_kuth_1_3 = Vec::new();
-            let mut positions_kuu_1_4 = Vec::new();
-            let mut positions_kuth_1_4 = Vec::new();
+        let mut positions_kuu_1_1 = Vec::new();
+        let mut positions_kuth_1_1 = Vec::new();
+        let mut positions_kuu_1_2 = Vec::new();
+        let mut positions_kuth_1_2 = Vec::new();
+        let mut positions_kuu_1_3 = Vec::new();
+        let mut positions_kuth_1_3 = Vec::new();
+        let mut positions_kuu_1_4 = Vec::new();
+        let mut positions_kuth_1_4 = Vec::new();
 
-            let mut positions_kthu_1_1 = Vec::new();
-            let mut positions_kthth_1_1 = Vec::new();
-            let mut positions_kthu_1_2 = Vec::new();
-            let mut positions_kthth_1_2 = Vec::new();
-            let mut positions_kthu_1_3 = Vec::new();
-            let mut positions_kthth_1_3 = Vec::new();
-            let mut positions_kthu_1_4 = Vec::new();
-            let mut positions_kthth_1_4 = Vec::new();
+        let mut positions_kthu_1_1 = Vec::new();
+        let mut positions_kthth_1_1 = Vec::new();
+        let mut positions_kthu_1_2 = Vec::new();
+        let mut positions_kthth_1_2 = Vec::new();
+        let mut positions_kthu_1_3 = Vec::new();
+        let mut positions_kthth_1_3 = Vec::new();
+        let mut positions_kthu_1_4 = Vec::new();
+        let mut positions_kthth_1_4 = Vec::new();
 
-            let mut positions_kuu_2_1 = Vec::new();
-            let mut positions_kuth_2_1 = Vec::new();
-            let mut positions_kuu_2_2 = Vec::new();
-            let mut positions_kuth_2_2 = Vec::new();
-            let mut positions_kuu_2_3 = Vec::new();
-            let mut positions_kuth_2_3 = Vec::new();
-            let mut positions_kuu_2_4 = Vec::new();
-            let mut positions_kuth_2_4 = Vec::new();
+        let mut positions_kuu_2_1 = Vec::new();
+        let mut positions_kuth_2_1 = Vec::new();
+        let mut positions_kuu_2_2 = Vec::new();
+        let mut positions_kuth_2_2 = Vec::new();
+        let mut positions_kuu_2_3 = Vec::new();
+        let mut positions_kuth_2_3 = Vec::new();
+        let mut positions_kuu_2_4 = Vec::new();
+        let mut positions_kuth_2_4 = Vec::new();
 
-            let mut positions_kthu_2_1 = Vec::new();
-            let mut positions_kthth_2_1 = Vec::new();
-            let mut positions_kthu_2_2 = Vec::new();
-            let mut positions_kthth_2_2 = Vec::new();
-            let mut positions_kthu_2_3 = Vec::new();
-            let mut positions_kthth_2_3 = Vec::new();
-            let mut positions_kthu_2_4 = Vec::new();
-            let mut positions_kthth_2_4 = Vec::new();
+        let mut positions_kthu_2_1 = Vec::new();
+        let mut positions_kthth_2_1 = Vec::new();
+        let mut positions_kthu_2_2 = Vec::new();
+        let mut positions_kthth_2_2 = Vec::new();
+        let mut positions_kthu_2_3 = Vec::new();
+        let mut positions_kthth_2_3 = Vec::new();
+        let mut positions_kthu_2_4 = Vec::new();
+        let mut positions_kthth_2_4 = Vec::new();
 
-            let mut positions_kuu_3_1 = Vec::new();
-            let mut positions_kuth_3_1 = Vec::new();
-            let mut positions_kuu_3_2 = Vec::new();
-            let mut positions_kuth_3_2 = Vec::new();
-            let mut positions_kuu_3_3 = Vec::new();
-            let mut positions_kuth_3_3 = Vec::new();
-            let mut positions_kuu_3_4 = Vec::new();
-            let mut positions_kuth_3_4 = Vec::new();
+        let mut positions_kuu_3_1 = Vec::new();
+        let mut positions_kuth_3_1 = Vec::new();
+        let mut positions_kuu_3_2 = Vec::new();
+        let mut positions_kuth_3_2 = Vec::new();
+        let mut positions_kuu_3_3 = Vec::new();
+        let mut positions_kuth_3_3 = Vec::new();
+        let mut positions_kuu_3_4 = Vec::new();
+        let mut positions_kuth_3_4 = Vec::new();
 
-            let mut positions_kthu_3_1 = Vec::new();
-            let mut positions_kthth_3_1 = Vec::new();
-            let mut positions_kthu_3_2 = Vec::new();
-            let mut positions_kthth_3_2 = Vec::new();
-            let mut positions_kthu_3_3 = Vec::new();
-            let mut positions_kthth_3_3 = Vec::new();
-            let mut positions_kthu_3_4 = Vec::new();
-            let mut positions_kthth_3_4 = Vec::new();
+        let mut positions_kthu_3_1 = Vec::new();
+        let mut positions_kthth_3_1 = Vec::new();
+        let mut positions_kthu_3_2 = Vec::new();
+        let mut positions_kthth_3_2 = Vec::new();
+        let mut positions_kthu_3_3 = Vec::new();
+        let mut positions_kthth_3_3 = Vec::new();
+        let mut positions_kthu_3_4 = Vec::new();
+        let mut positions_kthth_3_4 = Vec::new();
 
-            let mut positions_kuu_4_1 = Vec::new();
-            let mut positions_kuth_4_1 = Vec::new();
-            let mut positions_kuu_4_2 = Vec::new();
-            let mut positions_kuth_4_2 = Vec::new();
-            let mut positions_kuu_4_3 = Vec::new();
-            let mut positions_kuth_4_3 = Vec::new();
-            let mut positions_kuu_4_4 = Vec::new();
-            let mut positions_kuth_4_4 = Vec::new();
+        let mut positions_kuu_4_1 = Vec::new();
+        let mut positions_kuth_4_1 = Vec::new();
+        let mut positions_kuu_4_2 = Vec::new();
+        let mut positions_kuth_4_2 = Vec::new();
+        let mut positions_kuu_4_3 = Vec::new();
+        let mut positions_kuth_4_3 = Vec::new();
+        let mut positions_kuu_4_4 = Vec::new();
+        let mut positions_kuth_4_4 = Vec::new();
 
-            let mut positions_kthu_4_1 = Vec::new();
-            let mut positions_kthth_4_1 = Vec::new();
-            let mut positions_kthu_4_2 = Vec::new();
-            let mut positions_kthth_4_2 = Vec::new();
-            let mut positions_kthu_4_3 = Vec::new();
-            let mut positions_kthth_4_3 = Vec::new();
-            let mut positions_kthu_4_4 = Vec::new();
-            let mut positions_kthth_4_4 = Vec::new();
+        let mut positions_kthu_4_1 = Vec::new();
+        let mut positions_kthth_4_1 = Vec::new();
+        let mut positions_kthu_4_2 = Vec::new();
+        let mut positions_kthth_4_2 = Vec::new();
+        let mut positions_kthu_4_3 = Vec::new();
+        let mut positions_kthth_4_3 = Vec::new();
+        let mut positions_kthu_4_4 = Vec::new();
+        let mut positions_kthth_4_4 = Vec::new();
 
-            let half = QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8);
-            let one = QuadFullPlateAuxFunctions::<T, V>::node_dof();
-            let one_and_half = QuadFullPlateAuxFunctions::<T, V>::node_dof() + 
-                QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8);
-            let two = QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8);
-            let two_and_half = QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(2u8) + 
-                QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8);
-            let three = QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8);
-            let three_and_half = QuadFullPlateAuxFunctions::<T, V>::node_dof() * T::from(3u8) + 
-                QuadFullPlateAuxFunctions::<T, V>::node_dof() / T::from(2u8);
-    
-            let mut i = T::from(0u8);
-            while i < rows_number * columns_number
+        let half = QuadFullPlateAuxFunctions::<V>::node_dof() / 2;
+        let one = QuadFullPlateAuxFunctions::<V>::node_dof();
+        let one_and_half = QuadFullPlateAuxFunctions::<V>::node_dof() + 
+            QuadFullPlateAuxFunctions::<V>::node_dof() / 2;
+        let two = QuadFullPlateAuxFunctions::<V>::node_dof() * 2;
+        let two_and_half = QuadFullPlateAuxFunctions::<V>::node_dof() * 2 + 
+            QuadFullPlateAuxFunctions::<V>::node_dof() / 2;
+        let three = QuadFullPlateAuxFunctions::<V>::node_dof() * 3;
+        let three_and_half = QuadFullPlateAuxFunctions::<V>::node_dof() * 3 + 
+            QuadFullPlateAuxFunctions::<V>::node_dof() / 2;
+
+        let mut i = 0;
+        while i < rows_number * columns_number
+        {
+            let position = Position(i / columns_number, i % columns_number);
+
+            let row = i / columns_number;
+            let column = i % columns_number;
+
+            if row < half && column < half
             {
-                let position = MatrixElementPosition::create(
-                    i / columns_number, i % columns_number);
-    
-                let row = i / columns_number;
-                let column = i % columns_number;
-    
-                if row < half && column < half
-                {
-                    positions_kuu_1_1.push(position);
-                }
-                else if row < half && column >= half && column < one
-                {
-                    positions_kuth_1_1.push(position);
-                }
-                else if row < half && column >= one && column < one_and_half
-                {
-                    positions_kuu_1_2.push(position);
-                }
-                else if row < half && column >= one_and_half && column < two
-                {
-                    positions_kuth_1_2.push(position);
-                }
-                else if row < half && column >= two && column < two_and_half
-                {
-                    positions_kuu_1_3.push(position);
-                }
-                else if row < half && column >= two_and_half && column < three
-                {
-                    positions_kuth_1_3.push(position);
-                }
-                else if row < half && column >= three && column < three_and_half
-                {
-                    positions_kuu_1_4.push(position);
-                }
-                else if row < half && column >= three_and_half
-                {
-                    positions_kuth_1_4.push(position);
-                }
-
-                else if row >= half && row < one && column < half
-                {
-                    positions_kthu_1_1.push(position);
-                }
-                else if row >= half && row < one && column >= half && column < one
-                {
-                    positions_kthth_1_1.push(position);
-                }
-                else if row >= half && row < one && column >= one && column < one_and_half
-                {
-                    positions_kthu_1_2.push(position);
-                }
-                else if row >= half && row < one && column >= one_and_half && column < two
-                {
-                    positions_kthth_1_2.push(position);
-                }
-                else if row >= half && row < one && column >= two && column < two_and_half
-                {
-                    positions_kthu_1_3.push(position);
-                }
-                else if row >= half && row < one && column >= two_and_half && column < three
-                {
-                    positions_kthth_1_3.push(position);
-                }
-                else if row >= half && row < one && column >= three && column < three_and_half
-                {
-                    positions_kthu_1_4.push(position);
-                }
-                else if row >= half && row < one && column >= three_and_half
-                {
-                    positions_kthth_1_4.push(position);
-                }
-
-                else if row >= one && row < one_and_half && column < half
-                {
-                    positions_kuu_2_1.push(position);
-                }
-                else if row >= one && row < one_and_half && column >= half && column < one
-                {
-                    positions_kuth_2_1.push(position);
-                }
-                else if row >= one && row < one_and_half && column >= one && column < one_and_half
-                {
-                    positions_kuu_2_2.push(position);
-                }
-                else if row >= one && row < one_and_half && column >= one_and_half && column < two
-                {
-                    positions_kuth_2_2.push(position);
-                }
-                else if row >= one && row < one_and_half && column >= two && column < two_and_half
-                {
-                    positions_kuu_2_3.push(position);
-                }
-                else if row >= one && row < one_and_half && column >= two_and_half && column < three
-                {
-                    positions_kuth_2_3.push(position);
-                }
-                else if row >= one && row < one_and_half && column >= three && column < three_and_half
-                {
-                    positions_kuu_2_4.push(position);
-                }
-                else if row >= one && row < one_and_half && column >= three_and_half
-                {
-                    positions_kuth_2_4.push(position);
-                }
-
-                else if row >= one_and_half && row < two && column < half
-                {
-                    positions_kthu_2_1.push(position);
-                }
-                else if row >= one_and_half && row < two && column >= half && column < one
-                {
-                    positions_kthth_2_1.push(position);
-                }
-                else if row >= one_and_half && row < two && column >= one && column < one_and_half
-                {
-                    positions_kthu_2_2.push(position);
-                }
-                else if row >= one_and_half && row < two && column >= one_and_half && column < two
-                {
-                    positions_kthth_2_2.push(position);
-                }
-                else if row >= one_and_half && row < two && column >= two && column < two_and_half
-                {
-                    positions_kthu_2_3.push(position);
-                }
-                else if row >= one_and_half && row < two && column >= two_and_half && column < three
-                {
-                    positions_kthth_2_3.push(position);
-                }
-                else if row >= one_and_half && row < two && column >= three && column < three_and_half
-                {
-                    positions_kthu_2_4.push(position);
-                }
-                else if row >= one_and_half && row < two && column >= three_and_half
-                {
-                    positions_kthth_2_4.push(position);
-                }
-
-                else if row >= two && row < two_and_half && column < half
-                {
-                    positions_kuu_3_1.push(position);
-                }
-                else if row >= two && row < two_and_half && column >= half && column < one
-                {
-                    positions_kuth_3_1.push(position);
-                }
-                else if row >= two && row < two_and_half && column >= one && column < one_and_half
-                {
-                    positions_kuu_3_2.push(position);
-                }
-                else if row >= two && row < two_and_half && column >= one_and_half && column < two
-                {
-                    positions_kuth_3_2.push(position);
-                }
-                else if row >= two && row < two_and_half && column >= two && column < two_and_half
-                {
-                    positions_kuu_3_3.push(position);
-                }
-                else if row >= two && row < two_and_half && column >= two_and_half && column < three
-                {
-                    positions_kuth_3_3.push(position);
-                }
-                else if row >= two && row < two_and_half && column >= three && column < three_and_half
-                {
-                    positions_kuu_3_4.push(position);
-                }
-                else if row >= two && row < two_and_half && column >= three_and_half
-                {
-                    positions_kuth_3_4.push(position);
-                }
-
-                else if row >= two_and_half && row < three && column < half
-                {
-                    positions_kthu_3_1.push(position);
-                }
-                else if row >= two_and_half && row < three && column >= half && column < one
-                {
-                    positions_kthth_3_1.push(position);
-                }
-                else if row >= two_and_half && row < three && column >= one && column < one_and_half
-                {
-                    positions_kthu_3_2.push(position);
-                }
-                else if row >= two_and_half && row < three && column >= one_and_half && column < two
-                {
-                    positions_kthth_3_2.push(position);
-                }
-                else if row >= two_and_half && row < three && column >= two && column < two_and_half
-                {
-                    positions_kthu_3_3.push(position);
-                }
-                else if row >= two_and_half && row < three && column >= two_and_half && column < three
-                {
-                    positions_kthth_3_3.push(position);
-                }
-                else if row >= two_and_half && row < three && column >= three && column < three_and_half
-                {
-                    positions_kthu_3_4.push(position);
-                }
-                else if row >= two_and_half && row < three && column >= three_and_half
-                {
-                    positions_kthth_3_4.push(position);
-                }
-
-                else if row >= three && row < three_and_half && column < half
-                {
-                    positions_kuu_4_1.push(position);
-                }
-                else if row >= three && row < three_and_half && column >= half && column < one
-                {
-                    positions_kuth_4_1.push(position);
-                }
-                else if row >= three && row < three_and_half && column >= one && column < one_and_half
-                {
-                    positions_kuu_4_2.push(position);
-                }
-                else if row >= three && row < three_and_half && column >= one_and_half && column < two
-                {
-                    positions_kuth_4_2.push(position);
-                }
-                else if row >= three && row < three_and_half && column >= two && column < two_and_half
-                {
-                    positions_kuu_4_3.push(position);
-                }
-                else if row >= three && row < three_and_half && column >= two_and_half && column < three
-                {
-                    positions_kuth_4_3.push(position);
-                }
-                else if row >= three && row < three_and_half && column >= three && column < three_and_half
-                {
-                    positions_kuu_4_4.push(position);
-                }
-                else if row >= three && row < three_and_half && column >= three_and_half
-                {
-                    positions_kuth_4_4.push(position);
-                }
-
-                else if row >= three_and_half && column < half
-                {
-                    positions_kthu_4_1.push(position);
-                }
-                else if row >= three_and_half && column >= half && column < one
-                {
-                    positions_kthth_4_1.push(position);
-                }
-                else if row >= three_and_half && column >= one && column < one_and_half
-                {
-                    positions_kthu_4_2.push(position);
-                }
-                else if row >= three_and_half && column >= one_and_half && column < two
-                {
-                    positions_kthth_4_2.push(position);
-                }
-                else if row >= three_and_half && column >= two && column < two_and_half
-                {
-                    positions_kthu_4_3.push(position);
-                }
-                else if row >= three_and_half && column >= two_and_half && column < three
-                {
-                    positions_kthth_4_3.push(position);
-                }
-                else if row >= three_and_half && column >= three && column < three_and_half
-                {
-                    positions_kthu_4_4.push(position);
-                }
-                else 
-                {
-                    positions_kthth_4_4.push(position);
-                }
-                i += T::from(1u8);
+                positions_kuu_1_1.push(position);
             }
-    
-            vec![
-                StiffnessGroup { stiffness_type: StiffnessType::Kuu, number_1: self.node_1_number,
-                    number_2: self.node_1_number, positions: positions_kuu_1_1, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kuth, number_1: self.node_1_number,
-                    number_2: self.node_1_number, positions: positions_kuth_1_1, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kuu, number_1: self.node_1_number,
-                    number_2: self.node_2_number, positions: positions_kuu_1_2, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kuth, number_1: self.node_1_number,
-                    number_2: self.node_2_number, positions: positions_kuth_1_2, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kuu, number_1: self.node_1_number,
-                    number_2: self.node_3_number, positions: positions_kuu_1_3, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kuth, number_1: self.node_1_number,
-                    number_2: self.node_3_number, positions: positions_kuth_1_3, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kuu, number_1: self.node_1_number,
-                    number_2: self.node_4_number, positions: positions_kuu_1_4, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kuth, number_1: self.node_1_number,
-                    number_2: self.node_4_number, positions: positions_kuth_1_4, },
+            else if row < half && column >= half && column < one
+            {
+                positions_kuth_1_1.push(position);
+            }
+            else if row < half && column >= one && column < one_and_half
+            {
+                positions_kuu_1_2.push(position);
+            }
+            else if row < half && column >= one_and_half && column < two
+            {
+                positions_kuth_1_2.push(position);
+            }
+            else if row < half && column >= two && column < two_and_half
+            {
+                positions_kuu_1_3.push(position);
+            }
+            else if row < half && column >= two_and_half && column < three
+            {
+                positions_kuth_1_3.push(position);
+            }
+            else if row < half && column >= three && column < three_and_half
+            {
+                positions_kuu_1_4.push(position);
+            }
+            else if row < half && column >= three_and_half
+            {
+                positions_kuth_1_4.push(position);
+            }
 
-                StiffnessGroup { stiffness_type: StiffnessType::Kthu, number_1: self.node_1_number,
-                    number_2: self.node_1_number, positions: positions_kthu_1_1, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kthth, number_1: self.node_1_number,
-                    number_2: self.node_1_number, positions: positions_kthth_1_1, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kthu, number_1: self.node_1_number,
-                    number_2: self.node_2_number, positions: positions_kthu_1_2, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kthth, number_1: self.node_1_number,
-                    number_2: self.node_2_number, positions: positions_kthth_1_2, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kthu, number_1: self.node_1_number,
-                    number_2: self.node_3_number, positions: positions_kthu_1_3, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kthth, number_1: self.node_1_number,
-                    number_2: self.node_3_number, positions: positions_kthth_1_3, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kthu, number_1: self.node_1_number,
-                    number_2: self.node_4_number, positions: positions_kthu_1_4, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kthth, number_1: self.node_1_number,
-                    number_2: self.node_4_number, positions: positions_kthth_1_4, },
-    
-                StiffnessGroup { stiffness_type: StiffnessType::Kuu, number_1: self.node_2_number,
-                    number_2: self.node_1_number, positions: positions_kuu_2_1, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kuth, number_1: self.node_2_number,
-                    number_2: self.node_1_number, positions: positions_kuth_2_1, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kuu, number_1: self.node_2_number,
-                    number_2: self.node_2_number, positions: positions_kuu_2_2, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kuth, number_1: self.node_2_number,
-                    number_2: self.node_2_number, positions: positions_kuth_2_2, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kuu, number_1: self.node_2_number,
-                    number_2: self.node_3_number, positions: positions_kuu_2_3, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kuth, number_1: self.node_2_number,
-                    number_2: self.node_3_number, positions: positions_kuth_2_3, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kuu, number_1: self.node_2_number,
-                    number_2: self.node_4_number, positions: positions_kuu_2_4, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kuth, number_1: self.node_2_number,
-                    number_2: self.node_4_number, positions: positions_kuth_2_4, },
+            else if row >= half && row < one && column < half
+            {
+                positions_kthu_1_1.push(position);
+            }
+            else if row >= half && row < one && column >= half && column < one
+            {
+                positions_kthth_1_1.push(position);
+            }
+            else if row >= half && row < one && column >= one && column < one_and_half
+            {
+                positions_kthu_1_2.push(position);
+            }
+            else if row >= half && row < one && column >= one_and_half && column < two
+            {
+                positions_kthth_1_2.push(position);
+            }
+            else if row >= half && row < one && column >= two && column < two_and_half
+            {
+                positions_kthu_1_3.push(position);
+            }
+            else if row >= half && row < one && column >= two_and_half && column < three
+            {
+                positions_kthth_1_3.push(position);
+            }
+            else if row >= half && row < one && column >= three && column < three_and_half
+            {
+                positions_kthu_1_4.push(position);
+            }
+            else if row >= half && row < one && column >= three_and_half
+            {
+                positions_kthth_1_4.push(position);
+            }
 
-                StiffnessGroup { stiffness_type: StiffnessType::Kthu, number_1: self.node_2_number,
-                    number_2: self.node_1_number, positions: positions_kthu_2_1, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kthth, number_1: self.node_2_number,
-                    number_2: self.node_1_number, positions: positions_kthth_2_1, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kthu, number_1: self.node_2_number,
-                    number_2: self.node_2_number, positions: positions_kthu_2_2, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kthth, number_1: self.node_2_number,
-                    number_2: self.node_2_number, positions: positions_kthth_2_2, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kthu, number_1: self.node_2_number,
-                    number_2: self.node_3_number, positions: positions_kthu_2_3, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kthth, number_1: self.node_2_number,
-                    number_2: self.node_3_number, positions: positions_kthth_2_3, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kthu, number_1: self.node_2_number,
-                    number_2: self.node_4_number, positions: positions_kthu_2_4, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kthth, number_1: self.node_2_number,
-                    number_2: self.node_4_number, positions: positions_kthth_2_4, },
+            else if row >= one && row < one_and_half && column < half
+            {
+                positions_kuu_2_1.push(position);
+            }
+            else if row >= one && row < one_and_half && column >= half && column < one
+            {
+                positions_kuth_2_1.push(position);
+            }
+            else if row >= one && row < one_and_half && column >= one && column < one_and_half
+            {
+                positions_kuu_2_2.push(position);
+            }
+            else if row >= one && row < one_and_half && column >= one_and_half && column < two
+            {
+                positions_kuth_2_2.push(position);
+            }
+            else if row >= one && row < one_and_half && column >= two && column < two_and_half
+            {
+                positions_kuu_2_3.push(position);
+            }
+            else if row >= one && row < one_and_half && column >= two_and_half && column < three
+            {
+                positions_kuth_2_3.push(position);
+            }
+            else if row >= one && row < one_and_half && column >= three && column < three_and_half
+            {
+                positions_kuu_2_4.push(position);
+            }
+            else if row >= one && row < one_and_half && column >= three_and_half
+            {
+                positions_kuth_2_4.push(position);
+            }
 
-                StiffnessGroup { stiffness_type: StiffnessType::Kuu, number_1: self.node_3_number,
-                    number_2: self.node_1_number, positions: positions_kuu_3_1, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kuth, number_1: self.node_3_number,
-                    number_2: self.node_1_number, positions: positions_kuth_3_1, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kuu, number_1: self.node_3_number,
-                    number_2: self.node_2_number, positions: positions_kuu_3_2, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kuth, number_1: self.node_3_number,
-                    number_2: self.node_2_number, positions: positions_kuth_3_2, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kuu, number_1: self.node_3_number,
-                    number_2: self.node_3_number, positions: positions_kuu_3_3, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kuth, number_1: self.node_3_number,
-                    number_2: self.node_3_number, positions: positions_kuth_3_3, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kuu, number_1: self.node_3_number,
-                    number_2: self.node_4_number, positions: positions_kuu_3_4, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kuth, number_1: self.node_3_number,
-                    number_2: self.node_4_number, positions: positions_kuth_3_4, },
+            else if row >= one_and_half && row < two && column < half
+            {
+                positions_kthu_2_1.push(position);
+            }
+            else if row >= one_and_half && row < two && column >= half && column < one
+            {
+                positions_kthth_2_1.push(position);
+            }
+            else if row >= one_and_half && row < two && column >= one && column < one_and_half
+            {
+                positions_kthu_2_2.push(position);
+            }
+            else if row >= one_and_half && row < two && column >= one_and_half && column < two
+            {
+                positions_kthth_2_2.push(position);
+            }
+            else if row >= one_and_half && row < two && column >= two && column < two_and_half
+            {
+                positions_kthu_2_3.push(position);
+            }
+            else if row >= one_and_half && row < two && column >= two_and_half && column < three
+            {
+                positions_kthth_2_3.push(position);
+            }
+            else if row >= one_and_half && row < two && column >= three && column < three_and_half
+            {
+                positions_kthu_2_4.push(position);
+            }
+            else if row >= one_and_half && row < two && column >= three_and_half
+            {
+                positions_kthth_2_4.push(position);
+            }
 
-                StiffnessGroup { stiffness_type: StiffnessType::Kthu, number_1: self.node_3_number,
-                    number_2: self.node_1_number, positions: positions_kthu_3_1, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kthth, number_1: self.node_3_number,
-                    number_2: self.node_1_number, positions: positions_kthth_3_1, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kthu, number_1: self.node_3_number,
-                    number_2: self.node_2_number, positions: positions_kthu_3_2, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kthth, number_1: self.node_3_number,
-                    number_2: self.node_2_number, positions: positions_kthth_3_2, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kthu, number_1: self.node_3_number,
-                    number_2: self.node_3_number, positions: positions_kthu_3_3, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kthth, number_1: self.node_3_number,
-                    number_2: self.node_3_number, positions: positions_kthth_3_3, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kthu, number_1: self.node_3_number,
-                    number_2: self.node_4_number, positions: positions_kthu_3_4, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kthth, number_1: self.node_3_number,
-                    number_2: self.node_4_number, positions: positions_kthth_3_4, },
+            else if row >= two && row < two_and_half && column < half
+            {
+                positions_kuu_3_1.push(position);
+            }
+            else if row >= two && row < two_and_half && column >= half && column < one
+            {
+                positions_kuth_3_1.push(position);
+            }
+            else if row >= two && row < two_and_half && column >= one && column < one_and_half
+            {
+                positions_kuu_3_2.push(position);
+            }
+            else if row >= two && row < two_and_half && column >= one_and_half && column < two
+            {
+                positions_kuth_3_2.push(position);
+            }
+            else if row >= two && row < two_and_half && column >= two && column < two_and_half
+            {
+                positions_kuu_3_3.push(position);
+            }
+            else if row >= two && row < two_and_half && column >= two_and_half && column < three
+            {
+                positions_kuth_3_3.push(position);
+            }
+            else if row >= two && row < two_and_half && column >= three && column < three_and_half
+            {
+                positions_kuu_3_4.push(position);
+            }
+            else if row >= two && row < two_and_half && column >= three_and_half
+            {
+                positions_kuth_3_4.push(position);
+            }
 
-                StiffnessGroup { stiffness_type: StiffnessType::Kuu, number_1: self.node_4_number,
-                    number_2: self.node_1_number, positions: positions_kuu_4_1, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kuth, number_1: self.node_4_number,
-                    number_2: self.node_1_number, positions: positions_kuth_4_1, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kuu, number_1: self.node_4_number,
-                    number_2: self.node_2_number, positions: positions_kuu_4_2, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kuth, number_1: self.node_4_number,
-                    number_2: self.node_2_number, positions: positions_kuth_4_2, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kuu, number_1: self.node_4_number,
-                    number_2: self.node_3_number, positions: positions_kuu_4_3, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kuth, number_1: self.node_4_number,
-                    number_2: self.node_3_number, positions: positions_kuth_4_3, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kuu, number_1: self.node_4_number,
-                    number_2: self.node_4_number, positions: positions_kuu_4_4, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kuth, number_1: self.node_4_number,
-                    number_2: self.node_4_number, positions: positions_kuth_4_4, },
+            else if row >= two_and_half && row < three && column < half
+            {
+                positions_kthu_3_1.push(position);
+            }
+            else if row >= two_and_half && row < three && column >= half && column < one
+            {
+                positions_kthth_3_1.push(position);
+            }
+            else if row >= two_and_half && row < three && column >= one && column < one_and_half
+            {
+                positions_kthu_3_2.push(position);
+            }
+            else if row >= two_and_half && row < three && column >= one_and_half && column < two
+            {
+                positions_kthth_3_2.push(position);
+            }
+            else if row >= two_and_half && row < three && column >= two && column < two_and_half
+            {
+                positions_kthu_3_3.push(position);
+            }
+            else if row >= two_and_half && row < three && column >= two_and_half && column < three
+            {
+                positions_kthth_3_3.push(position);
+            }
+            else if row >= two_and_half && row < three && column >= three && column < three_and_half
+            {
+                positions_kthu_3_4.push(position);
+            }
+            else if row >= two_and_half && row < three && column >= three_and_half
+            {
+                positions_kthth_3_4.push(position);
+            }
 
-                StiffnessGroup { stiffness_type: StiffnessType::Kthu, number_1: self.node_4_number,
-                    number_2: self.node_1_number, positions: positions_kthu_4_1, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kthth, number_1: self.node_4_number,
-                    number_2: self.node_1_number, positions: positions_kthth_4_1, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kthu, number_1: self.node_4_number,
-                    number_2: self.node_2_number, positions: positions_kthu_4_2, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kthth, number_1: self.node_4_number,
-                    number_2: self.node_2_number, positions: positions_kthth_4_2, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kthu, number_1: self.node_4_number,
-                    number_2: self.node_3_number, positions: positions_kthu_4_3, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kthth, number_1: self.node_4_number,
-                    number_2: self.node_3_number, positions: positions_kthth_4_3, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kthu, number_1: self.node_4_number,
-                    number_2: self.node_4_number, positions: positions_kthu_4_4, },
-                StiffnessGroup { stiffness_type: StiffnessType::Kthth, number_1: self.node_4_number,
-                    number_2: self.node_4_number, positions: positions_kthth_4_4, },
-            ]
+            else if row >= three && row < three_and_half && column < half
+            {
+                positions_kuu_4_1.push(position);
+            }
+            else if row >= three && row < three_and_half && column >= half && column < one
+            {
+                positions_kuth_4_1.push(position);
+            }
+            else if row >= three && row < three_and_half && column >= one && column < one_and_half
+            {
+                positions_kuu_4_2.push(position);
+            }
+            else if row >= three && row < three_and_half && column >= one_and_half && column < two
+            {
+                positions_kuth_4_2.push(position);
+            }
+            else if row >= three && row < three_and_half && column >= two && column < two_and_half
+            {
+                positions_kuu_4_3.push(position);
+            }
+            else if row >= three && row < three_and_half && column >= two_and_half && column < three
+            {
+                positions_kuth_4_3.push(position);
+            }
+            else if row >= three && row < three_and_half && column >= three && column < three_and_half
+            {
+                positions_kuu_4_4.push(position);
+            }
+            else if row >= three && row < three_and_half && column >= three_and_half
+            {
+                positions_kuth_4_4.push(position);
+            }
+
+            else if row >= three_and_half && column < half
+            {
+                positions_kthu_4_1.push(position);
+            }
+            else if row >= three_and_half && column >= half && column < one
+            {
+                positions_kthth_4_1.push(position);
+            }
+            else if row >= three_and_half && column >= one && column < one_and_half
+            {
+                positions_kthu_4_2.push(position);
+            }
+            else if row >= three_and_half && column >= one_and_half && column < two
+            {
+                positions_kthth_4_2.push(position);
+            }
+            else if row >= three_and_half && column >= two && column < two_and_half
+            {
+                positions_kthu_4_3.push(position);
+            }
+            else if row >= three_and_half && column >= two_and_half && column < three
+            {
+                positions_kthth_4_3.push(position);
+            }
+            else if row >= three_and_half && column >= three && column < three_and_half
+            {
+                positions_kthu_4_4.push(position);
+            }
+            else 
+            {
+                positions_kthth_4_4.push(position);
+            }
+            i += 1;
+        }
+
+        vec![
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kuu, 
+                number_1: self.node_1_number,
+                number_2: self.node_1_number, 
+                positions: positions_kuu_1_1, 
+            },
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kuth, 
+                number_1: self.node_1_number,
+                number_2: self.node_1_number, 
+                positions: positions_kuth_1_1, 
+            },
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kuu, 
+                number_1: self.node_1_number,
+                number_2: self.node_2_number, 
+                positions: positions_kuu_1_2, 
+            },
+            StiffnessGroup
+            { 
+                stiffness_type: StiffnessType::Kuth, 
+                number_1: self.node_1_number,
+                number_2: self.node_2_number, 
+                positions: positions_kuth_1_2, 
+            },
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kuu, 
+                number_1: self.node_1_number,
+                number_2: self.node_3_number, 
+                positions: positions_kuu_1_3, 
+            },
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kuth, 
+                number_1: self.node_1_number,
+                number_2: self.node_3_number, 
+                positions: positions_kuth_1_3, 
+            },
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kuu, 
+                number_1: self.node_1_number,
+                number_2: self.node_4_number, 
+                positions: positions_kuu_1_4, 
+            },
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kuth, 
+                number_1: self.node_1_number,
+                number_2: self.node_4_number, 
+                positions: positions_kuth_1_4, 
+            },
+
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kthu, 
+                number_1: self.node_1_number,
+                number_2: self.node_1_number, 
+                positions: positions_kthu_1_1, 
+            },
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kthth, 
+                number_1: self.node_1_number,
+                number_2: self.node_1_number, 
+                positions: positions_kthth_1_1, 
+            },
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kthu, 
+                number_1: self.node_1_number,
+                number_2: self.node_2_number, 
+                positions: positions_kthu_1_2, 
+            },
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kthth, 
+                number_1: self.node_1_number,
+                number_2: self.node_2_number, 
+                positions: positions_kthth_1_2, 
+            },
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kthu, 
+                number_1: self.node_1_number,
+                number_2: self.node_3_number, 
+                positions: positions_kthu_1_3, 
+            },
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kthth, 
+                number_1: self.node_1_number,
+                number_2: self.node_3_number, 
+                positions: positions_kthth_1_3, 
+            },
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kthu, 
+                number_1: self.node_1_number,
+                number_2: self.node_4_number, 
+                positions: positions_kthu_1_4, 
+            },
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kthth, 
+                number_1: self.node_1_number,
+                number_2: self.node_4_number, 
+                positions: positions_kthth_1_4, 
+            },
+
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kuu, 
+                number_1: self.node_2_number,
+                number_2: self.node_1_number, 
+                positions: positions_kuu_2_1, 
+            },
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kuth, 
+                number_1: self.node_2_number,
+                number_2: self.node_1_number, 
+                positions: positions_kuth_2_1, 
+            },
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kuu, 
+                number_1: self.node_2_number,
+                number_2: self.node_2_number, 
+                positions: positions_kuu_2_2, 
+            },
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kuth, 
+                number_1: self.node_2_number,
+                number_2: self.node_2_number, 
+                positions: positions_kuth_2_2, 
+            },
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kuu, 
+                number_1: self.node_2_number,
+                number_2: self.node_3_number, 
+                positions: positions_kuu_2_3, 
+            },
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kuth, 
+                number_1: self.node_2_number,
+                number_2: self.node_3_number, 
+                positions: positions_kuth_2_3, 
+            },
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kuu, 
+                number_1: self.node_2_number,
+                number_2: self.node_4_number, 
+                positions: positions_kuu_2_4, 
+            },
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kuth, 
+                number_1: self.node_2_number,
+                number_2: self.node_4_number, 
+                positions: positions_kuth_2_4, 
+            },
+
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kthu, 
+                number_1: self.node_2_number,
+                number_2: self.node_1_number, 
+                positions: positions_kthu_2_1, 
+            },
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kthth, 
+                number_1: self.node_2_number,
+                number_2: self.node_1_number, 
+                positions: positions_kthth_2_1, 
+            },
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kthu, 
+                number_1: self.node_2_number,
+                number_2: self.node_2_number, 
+                positions: positions_kthu_2_2, 
+            },
+            StiffnessGroup 
+            {
+                stiffness_type: StiffnessType::Kthth, 
+                number_1: self.node_2_number,
+                number_2: self.node_2_number, 
+                positions: positions_kthth_2_2,
+            },
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kthu, 
+                number_1: self.node_2_number,
+                number_2: self.node_3_number, 
+                positions: positions_kthu_2_3, 
+            },
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kthth, 
+                number_1: self.node_2_number,
+                number_2: self.node_3_number, 
+                positions: positions_kthth_2_3, 
+            },
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kthu, 
+                number_1: self.node_2_number,
+                number_2: self.node_4_number, 
+                positions: positions_kthu_2_4, 
+            },
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kthth, 
+                number_1: self.node_2_number,
+                number_2: self.node_4_number, 
+                positions: positions_kthth_2_4,
+            },
+
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kuu, 
+                number_1: self.node_3_number,
+                number_2: self.node_1_number, 
+                positions: positions_kuu_3_1, 
+            },
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kuth, 
+                number_1: self.node_3_number,
+                number_2: self.node_1_number, 
+                positions: positions_kuth_3_1, 
+            },
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kuu, 
+                number_1: self.node_3_number,
+                number_2: self.node_2_number, 
+                positions: positions_kuu_3_2, 
+            },
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kuth, 
+                number_1: self.node_3_number,
+                number_2: self.node_2_number, 
+                positions: positions_kuth_3_2, 
+            },
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kuu, 
+                number_1: self.node_3_number,
+                number_2: self.node_3_number, 
+                positions: positions_kuu_3_3, 
+            },
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kuth, 
+                number_1: self.node_3_number,
+                number_2: self.node_3_number, 
+                positions: positions_kuth_3_3, 
+            },
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kuu, 
+                number_1: self.node_3_number,
+                number_2: self.node_4_number, 
+                positions: positions_kuu_3_4, 
+            },
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kuth, 
+                number_1: self.node_3_number,
+                number_2: self.node_4_number, 
+                positions: positions_kuth_3_4, 
+            },
+
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kthu, 
+                number_1: self.node_3_number,
+                number_2: self.node_1_number, 
+                positions: positions_kthu_3_1, 
+            },
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kthth, 
+                number_1: self.node_3_number,
+                number_2: self.node_1_number, 
+                positions: positions_kthth_3_1, 
+            },
+            StiffnessGroup 
+            {
+                stiffness_type: StiffnessType::Kthu, 
+                number_1: self.node_3_number,
+                number_2: self.node_2_number, 
+                positions: positions_kthu_3_2, 
+            },
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kthth, 
+                number_1: self.node_3_number,
+                number_2: self.node_2_number, 
+                positions: positions_kthth_3_2, 
+            },
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kthu, 
+                number_1: self.node_3_number,
+                number_2: self.node_3_number, 
+                positions: positions_kthu_3_3, 
+            },
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kthth, 
+                number_1: self.node_3_number,
+                number_2: self.node_3_number, 
+                positions: positions_kthth_3_3,
+            },
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kthu, 
+                number_1: self.node_3_number,
+                number_2: self.node_4_number, 
+                positions: positions_kthu_3_4, 
+            },
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kthth, 
+                number_1: self.node_3_number,
+                number_2: self.node_4_number, 
+                positions: positions_kthth_3_4, 
+            },
+
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kuu, 
+                number_1: self.node_4_number,
+                number_2: self.node_1_number, 
+                positions: positions_kuu_4_1, 
+            },
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kuth, 
+                number_1: self.node_4_number,
+                number_2: self.node_1_number, 
+                positions: positions_kuth_4_1, 
+            },
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kuu, 
+                number_1: self.node_4_number,
+                number_2: self.node_2_number, 
+                positions: positions_kuu_4_2, 
+            },
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kuth, 
+                number_1: self.node_4_number,
+                number_2: self.node_2_number, 
+                positions: positions_kuth_4_2, 
+            },
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kuu, 
+                number_1: self.node_4_number,
+                number_2: self.node_3_number, 
+                positions: positions_kuu_4_3, 
+            },
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kuth, 
+                number_1: self.node_4_number,
+                number_2: self.node_3_number, 
+                positions: positions_kuth_4_3, 
+            },
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kuu, 
+                number_1: self.node_4_number,
+                number_2: self.node_4_number, 
+                positions: positions_kuu_4_4, 
+            },
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kuth, 
+                number_1: self.node_4_number,
+                number_2: self.node_4_number, 
+                positions: positions_kuth_4_4, 
+            },
+
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kthu, 
+                number_1: self.node_4_number,
+                number_2: self.node_1_number, 
+                positions: positions_kthu_4_1, 
+            },
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kthth, 
+                number_1: self.node_4_number,
+                number_2: self.node_1_number, 
+                positions: positions_kthth_4_1, 
+            },
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kthu, 
+                number_1: self.node_4_number,
+                number_2: self.node_2_number, 
+                positions: positions_kthu_4_2, 
+            },
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kthth, 
+                number_1: self.node_4_number,
+                number_2: self.node_2_number, 
+                positions: positions_kthth_4_2, 
+            },
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kthu, 
+                number_1: self.node_4_number,
+                number_2: self.node_3_number, 
+                positions: positions_kthu_4_3, 
+            },
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kthth, 
+                number_1: self.node_4_number,
+                number_2: self.node_3_number, 
+                positions: positions_kthth_4_3, 
+            },
+            StiffnessGroup 
+            {
+                stiffness_type: StiffnessType::Kthu, 
+                number_1: self.node_4_number,
+                number_2: self.node_4_number, 
+                positions: positions_kthu_4_4,
+            },
+            StiffnessGroup 
+            { 
+                stiffness_type: StiffnessType::Kthth, 
+                number_1: self.node_4_number,
+                number_2: self.node_4_number, 
+                positions: positions_kthth_4_4, 
+            },
+        ]
     }
 
 
-    fn is_node_belongs_to_element(&self, node_number: T) -> bool
+    fn is_node_belongs_to_element(&self, node_number: u32) -> bool
     {
         self.node_1_number == node_number || self.node_2_number == node_number ||
         self.node_3_number == node_number || self.node_4_number == node_number
     }
 
 
-    fn refresh(&mut self, tolerance: V, ref_nodes: &HashMap<T, FENode<V>>) -> Result<(), String>
+    fn refresh(&mut self, ref_nodes: &HashMap<u32, FENode<V>>, rel_tol: V, abs_tol: V) -> Result<(), String>
     {
         let rotation_matrix = QuadFullPlateAuxFunctions::rotation_matrix(
-            self.node_2_number, self.node_3_number, self.node_4_number, tolerance, ref_nodes)?;
+            self.node_2_number, self.node_3_number, self.node_4_number, ref_nodes, rel_tol, abs_tol,
+        )?;
 
-        let mut local_stiffness_matrix = ExtendedMatrix::create(
-            QuadFullPlateAuxFunctions::<T, V>::nodes_number() * QuadFullPlateAuxFunctions::<T, V>::node_dof(),
-            QuadFullPlateAuxFunctions::<T, V>::nodes_number() * QuadFullPlateAuxFunctions::<T, V>::node_dof(),
-            vec![V::from(0f32); (PLATE4N4IP_NODES_NUMBER * PLATE_NODE_DOF).pow(2)], tolerance)?;
+        let mut local_stiffness_matrix = Matrix::create(
+            QuadFullPlateAuxFunctions::<V>::nodes_number() * QuadFullPlateAuxFunctions::<V>::node_dof(),
+            QuadFullPlateAuxFunctions::<V>::nodes_number() * QuadFullPlateAuxFunctions::<V>::node_dof(),
+            &[V::from(0f32); (PLATE4N4IP_NODES_NUMBER * PLATE_NODE_DOF).pow(2)],
+        );
 
         for i in 0..self.state.integration_points.len()
         {
@@ -854,13 +1230,25 @@ impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
             let alpha = self.state.integration_points[i].weight_r * self.state.integration_points[i].weight_s;
 
             let matrix = QuadFullPlateAuxFunctions::local_stiffness_matrix(
-                self.node_1_number, self.node_2_number, self.node_3_number, self.node_4_number, 
-                self.young_modulus, self.poisson_ratio, self.thickness, self.shear_factor, alpha, r, s, ref_nodes,
-                &rotation_matrix, tolerance)?;
+                self.node_1_number, 
+                self.node_2_number, 
+                self.node_3_number, 
+                self.node_4_number, 
+                self.young_modulus, 
+                self.poisson_ratio, 
+                self.thickness, 
+                self.shear_factor, 
+                alpha, 
+                r, 
+                s, 
+                ref_nodes,
+                &rotation_matrix, 
+                rel_tol,
+            )?;
 
-            local_stiffness_matrix = local_stiffness_matrix.add_matrix(&matrix)
-                .map_err(|e| format!("Plate4n4ip: Local stiffness matrix could not be \
-                    calculated! Reason: {}", e))?;
+            local_stiffness_matrix = local_stiffness_matrix
+                .add(&matrix)
+                .map_err(|e| format!("Plate4n4ip: Local stiffness matrix could not be calculated! Reason: {}", e))?;
         }
 
         self.state.rotation_matrix = rotation_matrix;
@@ -869,51 +1257,58 @@ impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
     }
 
 
-    fn is_nodes_numbers_same(&self, nodes_numbers: Vec<T>) -> bool
+    fn is_nodes_numbers_same(&self, nodes_numbers: Vec<u32>) -> bool
     {
         nodes_numbers.iter().all(|node_number| self.is_node_belongs_to_element(*node_number))
     }
 
 
-    fn extract_element_analysis_data(&self, global_displacements: &Displacements<T, V>,
-        tolerance: V, ref_nodes: &HashMap<T, FENode<V>>) -> Result<ElementAnalysisData<T, V>, String>
+    fn extract_element_analysis_data(
+        &self, 
+        global_displacements: &Displacements<V>,
+        ref_nodes: &HashMap<u32, FENode<V>>,
+        rel_tol: V,
+    ) 
+        -> Result<ElementAnalysisData<V>, String>
     {
-        let element_local_displacements =
-            self.extract_local_displacements(global_displacements, tolerance)?;
+        let element_local_displacements = self.extract_local_displacements(global_displacements)?;
 
         let c_matrix_multiplier_mem = self.young_modulus / (V::from(1f32) - self.poisson_ratio.my_powi(2));
-        let mut c_matrix_mem = ExtendedMatrix::create(
-            T::from(3u8), T::from(3u8), 
-            vec![
-                V::from(1f32), self.poisson_ratio, V::from(0f32),
-                self.poisson_ratio, V::from(1f32), V::from(0f32),
-                V::from(0f32), V::from(0f32), (V::from(1f32) - self.poisson_ratio) / V::from(2f32),
-            ], 
-            tolerance)?;
-        c_matrix_mem.multiply_by_number(c_matrix_multiplier_mem);
+        let c_matrix_mem = Matrix::create(
+                3, 
+                3, 
+                &[
+                    V::from(1f32), self.poisson_ratio, V::from(0f32),
+                    self.poisson_ratio, V::from(1f32), V::from(0f32),
+                    V::from(0f32), V::from(0f32), (V::from(1f32) - self.poisson_ratio) / V::from(2f32),
+                ], 
+            )
+            .multiply_by_scalar(c_matrix_multiplier_mem);
 
         // let c_matrix_multiplier_bend = self.young_modulus / (V::from(1f32) - self.poisson_ratio.my_powi(2));
         let c_matrix_multiplier_bend = self.young_modulus * self.thickness / 
             (V::from(2f32) * (V::from(1f32) - self.poisson_ratio.my_powi(2)));
-        let mut c_matrix_bend = ExtendedMatrix::create(
-            T::from(3u8), T::from(3u8), 
-            vec![
-                V::from(1f32), self.poisson_ratio, V::from(0f32),
-                self.poisson_ratio, V::from(1f32), V::from(0f32),
-                V::from(0f32), V::from(0f32), (V::from(1f32) - self.poisson_ratio) / V::from(2f32),
-            ], 
-            tolerance)?;
-        c_matrix_bend.multiply_by_number(c_matrix_multiplier_bend);
+        let c_matrix_bend = Matrix::create(
+                3, 
+                3, 
+                &[
+                    V::from(1f32), self.poisson_ratio, V::from(0f32),
+                    self.poisson_ratio, V::from(1f32), V::from(0f32),
+                    V::from(0f32), V::from(0f32), (V::from(1f32) - self.poisson_ratio) / V::from(2f32),
+                ], 
+            )
+            .multiply_by_scalar(c_matrix_multiplier_bend);
 
         let c_matrix_multiplier_shear = self.young_modulus / (V::from(2f32) * (V::from(1f32) + self.poisson_ratio));
-        let mut c_matrix_shear = ExtendedMatrix::create(
-            T::from(2u8), T::from(2u8), 
-            vec![
-                V::from(1f32), V::from(0f32),
-                V::from(0f32), V::from(1f32),
-            ], 
-            tolerance)?;
-        c_matrix_shear.multiply_by_number(c_matrix_multiplier_shear);
+        let c_matrix_shear = Matrix::create(
+                2, 
+                2, 
+                &[
+                    V::from(1f32), V::from(0f32),
+                    V::from(0f32), V::from(1f32),
+                ], 
+            )
+            .multiply_by_scalar(c_matrix_multiplier_shear);
 
         let mut forces_values = Vec::new();
         let mut forces_components = Vec::new();
@@ -940,14 +1335,24 @@ impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
             let s = local_nodes_coordinates[i].1;
 
             let strain_displacement_matrix_mem_at_node = 
-                QuadFullPlateAuxFunctions::strain_displacement_matrix_mem(self.node_1_number, self.node_2_number, 
-                    self.node_3_number, self.node_4_number, r, s, ref_nodes, &self.state.rotation_matrix, tolerance)?;
-            let strains_matrix_mem_at_node = 
-                strain_displacement_matrix_mem_at_node.multiply_by_matrix(&element_local_displacements)?;
+                QuadFullPlateAuxFunctions::strain_displacement_matrix_mem(
+                    self.node_1_number, 
+                    self.node_2_number, 
+                    self.node_3_number, 
+                    self.node_4_number, 
+                    r, 
+                    s, 
+                    ref_nodes, 
+                    &self.state.rotation_matrix, 
+                    rel_tol,
+                )?;
+            let strains_matrix_mem_at_node = strain_displacement_matrix_mem_at_node
+                .multiply(&element_local_displacements)?;
 
-            let stresses_matrix_mem_at_node = c_matrix_mem.multiply_by_matrix(&strains_matrix_mem_at_node)?;
-            let stresses_mem_at_node = 
-                QuadFullPlateAuxFunctions::extract_column_matrix_values(&stresses_matrix_mem_at_node)?;
+            let stresses_matrix_mem_at_node = c_matrix_mem.multiply(&strains_matrix_mem_at_node)?;
+            let stresses_mem_at_node = QuadFullPlateAuxFunctions::extract_column_matrix_values(
+                &stresses_matrix_mem_at_node,
+            )?;
             for j in 0..3
             {
                 if j == 0 { force_x += stresses_mem_at_node[j] * self.thickness; }
@@ -956,13 +1361,23 @@ impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
             }
 
             let strain_displacement_matrix_bend_at_node = 
-                QuadFullPlateAuxFunctions::strain_displacement_matrix_plate_bending(self.node_1_number, self.node_2_number, 
-                    self.node_3_number, self.node_4_number, r, s, ref_nodes, &self.state.rotation_matrix, tolerance)?;
-            let strains_matrix_bend_at_node = 
-                strain_displacement_matrix_bend_at_node.multiply_by_matrix(&element_local_displacements)?;
-            let stresses_matrix_bend_at_node = c_matrix_bend.multiply_by_matrix(&strains_matrix_bend_at_node)?;
-            let stresses_bend_at_node = 
-                QuadFullPlateAuxFunctions::extract_column_matrix_values(&stresses_matrix_bend_at_node)?;
+                QuadFullPlateAuxFunctions::strain_displacement_matrix_plate_bending(
+                    self.node_1_number, 
+                    self.node_2_number, 
+                    self.node_3_number, 
+                    self.node_4_number, 
+                    r, 
+                    s, 
+                    ref_nodes, 
+                    &self.state.rotation_matrix, 
+                    rel_tol,
+                )?;
+            let strains_matrix_bend_at_node = strain_displacement_matrix_bend_at_node
+                .multiply(&element_local_displacements)?;
+            let stresses_matrix_bend_at_node = c_matrix_bend.multiply(&strains_matrix_bend_at_node)?;
+            let stresses_bend_at_node = QuadFullPlateAuxFunctions::extract_column_matrix_values(
+                &stresses_matrix_bend_at_node,
+            )?;
             for k in 0..3
             {
                 if k == 0 
@@ -980,13 +1395,24 @@ impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
             }
 
             let strain_displacement_matrix_shear_at_node = 
-                QuadFullPlateAuxFunctions::strain_displacement_matrix_plate_shear(self.node_1_number, self.node_2_number, 
-                    self.node_3_number, self.node_4_number, r, s, ref_nodes, &self.state.rotation_matrix, tolerance)?;
-            let strains_matrix_shear_at_node = 
-                strain_displacement_matrix_shear_at_node.multiply_by_matrix(&element_local_displacements)?;
-            let stresses_matrix_shear_at_node = c_matrix_shear.multiply_by_matrix(&strains_matrix_shear_at_node)?;
-            let stresses_shear_at_node = 
-                QuadFullPlateAuxFunctions::extract_column_matrix_values(&stresses_matrix_shear_at_node)?;
+                QuadFullPlateAuxFunctions::strain_displacement_matrix_plate_shear(
+                    self.node_1_number, 
+                    self.node_2_number, 
+                    self.node_3_number, 
+                    self.node_4_number, 
+                    r, 
+                    s, 
+                    ref_nodes, 
+                    
+                    &self.state.rotation_matrix, 
+                    rel_tol,
+                )?;
+            let strains_matrix_shear_at_node = strain_displacement_matrix_shear_at_node
+                .multiply(&element_local_displacements)?;
+            let stresses_matrix_shear_at_node = c_matrix_shear.multiply(&strains_matrix_shear_at_node)?;
+            let stresses_shear_at_node = QuadFullPlateAuxFunctions::extract_column_matrix_values(
+                &stresses_matrix_shear_at_node,
+            )?;
             for m in 0..2
             {
                 if m == 0 { force_xz += stresses_shear_at_node[m] * self.thickness * self.shear_factor; }
@@ -1021,7 +1447,7 @@ impl<T, V> FiniteElementTrait<T, V> for Plate4n4ip<T, V>
 
 
     
-    fn copy_nodes_numbers(&self) -> Vec<T>
+    fn copy_nodes_numbers(&self) -> Vec<u32>
     {
         vec![self.node_1_number, self.node_2_number, self.node_3_number, self.node_4_number]
     }
