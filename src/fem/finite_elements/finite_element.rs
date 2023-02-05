@@ -326,7 +326,6 @@ impl<V> FiniteElement<V>
         global_displacements: &Displacements<V>,
         nodes: &HashMap<u32, FENode<V>>,
         rel_tol: V,
-        abs_tol: V,
     )
         -> Result<ElementAnalysisData<V>, String>
     {

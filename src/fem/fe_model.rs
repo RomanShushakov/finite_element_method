@@ -141,7 +141,7 @@ impl<V> FEModel<V>
             }
             let mut position = 0;
 
-            let mut columns_number = nodes_numbers.len();
+            let columns_number = nodes_numbers.len();
 
             for i in 1..nodes_numbers.len()
             {
@@ -714,7 +714,7 @@ impl<V> FEModel<V>
                 free nodes exist!".to_string());
         }
 
-        let mut nodes_len_value = self.nodes.len();
+        let nodes_len_value = self.nodes.len();
 
         let mut row_column_number = 0;
         let mut zero_rows_numbers = Vec::new();
@@ -734,7 +734,7 @@ impl<V> FEModel<V>
 
         for element in self.elements.values()
         {
-            let mut element_stiffness_matrix = element.extract_stiffness_matrix()?;
+            let element_stiffness_matrix = element.extract_stiffness_matrix()?;
 
             let element_stiffness_groups = element.extract_stiffness_groups();
 
@@ -778,7 +778,7 @@ impl<V> FEModel<V>
                     for (lhs_position, rhs_position) in
                         matrix_elements_positions.iter().zip(element_stiffness_group.positions.iter())
                     {
-                        let mut lhs_element_value = global_stiffness_matrix.get_mut_element_value(lhs_position)?;
+                        let lhs_element_value = global_stiffness_matrix.get_mut_element_value(lhs_position)?;
                         let rhs_element_value = element_stiffness_matrix.get_element_value(rhs_position)?;
                         *lhs_element_value += *rhs_element_value;
                     }
@@ -875,7 +875,7 @@ impl<V> FEModel<V>
     {
         for row_column in zeros_rows_columns
         {
-            let mut row_column_as_index = row_column.1;
+            let row_column_as_index = row_column.1;
 
             let dof_parameter_data = self.state.nodes_dof_parameters_global
                 .remove(row_column_as_index);
@@ -963,8 +963,6 @@ impl<V> FEModel<V>
             }
         }
 
-        let mut converted_rows_numbers = rows_numbers.len();
-
         let matrix = Vector::create(&all_elements);
         Ok(matrix)
     }
@@ -995,7 +993,7 @@ impl<V> FEModel<V>
             all_displacements_values[converted_index] = *displacement_value;
         }
 
-        let mut rows_number = self.state.nodes_dof_parameters_global.len();
+        let rows_number = self.state.nodes_dof_parameters_global.len();
 
         let displacement_matrix = Matrix::create(
             rows_number, 1, &all_displacements_values,
@@ -1053,9 +1051,9 @@ impl<V> FEModel<V>
 
         let separated_matrix = separate(global_stiffness_matrix, separation_positions)?;
 
-        let mut lhs_matrix = separated_matrix.ref_k_aa().clone();
+        let lhs_matrix = separated_matrix.ref_k_aa().clone();
 
-        let mut b = ra_matrix.subtract(&separated_matrix.ref_k_ab().multiply(&ub_matrix)?)?;
+        let b = ra_matrix.subtract(&separated_matrix.ref_k_ab().multiply(&ub_matrix)?)?;
         let shape = b.get_shape();
         let mut v = Vec::new();
         for row in 0..shape.0
@@ -1408,7 +1406,7 @@ impl<V> FEModel<V>
         {
             let fe_type = element.copy_fe_type();
             let element_analysis_data = element.extract_element_analysis_data(
-                global_displacements, &self.nodes, self.state.rel_tol, self.state.abs_tol,
+                global_displacements, &self.nodes, self.state.rel_tol,
             )?;
 
             elements_analysis_result.add_to_analysis_data(*element_number, element_analysis_data);
