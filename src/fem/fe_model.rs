@@ -1002,7 +1002,12 @@ impl<V> FEModel<V>
     }
 
 
-    pub fn global_analysis(&mut self, stiffness_groups_update: bool) -> Result<GlobalAnalysisResult<V>, String>
+    pub fn global_analysis(
+        &mut self, 
+        stiffness_groups_update: bool,
+        warnings: &mut Vec<Vec<(Position, V)>>,
+    ) 
+        -> Result<GlobalAnalysisResult<V>, String>
     {
         if stiffness_groups_update
         {
@@ -1069,22 +1074,9 @@ impl<V> FEModel<V>
 
         // let (mut a, maxa) = lhs_matrix.try_into_symmetric_compacted_matrix(self.state.rel_tol)?;
 
-        let mut w = Vec::new();
-        let (mut a, maxa) = lhs_matrix.forced_into_symmetric_compacted_matrix(self.state.rel_tol, &mut w);
-        println!("{w:?}");
-        println!();
-
-        // println!("{:?}", a);
-        // println!();
-
-        // println!("{:?}", nn);
-        // println!();
-
-        // println!("{:?}", maxa);
-        // println!();
-
-        // println!("{:?}", v);
-        // println!();
+        let (mut a, maxa) = lhs_matrix.forced_into_symmetric_compacted_matrix(
+            self.state.rel_tol, warnings
+        );
 
         factorization(&mut a, nn, &maxa)?;
         find_unknown(&a, &mut v, nn, &maxa);
