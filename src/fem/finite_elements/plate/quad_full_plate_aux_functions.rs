@@ -1063,7 +1063,7 @@ impl<V> QuadFullPlateAuxFunctions<V>
         -> Result<Matrix<V>, String>
     {
         let c_matrix_multiplier_mem = young_modulus * thickness / (V::from(1f32) - poisson_ratio.my_powi(2));
-        let mut c_matrix_mem = Matrix::create(
+        let c_matrix_mem = Matrix::create(
                 3, 
                 3, 
                 &[
@@ -1077,9 +1077,9 @@ impl<V> QuadFullPlateAuxFunctions<V>
         let rhs_matrix_mem = QuadFullPlateAuxFunctions::strain_displacement_matrix_mem(
             node_1_number, node_2_number, node_3_number, node_4_number, r, s, ref_nodes, ref_rotation_matrix, rel_tol,
         )?;
-        let mut lhs_matrix_mem = rhs_matrix_mem.clone().transpose();
+        let lhs_matrix_mem = rhs_matrix_mem.clone().transpose();
 
-        let mut matrix_mem = lhs_matrix_mem
+        let matrix_mem = lhs_matrix_mem
             .multiply(&c_matrix_mem)?
             .multiply(&rhs_matrix_mem)?
             .multiply_by_scalar(
@@ -1100,7 +1100,7 @@ impl<V> QuadFullPlateAuxFunctions<V>
 
         let c_matrix_multiplier_bend = young_modulus * thickness.my_powi(3) / 
             (V::from(12f32) * (V::from(1f32) - poisson_ratio.my_powi(2)));
-        let mut c_matrix_bend = Matrix::create(
+        let c_matrix_bend = Matrix::create(
                 3, 
                 3, 
                 &[
@@ -1114,9 +1114,9 @@ impl<V> QuadFullPlateAuxFunctions<V>
         let rhs_matrix_bend = QuadFullPlateAuxFunctions::strain_displacement_matrix_plate_bending(
             node_1_number, node_2_number, node_3_number, node_4_number, r, s, ref_nodes, ref_rotation_matrix, rel_tol,
         )?;
-        let mut lhs_matrix_bend = rhs_matrix_bend.clone().transpose();
+        let lhs_matrix_bend = rhs_matrix_bend.clone().transpose();
 
-        let mut matrix_bend = lhs_matrix_bend
+        let matrix_bend = lhs_matrix_bend
             .multiply(&c_matrix_bend)?
             .multiply(&rhs_matrix_bend)?
             .multiply_by_scalar(
@@ -1135,7 +1135,7 @@ impl<V> QuadFullPlateAuxFunctions<V>
 
         let c_matrix_multiplier_shear = young_modulus * thickness * shear_factor / 
             (V::from(2f32) * (V::from(1f32) + poisson_ratio));
-        let mut c_matrix_shear = Matrix::create(
+        let c_matrix_shear = Matrix::create(
                 2, 
                 2, 
                 &[V::from(1f32), V::from(0f32), V::from(0f32), V::from(1f32)], 
@@ -1145,9 +1145,9 @@ impl<V> QuadFullPlateAuxFunctions<V>
         let rhs_matrix_shear = QuadFullPlateAuxFunctions::strain_displacement_matrix_plate_shear(
             node_1_number, node_2_number, node_3_number, node_4_number, r, s, ref_nodes, ref_rotation_matrix, rel_tol,
         )?;
-        let mut lhs_matrix_shear = rhs_matrix_shear.clone().transpose();
+        let lhs_matrix_shear = rhs_matrix_shear.clone().transpose();
 
-        let mut matrix_shear = lhs_matrix_shear
+        let matrix_shear = lhs_matrix_shear
             .multiply(&c_matrix_shear)?
             .multiply(&rhs_matrix_shear)?
             .multiply_by_scalar(

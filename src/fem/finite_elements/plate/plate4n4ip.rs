@@ -249,7 +249,7 @@ impl<V> Plate4n4ip<V>
                 rel_tol,
             )?;
 
-            let mut displacement_interpolation_matrix = Matrix::create(
+            let displacement_interpolation_matrix = Matrix::create(
                     1, 
                     4, 
                     &[
@@ -368,7 +368,7 @@ impl<V> FiniteElementTrait<V> for Plate4n4ip<V>
 
     fn extract_stiffness_matrix(&self) -> Result<Matrix<V>, String>
     {
-        let mut interim_matrix = self.state.rotation_matrix.clone().transpose();
+        let interim_matrix = self.state.rotation_matrix.clone().transpose();
         if let Ok(matrix) = interim_matrix.multiply(&self.state.local_stiffness_matrix)
         {
             if let Ok(matrix) = matrix.multiply(&self.state.rotation_matrix)
@@ -1274,7 +1274,7 @@ impl<V> FiniteElementTrait<V> for Plate4n4ip<V>
         let element_local_displacements = self.extract_local_displacements(global_displacements)?;
 
         let c_matrix_multiplier_mem = self.young_modulus / (V::from(1f32) - self.poisson_ratio.my_powi(2));
-        let mut c_matrix_mem = Matrix::create(
+        let c_matrix_mem = Matrix::create(
                 3, 
                 3, 
                 &[
@@ -1288,7 +1288,7 @@ impl<V> FiniteElementTrait<V> for Plate4n4ip<V>
         // let c_matrix_multiplier_bend = self.young_modulus / (V::from(1f32) - self.poisson_ratio.my_powi(2));
         let c_matrix_multiplier_bend = self.young_modulus * self.thickness / 
             (V::from(2f32) * (V::from(1f32) - self.poisson_ratio.my_powi(2)));
-        let mut c_matrix_bend = Matrix::create(
+        let c_matrix_bend = Matrix::create(
                 3, 
                 3, 
                 &[
@@ -1300,7 +1300,7 @@ impl<V> FiniteElementTrait<V> for Plate4n4ip<V>
             .multiply_by_scalar(c_matrix_multiplier_bend);
 
         let c_matrix_multiplier_shear = self.young_modulus / (V::from(2f32) * (V::from(1f32) + self.poisson_ratio));
-        let mut c_matrix_shear = Matrix::create(
+        let c_matrix_shear = Matrix::create(
                 2, 
                 2, 
                 &[

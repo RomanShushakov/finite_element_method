@@ -1,7 +1,7 @@
 use std::collections::{HashSet, HashMap};
 use std::iter::FromIterator;
 
-use extended_matrix::{Matrix, Position, FloatTrait, BasicOperationsTrait, TryIntoSymmetricCompactedMatrixTrait, Vector};
+use extended_matrix::{Matrix, Position, FloatTrait, BasicOperationsTrait, TryIntoSymmetricCompactedMatrixTrait, Vector, SquareMatrixTrait};
 use colsol::{factorization, find_unknown};
 
 use crate::fem::finite_elements::fe_node::{FENode, DeletedFENodeData};
@@ -1036,9 +1036,6 @@ impl<V> FEModel<V>
             removed_zeros_rows_columns.push(matrix_element_position);
         }
 
-        // let removed_zeros_rows_columns =
-        //     global_stiffness_matrix.remove_zeros_rows_columns();
-
         self.shrink_of_nodes_dof_parameters(&removed_zeros_rows_columns)?;
 
         let mut ub_rb_rows_numbers = Vec::new();
@@ -1058,12 +1055,6 @@ impl<V> FEModel<V>
 
         let mut lhs_matrix = separated_matrix.ref_k_aa().clone();
 
-        // lhs_matrix.try_to_symmetrize(self.state.tolerance);
-
-        // let ua_matrix = lhs_matrix
-        // .direct_solution(&ra_matrix.subtract_matrix(
-        //     &separated_matrix.ref_k_ab().multiply_by_matrix(&ub_matrix)?)?, colsol_usage)?;
-
         let mut b = ra_matrix.subtract(&separated_matrix.ref_k_ab().multiply(&ub_matrix)?)?;
         let shape = b.get_shape();
         let mut v = Vec::new();
@@ -1075,8 +1066,28 @@ impl<V> FEModel<V>
                 v.push(*value);
             }
         }
+
         let nn = v.len() as i64;
-        let (mut a, maxa) = lhs_matrix.try_into_symmetric_compacted_matrix(self.state.rel_tol)?;
+
+        // let (mut a, maxa) = lhs_matrix.try_into_symmetric_compacted_matrix(self.state.rel_tol)?;
+
+        let mut w = Vec::new();
+        let (mut a, maxa) = lhs_matrix.forced_into_symmetric_compacted_matrix(self.state.rel_tol, &mut w);
+        println!("{w:?}");
+        println!();
+
+        // println!("{:?}", a);
+        // println!();
+
+        // println!("{:?}", nn);
+        // println!();
+
+        // println!("{:?}", maxa);
+        // println!();
+
+        // println!("{:?}", v);
+        // println!();
+
         factorization(&mut a, nn, &maxa)?;
         find_unknown(&a, &mut v, nn, &maxa);
         let ua_matrix = Vector::create(&v);
@@ -1156,14 +1167,11 @@ impl<V> FEModel<V>
             .rev()
             .zip(zero_columns_numbers.iter().rev())
         {
-            global_stiffness_matrix.remove_row(*zero_row_number);
-            global_stiffness_matrix.remove_column(*zero_column_number);
+            global_stiffness_matrix = global_stiffness_matrix.remove_row(*zero_row_number)?;
+            global_stiffness_matrix = global_stiffness_matrix.remove_column(*zero_column_number)?;
             let matrix_element_position = Position(*zero_row_number, *zero_column_number);
             removed_zeros_rows_columns.push(matrix_element_position);
         }
-
-        // let removed_zeros_rows_columns =
-        //     global_stiffness_matrix.remove_zeros_rows_columns();
 
         self.shrink_of_nodes_dof_parameters(&removed_zeros_rows_columns)?;
 
@@ -1279,7 +1287,6 @@ impl<V> FEModel<V>
                     a_elements_values[symmetric_index] = *element_value;
                 }
             }
-
 
             let mut b_elements_values = vec![V::from(0f32); a_rows_number];
 

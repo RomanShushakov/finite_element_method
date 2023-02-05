@@ -557,7 +557,7 @@ impl<V> BeamAuxFunctions<V>
                 young_modulus * 
                 area * 
                 BeamAuxFunctions::determinant_of_jacobian(node_1_number, node_2_number, r, nodes) * 
-                alpha
+                alpha,
             );
 
         let lhs_matrix_v = BeamAuxFunctions::strain_displacement_matrix_v(

@@ -688,7 +688,7 @@ impl<V> FiniteElementTrait<V> for Mem4n4ip<V>
                     0 => force_x += stresses_at_node[j] * self.thickness,
                     4 => force_y += stresses_at_node[j] * self.thickness,
                     1 => force_xy += stresses_at_node[j] * self.thickness,
-                    _ => (),
+                    _ => unreachable!(),
                 }
             }
         }
