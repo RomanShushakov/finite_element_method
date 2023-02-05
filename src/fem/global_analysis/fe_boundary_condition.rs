@@ -3,89 +3,84 @@ use std::fmt::Debug;
 use crate::fem::global_analysis::fe_dof_parameter_data::{GlobalDOFParameter, DOFParameterData};
 
 
-struct Force<T, V>
+struct Force<V>
 {
-    number: T,
-    dof_parameter_data: DOFParameterData<T>,
+    number: u32,
+    dof_parameter_data: DOFParameterData,
     value: V,
 }
 
 
-impl<T, V> Force<T, V>
-    where T: Copy + PartialEq
+impl<V> Force<V>
 {
-    fn create(number: T, node_number: T, dof_parameter: GlobalDOFParameter, value: V) -> Self
+    fn create(number: u32, node_number: u32, dof_parameter: GlobalDOFParameter, value: V) -> Self
     {
-        let dof_parameter_data =
-            DOFParameterData::create(node_number, dof_parameter);
+        let dof_parameter_data = DOFParameterData::create(node_number, dof_parameter);
         Force { number, dof_parameter_data, value }
     }
 }
 
 
-struct Displacement<T, V>
+struct Displacement<V>
 {
-    number: T,
-    dof_parameter_data: DOFParameterData<T>,
+    number: u32,
+    dof_parameter_data: DOFParameterData,
     value: V,
 }
 
 
-impl<T, V> Displacement<T, V>
-    where T: Copy + PartialEq
+impl<V> Displacement<V>
 {
-    fn create(number: T, node_number: T, dof_parameter: GlobalDOFParameter, value: V) -> Self
+    fn create(number: u32, node_number: u32, dof_parameter: GlobalDOFParameter, value: V) -> Self
     {
-        let dof_parameter_data = DOFParameterData::create(
-            node_number, dof_parameter);
+        let dof_parameter_data = DOFParameterData::create(node_number, dof_parameter);
         Displacement { number, dof_parameter_data, value }
     }
 }
 
 
-trait BCTrait<T, V>
+trait BCTrait<V>
 {
-    fn update(&mut self, node_number: T, dof_parameter: GlobalDOFParameter, value: V);
-    fn is_number_same(&self, number: T) -> bool;
-    fn is_node_number_same(&self, node_number: T) -> bool;
-    fn is_dof_parameter_data_same(&self, dof_parameter: GlobalDOFParameter, node_number: T) -> bool;
-    fn copy_node_number(&self) -> T;
+    fn update(&mut self, node_number: u32, dof_parameter: GlobalDOFParameter, value: V);
+    fn is_number_same(&self, number: u32) -> bool;
+    fn is_node_number_same(&self, node_number: u32) -> bool;
+    fn is_dof_parameter_data_same(&self, dof_parameter: GlobalDOFParameter, node_number: u32) -> bool;
+    fn copy_node_number(&self) -> u32;
     fn copy_value(&self) -> V;
     fn copy_dof_parameter(&self) -> GlobalDOFParameter;
-    fn copy_number(&self) -> T;
+    fn copy_number(&self) -> u32;
 }
 
 
-impl<T, V> BCTrait<T, V> for Force<T, V>
-    where T: Copy + PartialEq,
-          V: Copy,
+impl<V> BCTrait<V> for Force<V>
+    where V: Copy,
 {
-    fn update(&mut self, node_number: T, dof_parameter: GlobalDOFParameter, value: V)
+    fn update(&mut self, node_number: u32, dof_parameter: GlobalDOFParameter, value: V)
     {
         self.dof_parameter_data.update(node_number, dof_parameter);
         self.value = value;
     }
 
 
-   fn is_number_same(&self, number: T) -> bool
+   fn is_number_same(&self, number: u32) -> bool
     {
         self.number == number
     }
 
 
-    fn is_node_number_same(&self, node_number: T) -> bool
+    fn is_node_number_same(&self, node_number: u32) -> bool
     {
         self.dof_parameter_data.is_node_number_same(node_number)
     }
 
 
-    fn is_dof_parameter_data_same(&self, dof_parameter: GlobalDOFParameter, node_number: T) -> bool
+    fn is_dof_parameter_data_same(&self, dof_parameter: GlobalDOFParameter, node_number: u32) -> bool
     {
         self.dof_parameter_data.is_same(dof_parameter, node_number)
     }
 
 
-    fn copy_node_number(&self) -> T
+    fn copy_node_number(&self) -> u32
     {
         self.dof_parameter_data.copy_node_number()
     }
@@ -103,44 +98,42 @@ impl<T, V> BCTrait<T, V> for Force<T, V>
     }
 
 
-    fn copy_number(&self) -> T
+    fn copy_number(&self) -> u32
     {
         self.number
     }
 }
 
 
-impl<T, V> BCTrait<T, V> for Displacement<T, V>
-    where T: Copy + PartialEq,
-          V: Copy,
+impl<V> BCTrait<V> for Displacement<V>
+    where V: Copy,
 {
-    fn update(&mut self, node_number: T, dof_parameter: GlobalDOFParameter, value: V)
+    fn update(&mut self, node_number: u32, dof_parameter: GlobalDOFParameter, value: V)
     {
         self.dof_parameter_data.update(node_number, dof_parameter);
         self.value = value;
     }
 
 
-    fn is_number_same(&self, number: T) -> bool
+    fn is_number_same(&self, number: u32) -> bool
     {
         self.number == number
     }
 
 
-    fn is_node_number_same(&self, node_number: T) -> bool
+    fn is_node_number_same(&self, node_number: u32) -> bool
     {
         self.dof_parameter_data.is_node_number_same(node_number)
     }
 
 
-    fn is_dof_parameter_data_same(&self, dof_parameter: GlobalDOFParameter, node_number: T)
-                                  -> bool
+    fn is_dof_parameter_data_same(&self, dof_parameter: GlobalDOFParameter, node_number: u32) -> bool
     {
         self.dof_parameter_data.is_same(dof_parameter, node_number)
     }
 
 
-    fn copy_node_number(&self) -> T
+    fn copy_node_number(&self) -> u32
     {
         self.dof_parameter_data.copy_node_number()
     }
@@ -158,7 +151,7 @@ impl<T, V> BCTrait<T, V> for Displacement<T, V>
     }
 
 
-    fn copy_number(&self) -> T
+    fn copy_number(&self) -> u32
     {
         self.number
     }
@@ -186,47 +179,50 @@ impl BCType
 }
 
 
-struct BCCreator<T, V>(T, V);
+struct BCCreator<V>(V);
 
 
-impl<T, V> BCCreator<T, V>
-    where T: PartialEq + Copy + 'static,
-          V: Copy + 'static
+impl<V> BCCreator<V>
+    where V: Copy + 'static
 {
-    fn create(bc_type: BCType, number: T, node_number: T,
-        dof_parameter: GlobalDOFParameter, value: V) -> Box<dyn BCTrait<T, V>>
+    fn create(
+        bc_type: BCType, 
+        number: u32, 
+        node_number: u32, 
+        dof_parameter: 
+        GlobalDOFParameter, value: V
+    ) 
+        -> Box<dyn BCTrait<V>>
     {
         match bc_type
         {
             BCType::Force => Box::new(Force::create(number, node_number, dof_parameter, value)),
-            BCType::Displacement => Box::new(Displacement::create(
-                number, node_number, dof_parameter, value)),
+            BCType::Displacement => Box::new(Displacement::create(number, node_number, dof_parameter, value)),
         }
     }
 }
 
 
-pub(crate) struct BoundaryCondition<T, V>
+pub(crate) struct BoundaryCondition<V>
 {
     bc_type: BCType,
-    boundary_condition: Box<dyn BCTrait<T, V>>
+    boundary_condition: Box<dyn BCTrait<V>>
 }
 
 
-impl<T, V> BoundaryCondition<T, V>
-    where T: Copy + PartialEq + Debug + 'static,
-          V: Copy + Debug + 'static
+impl<V> BoundaryCondition<V>
+    where V: Copy + Debug + 'static
 {
-    pub fn create(bc_type: BCType, number: T, node_number: T,
-        dof_parameter: GlobalDOFParameter, value: V) -> Self
+    pub fn create(bc_type: BCType, number: u32, node_number: u32, dof_parameter: GlobalDOFParameter, value: V) -> Self
     {
-        let boundary_condition =
-            BCCreator::create(bc_type.clone(), number, node_number, dof_parameter, value);
+        let boundary_condition = BCCreator::create(
+            bc_type.clone(), number, node_number, dof_parameter, value,
+        );
         BoundaryCondition { bc_type, boundary_condition }
     }
 
 
-    pub fn update(&mut self, node_number: T, dof_parameter: GlobalDOFParameter, value: V)
+    pub fn update(&mut self, node_number: u32, dof_parameter: GlobalDOFParameter, value: V)
     {
         self.boundary_condition.update(node_number, dof_parameter, value)
     }
@@ -238,20 +234,19 @@ impl<T, V> BoundaryCondition<T, V>
     }
 
 
-    pub fn is_number_same(&self, number: T) -> bool
+    pub fn is_number_same(&self, number: u32) -> bool
     {
         self.boundary_condition.is_number_same(number)
     }
 
 
-    pub fn is_node_number_same(&self, node_number: T) -> bool
+    pub fn is_node_number_same(&self, node_number: u32) -> bool
     {
         self.boundary_condition.is_node_number_same(node_number)
     }
 
 
-    pub fn is_dof_parameter_data_same(&self, dof_parameter: GlobalDOFParameter, node_number: T)
-        -> bool
+    pub fn is_dof_parameter_data_same(&self, dof_parameter: GlobalDOFParameter, node_number: u32) -> bool
     {
         self.boundary_condition.is_dof_parameter_data_same(dof_parameter, node_number)
     }
@@ -269,13 +264,13 @@ impl<T, V> BoundaryCondition<T, V>
     }
 
 
-    pub fn copy_number(&self) -> T
+    pub fn copy_number(&self) -> u32
     {
         self.boundary_condition.copy_number()
     }
 
 
-    pub fn copy_node_number(&self) -> T
+    pub fn copy_node_number(&self) -> u32
     {
         self.boundary_condition.copy_node_number()
     }
@@ -289,21 +284,20 @@ impl<T, V> BoundaryCondition<T, V>
 
 
 #[derive(Debug, Clone)]
-pub struct DeletedBCData<T, V>
+pub struct DeletedBCData<V>
 {
     bc_type: BCType,
-    number: T,
-    node_number: T,
+    number: u32,
+    node_number: u32,
     dof_parameter: GlobalDOFParameter,
     value: V
 }
 
 
-impl<T, V> DeletedBCData<T, V>
-    where T: Copy + PartialEq + Debug + 'static,
-          V: Copy + Debug + 'static,
+impl<V> DeletedBCData<V>
+    where V: Copy + Debug + 'static,
 {
-    pub(crate) fn create(deleted_bc: BoundaryCondition<T, V>) -> Self
+    pub(crate) fn create(deleted_bc: BoundaryCondition<V>) -> Self
     {
         let bc_type = deleted_bc.copy_bc_type();
         let number = deleted_bc.copy_number();
@@ -320,13 +314,13 @@ impl<T, V> DeletedBCData<T, V>
     }
 
 
-    pub fn copy_number(&self) -> T
+    pub fn copy_number(&self) -> u32
     {
         self.number
     }
 
 
-    pub fn copy_node_number(&self) -> T
+    pub fn copy_node_number(&self) -> u32
     {
         self.node_number
     }

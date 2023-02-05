@@ -1,7 +1,6 @@
 use std::any::Any;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::fmt::Debug;
-use std::hash::Hash;
 
 use crate::fem::element_analysis::fe_stress_strain_components::StressStrainComponent;
 use crate::fem::element_analysis::fe_force_moment_components::ForceComponent;
@@ -125,25 +124,27 @@ impl<V> NodalForces<V>
 
 
 #[derive(Debug, Clone)]
-pub struct ElementAnalysisData<T, V>
+pub struct ElementAnalysisData<V>
 {
     optional_strains: Option<ElementStrains<V>>,
     optional_stresses: Option<ElementStresses<V>>,
     optional_forces: Option<ElementForces<V>>,
-    optional_nodal_forces: Option<HashMap<T, NodalForces<V>>>,
+    optional_nodal_forces: Option<HashMap<u32, NodalForces<V>>>,
 }
 
 
-impl<T, V> ElementAnalysisData<T, V>
-    where T: Copy + PartialEq,
-          V: Copy + PartialEq,
+impl<V> ElementAnalysisData<V>
+    where V: Copy + PartialEq,
 {
-    pub(crate) fn create(optional_strains: Option<ElementStrains<V>>,
-        optional_stresses: Option<ElementStresses<V>>, optional_forces: Option<ElementForces<V>>,
-        optional_nodal_forces: Option<HashMap<T, NodalForces<V>>>) -> Self
+    pub(crate) fn create(
+        optional_strains: Option<ElementStrains<V>>,
+        optional_stresses: Option<ElementStresses<V>>,
+        optional_forces: Option<ElementForces<V>>,
+        optional_nodal_forces: Option<HashMap<u32, NodalForces<V>>>
+    ) 
+        -> Self
     {
-        ElementAnalysisData { optional_strains, optional_stresses, optional_forces,
-            optional_nodal_forces }
+        ElementAnalysisData { optional_strains, optional_stresses, optional_forces, optional_nodal_forces }
     }
 
 
@@ -181,7 +182,7 @@ impl<T, V> ElementAnalysisData<T, V>
     }
 
 
-    pub fn ref_optional_nodal_forces(&self) -> &Option<HashMap<T, NodalForces<V>>>
+    pub fn ref_optional_nodal_forces(&self) -> &Option<HashMap<u32, NodalForces<V>>>
     {
         &self.optional_nodal_forces
     }
@@ -240,30 +241,27 @@ impl<T, V> ElementAnalysisData<T, V>
 
 
 #[derive(Debug, Clone)]
-pub struct ElementsAnalysisResult<T, V>
+pub struct ElementsAnalysisResult<V>
 {
-    elements_by_types: HashMap<FEType, Vec<T>>,
-    elements_analysis_data: HashMap<T, ElementAnalysisData<T, V>>,
+    elements_by_types: HashMap<FEType, Vec<u32>>,
+    elements_analysis_data: HashMap<u32, ElementAnalysisData<V>>,
 }
 
 
-impl<T, V> ElementsAnalysisResult<T, V>
-    where T: Debug + Eq + Hash
+impl<V> ElementsAnalysisResult<V>
 {
     pub(crate) fn create() -> Self
     {
 
-        ElementsAnalysisResult { elements_by_types: HashMap::new(),
-            elements_analysis_data: HashMap::new() }
+        ElementsAnalysisResult { elements_by_types: HashMap::new(), elements_analysis_data: HashMap::new() }
     }
 
 
-    pub(crate) fn add_to_types(&mut self, fe_type: FEType, number: T) -> Result<(), String>
+    pub(crate) fn add_to_types(&mut self, fe_type: FEType, number: u32) -> Result<(), String>
     {
         if let Some(elements_numbers) = self.elements_by_types.get_mut(&fe_type)
         {
-            if elements_numbers.iter().position(|element_number| *element_number == number)
-                .is_some()
+            if elements_numbers.iter().position(|element_number| *element_number == number).is_some()
             {
                 return Err(format!("ElementsAnalysisResult: Elements set {} does already contain \
                     number {:?}!", fe_type.as_str(), number));
@@ -279,20 +277,19 @@ impl<T, V> ElementsAnalysisResult<T, V>
     }
 
 
-    pub(crate) fn add_to_analysis_data(&mut self, element_number: T,
-        element_analysis_data: ElementAnalysisData<T, V>)
+    pub(crate) fn add_to_analysis_data(&mut self, element_number: u32, element_analysis_data: ElementAnalysisData<V>)
     {
         self.elements_analysis_data.insert(element_number, element_analysis_data);
     }
 
 
-    pub fn ref_elements_analysis_data(&self) -> &HashMap<T, ElementAnalysisData<T, V>>
+    pub fn ref_elements_analysis_data(&self) -> &HashMap<u32, ElementAnalysisData<V>>
     {
         &self.elements_analysis_data
     }
 
 
-    pub fn ref_elements_by_types(&self) -> &HashMap<FEType, Vec<T>>
+    pub fn ref_elements_by_types(&self) -> &HashMap<FEType, Vec<u32>>
     {
         &self.elements_by_types
     }

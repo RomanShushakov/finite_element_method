@@ -56,27 +56,26 @@ impl<V> FENode<V>
 
 
 #[derive(Debug, Clone)]
-pub struct DeletedFENodeData<T, V>
+pub struct DeletedFENodeData<V>
 {
-    number: T,
+    number: u32,
     x: V,
     y: V,
     z: V,
 }
 
 
-impl<T, V> DeletedFENodeData<T, V>
-    where T: Copy,
-          V: Copy + PartialEq,
+impl<V> DeletedFENodeData<V>
+    where V: Copy + PartialEq,
 {
-    pub(crate) fn create(number: T, deleted_node: FENode<V>) -> Self
+    pub(crate) fn create(number: u32, deleted_node: FENode<V>) -> Self
     {
         let (x, y, z) = deleted_node.copy_coordinates();
         DeletedFENodeData { number, x, y, z }
     }
 
 
-    pub fn copy_number(&self) -> T
+    pub fn copy_number(&self) -> u32
     {
         self.number
     }
