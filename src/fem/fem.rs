@@ -17,7 +17,6 @@ pub struct FEM<V>
     index: usize,
     indexes: Vec<usize>,
     imposed_constraints: Vec<bool>,
-    imposed_forces: Vec<bool>,
     nodes: HashMap<u32, Node<V>>,
     truss_elements: HashMap<u32, Truss<V>>,
 }
@@ -38,7 +37,6 @@ impl<V> FEM<V>
         let index = 0;
         let indexes = (0..nodes_number as usize * NODE_DOF).collect::<Vec<usize>>();
         let imposed_constraints = vec![false; nodes_number as usize * NODE_DOF];
-        let imposed_forces = vec![false; nodes_number as usize * NODE_DOF];
 
         let nodes = HashMap::new();
         let truss_elements = HashMap::new();
@@ -46,7 +44,7 @@ impl<V> FEM<V>
         FEM 
         { 
             props, stiffness_matrix, displacements_vector, forces_vector, index, indexes, imposed_constraints, 
-            imposed_forces, nodes, truss_elements,
+            nodes, truss_elements,
         }
     }
 
@@ -90,12 +88,6 @@ impl<V> FEM<V>
     pub(crate) fn get_imposed_constraints(&self) -> &Vec<bool>
     {
         &self.imposed_constraints
-    }
-
-
-    pub(crate) fn get_imposed_forces(&self) -> &Vec<bool>
-    {
-        &self.imposed_forces
     }
 
 
