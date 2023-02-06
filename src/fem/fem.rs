@@ -6,12 +6,16 @@ use crate::fem::structs::{Props, Node};
 
 pub const NODE_DOF: usize = 6;
 
+
 pub struct FEM<V>
 {
     props: Props<V>,
     pub stiffness_matrix: SquareMatrix<V>,
-    pub displacements: Vector<V>,
-    pub forces: Vector<V>,
+    pub displacements_vector: Vector<V>,
+    pub forces_vector: Vector<V>,
+    pub index: usize,
+    pub indexes: Vec<usize>,
+    pub imposed_constraints: Vec<bool>,
     nodes: HashMap<u32, Node<V>>,
 }
 
@@ -22,13 +26,21 @@ impl<V> FEM<V>
     pub fn create(rel_tol: V, abs_tol: V, nodes_number: u32) -> Self
     {
         let props = Props::create(rel_tol, abs_tol, nodes_number);
+
         let stiffness_matrix = SquareMatrix::create(
             nodes_number as usize * NODE_DOF, &Vec::new(),
         );
-        let displacements = Vector::create(&vec![V::from(0f32); nodes_number as usize * NODE_DOF]);
-        let forces = displacements.clone();
+        let displacements_vector = Vector::create(&vec![V::from(0f32); nodes_number as usize * NODE_DOF]);
+        let forces_vector = displacements_vector.clone();
+        let index = 0;
+        let indexes = (0..nodes_number as usize * NODE_DOF).collect::<Vec<usize>>();
+        let imposed_constraints = vec![false; nodes_number as usize * NODE_DOF];
+
         let nodes = HashMap::new();
 
-        FEM { props, stiffness_matrix, displacements, forces, nodes }
+        FEM 
+        { 
+            props, stiffness_matrix, displacements_vector, forces_vector, index, indexes, imposed_constraints, nodes, 
+        }
     }
 }
