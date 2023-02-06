@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use extended_matrix::{SquareMatrix, FloatTrait, Vector};
 
-use crate::fem::structs::{Props, Node};
+use crate::fem::structs::{Props, Node, Truss};
 
 
 pub const NODE_DOF: usize = 6;
@@ -19,6 +19,7 @@ pub struct FEM<V>
     imposed_constraints: Vec<bool>,
     imposed_forces: Vec<bool>,
     nodes: HashMap<u32, Node<V>>,
+    truss_elements: HashMap<u32, Truss<V>>,
 }
 
 
@@ -40,11 +41,12 @@ impl<V> FEM<V>
         let imposed_forces = vec![false; nodes_number as usize * NODE_DOF];
 
         let nodes = HashMap::new();
+        let truss_elements = HashMap::new();
 
         FEM 
         { 
             props, stiffness_matrix, displacements_vector, forces_vector, index, indexes, imposed_constraints, 
-            imposed_forces, nodes, 
+            imposed_forces, nodes, truss_elements,
         }
     }
 

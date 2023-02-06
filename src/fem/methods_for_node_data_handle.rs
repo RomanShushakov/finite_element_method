@@ -9,6 +9,7 @@ use crate::fem::structs::Node;
 enum NodeError<V>
 {
     Number(u32),
+    NumberNotExist(u32),
     Index(usize),
     Coordinates(V, V, V),
 }
@@ -22,6 +23,7 @@ impl<V> NodeError<V>
         match self
         {
             NodeError::Number(number) => format!("Node with number {number} already exists!"),
+            NodeError::NumberNotExist(number) => format!("Node with number {number} does not exist!"),
             NodeError::Index(index) => format!("Node wit index {index} already exists!"),
             NodeError::Coordinates(x, y, z) => 
             {
@@ -71,8 +73,12 @@ impl<V> FEM<V>
     }
 
 
-    pub(crate) fn is_node_exist(&self, number: u32) -> bool
+    pub(crate) fn check_node_exist(&self, number: u32) -> Result<(), String>
     {
-        self.get_nodes().contains_key(&number)
+        if !self.get_nodes().contains_key(&number) 
+        {
+            return Err(NodeError::<V>::NumberNotExist(number).compose_error_message());
+        }
+        Ok(())
     }
 }
