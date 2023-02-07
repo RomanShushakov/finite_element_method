@@ -29,4 +29,10 @@ impl<V> Node<V>
     {
         self.x == x && self.y == y && self.z == z
     }
+
+
+    pub fn get_coordinates(&self) -> [V; 3]
+    {
+        [self.x, self.y, self.z]
+    }
 }
