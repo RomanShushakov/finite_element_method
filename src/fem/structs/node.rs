@@ -1,6 +1,9 @@
 use extended_matrix::FloatTrait;
 
 
+pub const NODE_DOF: usize = 6;
+
+
 pub struct Node<V>
 {
     index: usize,
@@ -22,6 +25,12 @@ impl<V> Node<V>
     pub fn is_index_same(&self, index: usize) -> bool
     {
         self.index == index
+    }
+
+
+    pub fn get_index(&self) -> usize
+    {
+        self.index
     }
 
 

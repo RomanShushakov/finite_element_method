@@ -13,3 +13,4 @@ mod structs;
 pub use structs::Props;
 
 mod methods_for_node_data_handle;
+mod methods_for_truss_data_handle;

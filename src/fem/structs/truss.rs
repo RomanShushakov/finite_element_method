@@ -305,6 +305,7 @@ impl<V> Truss<V>
 
         let f = |data: &str| println!("{data}");
         local_stiffness_matrix.show(f);
+        println!();
 
         Ok(
             Truss
@@ -313,5 +314,12 @@ impl<V> Truss<V>
                 rotation_matrix_elements, integration_points,
             }
         )
+    }
+
+
+    pub fn is_nodes_numbers_same(&self, node_1_number: u32, node_2_number: u32) -> bool
+    {
+        (node_1_number == self.node_1_number && node_2_number == self.node_2_number) ||
+        (node_1_number == self.node_2_number && node_2_number == self.node_1_number)
     }
 }

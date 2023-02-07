@@ -12,7 +12,7 @@ enum NodeError<V>
     NumberNotExist(u32),
     Index(usize),
     Coordinates(V, V, V),
-    NodesNumber(usize),
+    Limit(usize),
 }
 
 
@@ -30,7 +30,7 @@ impl<V> NodeError<V>
             {
                 format!("Node with coordinates x: {x:?}, y: {y:?}, z: {z:?} already exists!")
             }
-            NodeError::NodesNumber(number) => format!("Nodes number could not be greater than {number}!")
+            NodeError::Limit(number) => format!("Nodes number could not be greater than {number}!")
         }
     }
 }
@@ -43,7 +43,7 @@ impl<V> FEM<V>
     {
         if node_index > self.get_props().get_nodes_number() as usize - 1
         {
-            return Some(NodeError::NodesNumber(self.get_props().get_nodes_number() as usize));
+            return Some(NodeError::Limit(self.get_props().get_nodes_number() as usize));
         }
         for (node_number, node) in self.get_nodes().iter()
         {

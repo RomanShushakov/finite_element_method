@@ -2,10 +2,7 @@ use std::collections::HashMap;
 
 use extended_matrix::{SquareMatrix, FloatTrait, Vector};
 
-use crate::fem::structs::{Props, Node, Truss};
-
-
-pub const NODE_DOF: usize = 6;
+use crate::fem::structs::{Props, Node, NODE_DOF, Truss};
 
 
 pub struct FEM<V>
@@ -100,16 +97,14 @@ impl<V> FEM<V>
     }
 
 
-    pub fn add_truss(&mut self,
-        number: u32,
-        node_1_number: u32,
-        node_2_number: u32,
-        young_modulus: V,
-        poisson_ratio: V,
-        area: V,
-        optional_area_2: Option<V>,
-    )
+    pub(crate) fn get_truss_elements(&self) -> &HashMap<u32, Truss<V>>
     {
+        &self.truss_elements
+    }
 
+
+    pub(crate) fn get_mut_truss_elements(&mut self) -> &mut HashMap<u32, Truss<V>>
+    {
+        &mut self.truss_elements
     }
 }
