@@ -12,6 +12,7 @@ enum NodeError<V>
     NumberNotExist(u32),
     Index(usize),
     Coordinates(V, V, V),
+    NodesNumber(usize),
 }
 
 
@@ -29,6 +30,7 @@ impl<V> NodeError<V>
             {
                 format!("Node with coordinates x: {x:?}, y: {y:?}, z: {z:?} already exists!")
             }
+            NodeError::NodesNumber(number) => format!("Nodes number could not be greater than {number}!")
         }
     }
 }
@@ -37,17 +39,21 @@ impl<V> NodeError<V>
 impl<V> FEM<V>
     where V: FloatTrait
 {
-    fn check_node_data(&self, number: u32, index: usize, x: V, y: V, z: V) -> Option<NodeError<V>>
+    fn check_node_data(&self, number: u32, node_index: usize, x: V, y: V, z: V) -> Option<NodeError<V>>
     {
+        if node_index > self.get_props().get_nodes_number() as usize - 1
+        {
+            return Some(NodeError::NodesNumber(self.get_props().get_nodes_number() as usize));
+        }
         for (node_number, node) in self.get_nodes().iter()
         {
             if *node_number == number
             {
                 return Some(NodeError::Number(number));
             }
-            if node.is_index_same(index)
+            if node.is_index_same(node_index)
             {
-                return Some(NodeError::Index(index));
+                return Some(NodeError::Index(node_index));
             }
             if node.is_coordinates_same(x, y, z)
             {
@@ -60,15 +66,15 @@ impl<V> FEM<V>
 
     pub fn add_node(&mut self, number: u32, x: V, y: V, z: V) -> Result<(), String>
     {
-        if let Some(node_error) = self.check_node_data(number, *self.get_index(), x, y, z)
+        if let Some(node_error) = self.check_node_data(number, *self.get_nodes_count(), x, y, z)
         {
             return Err(node_error.compose_error_message());
         }
 
-        let node = Node::create(*self.get_index(), x, y, z);
+        let node = Node::create(*self.get_nodes_count(), x, y, z);
         self.get_mut_nodes().insert(number, node);
 
-        *self.get_mut_index() += 1;
+        *self.get_mut_nodes_count() += 1;
         Ok(())
     }
 

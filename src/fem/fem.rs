@@ -14,9 +14,8 @@ pub struct FEM<V>
     stiffness_matrix: SquareMatrix<V>,
     displacements_vector: Vector<V>,
     forces_vector: Vector<V>,
-    index: usize,
+    nodes_count: usize,
     indexes: Vec<usize>,
-    imposed_constraints: Vec<bool>,
     nodes: HashMap<u32, Node<V>>,
     truss_elements: HashMap<u32, Truss<V>>,
 }
@@ -34,18 +33,22 @@ impl<V> FEM<V>
         );
         let displacements_vector = Vector::create(&vec![V::from(0f32); nodes_number as usize * NODE_DOF]);
         let forces_vector = displacements_vector.clone();
-        let index = 0;
+        let nodes_count = 0;
         let indexes = (0..nodes_number as usize * NODE_DOF).collect::<Vec<usize>>();
-        let imposed_constraints = vec![false; nodes_number as usize * NODE_DOF];
 
         let nodes = HashMap::new();
         let truss_elements = HashMap::new();
 
         FEM 
         { 
-            props, stiffness_matrix, displacements_vector, forces_vector, index, indexes, imposed_constraints, 
-            nodes, truss_elements,
+            props, stiffness_matrix, displacements_vector, forces_vector, nodes_count, indexes, nodes, truss_elements,
         }
+    }
+
+
+    pub(crate) fn get_props(&self) -> &Props<V>
+    {
+        &self.props
     }
 
 
@@ -67,27 +70,21 @@ impl<V> FEM<V>
     }
 
 
-    pub(crate) fn get_index(&self) -> &usize
+    pub(crate) fn get_nodes_count(&self) -> &usize
     {
-        &self.index
+        &self.nodes_count
     }
 
 
-    pub(crate) fn get_mut_index(&mut self) -> &mut usize
+    pub(crate) fn get_mut_nodes_count(&mut self) -> &mut usize
     {
-        &mut self.index
+        &mut self.nodes_count
     }
 
 
     pub(crate) fn get_indexes(&self) -> &Vec<usize>
     {
         &self.indexes
-    }
-
-
-    pub(crate) fn get_imposed_constraints(&self) -> &Vec<bool>
-    {
-        &self.imposed_constraints
     }
 
 
@@ -100,5 +97,19 @@ impl<V> FEM<V>
     pub(crate) fn get_mut_nodes(&mut self) -> &mut HashMap<u32, Node<V>>
     {
         &mut self.nodes
+    }
+
+
+    pub fn add_truss(&mut self,
+        number: u32,
+        node_1_number: u32,
+        node_2_number: u32,
+        young_modulus: V,
+        poisson_ratio: V,
+        area: V,
+        optional_area_2: Option<V>,
+    )
+    {
+
     }
 }

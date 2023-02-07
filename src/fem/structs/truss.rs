@@ -1,7 +1,10 @@
 use std::fmt::Debug;
 use std::collections::HashMap;
 
-use extended_matrix::{FloatTrait, Vector3, VectorTrait, BasicOperationsTrait, Position, Matrix, TryIntoSquareMatrixTrait, SquareMatrix};
+use extended_matrix::
+{
+    FloatTrait, Vector3, VectorTrait, BasicOperationsTrait, Position, Matrix, TryIntoSquareMatrixTrait, SquareMatrix,
+};
 
 use crate::fem::structs::Node;
 
@@ -128,7 +131,6 @@ fn derivative_x<V>(f: fn(V, V, i32) -> V, a: V, x: V, n: i32) -> V
 {
     let mut converted_n = V::from(0f32);
     (0..n).for_each(|_| converted_n += V::from(1f32));
-
     f(a * converted_n, x, n - 1)
 }
 
@@ -200,13 +202,14 @@ fn strain_displacement_matrix_at_r<V>(
     where V: FloatTrait<Output = V>
 {
     let inverse_jacobian = inverse_jacobian_at_r(node_1_number, node_2_number, r, nodes)?;
-    let matrix = Matrix::create(
-            1,
-            TRUSS_NODES_NUMBER * TRUSS_NODE_DOF,
-            &[dh1_dr(r), V::from(0f32), V::from(0f32), dh2_dr(r), V::from(0f32), V::from(0f32)],
-        )
-        .multiply_by_scalar(inverse_jacobian);
-    Ok(matrix)
+    Ok(
+        Matrix::create(
+                1,
+                TRUSS_NODES_NUMBER * TRUSS_NODE_DOF,
+                &[dh1_dr(r), V::from(0f32), V::from(0f32), dh2_dr(r), V::from(0f32), V::from(0f32)],
+            )
+            .multiply_by_scalar(inverse_jacobian)
+    )
 }
 
 
@@ -241,12 +244,14 @@ fn local_stiffness_matrix_at_ip<V>(
     let b_t_at_r = b_at_r.transpose();
     let c_at_r = area_at_r(area, optional_area_2, r) * young_modulus;
 
-    Ok(b_t_at_r
-        .multiply_by_scalar(c_at_r)
-        .multiply(&b_at_r)?
-        .multiply_by_scalar(determinant_of_jacobian_at_r(node_1_number, node_2_number, r, nodes)?)
-        .multiply_by_scalar(alpha)
-        .try_into_square_matrix()?)
+    Ok(
+        b_t_at_r
+            .multiply_by_scalar(c_at_r)
+            .multiply(&b_at_r)?
+            .multiply_by_scalar(determinant_of_jacobian_at_r(node_1_number, node_2_number, r, nodes)?)
+            .multiply_by_scalar(alpha)
+            .try_into_square_matrix()?
+    )
 }
 
 
