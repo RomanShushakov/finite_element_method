@@ -10,7 +10,7 @@ mod fem;
 pub use fem::FEM;
 
 mod structs;
-pub use structs::Props;
+pub use structs::SeparatedStiffnessMatrix;
 
 mod methods_for_node_data_handle;
 
@@ -19,4 +19,4 @@ mod methods_for_truss_data_handle;
 mod methods_for_bc_data_handle;
 pub use methods_for_bc_data_handle::DOFParameter;
 
-mod methods_for_shrink_indexes;
+mod methods_for_separate_stiffness_matrix;
