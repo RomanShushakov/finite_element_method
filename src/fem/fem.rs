@@ -13,6 +13,7 @@ pub struct FEM<V>
     forces_vector: Vector<V>,
     nodes_count: usize,
     indexes: Vec<usize>,
+    index_node_number_map: HashMap<usize, u32>,
     imposed_constraints: Vec<bool>,
     skyline: Vec<usize>,
     nodes: HashMap<u32, Node<V>>,
@@ -34,6 +35,7 @@ impl<V> FEM<V>
         let forces_vector = displacements_vector.clone();
         let nodes_count = 0;
         let indexes = (0..nodes_number as usize * NODE_DOF).collect::<Vec<usize>>();
+        let index_node_number_map = HashMap::new();
         let imposed_constraints = vec![false; nodes_number as usize * NODE_DOF];
         let skyline = vec![0; nodes_number as usize * NODE_DOF];
 
@@ -42,8 +44,8 @@ impl<V> FEM<V>
 
         FEM 
         { 
-            props, stiffness_matrix, displacements_vector, forces_vector, nodes_count, indexes, imposed_constraints,
-            skyline, nodes, truss_elements,
+            props, stiffness_matrix, displacements_vector, forces_vector, nodes_count, indexes, index_node_number_map,
+            imposed_constraints, skyline, nodes, truss_elements,
         }
     }
 
@@ -105,6 +107,18 @@ impl<V> FEM<V>
     pub(crate) fn get_indexes(&self) -> &Vec<usize>
     {
         &self.indexes
+    }
+
+
+    pub(crate) fn get_index_node_number_map(&self) -> &HashMap<usize, u32>
+    {
+        &self.index_node_number_map
+    }
+
+
+    pub(crate) fn get_mut_index_node_number_map(&mut self) -> &mut HashMap<usize, u32>
+    {
+        &mut self.index_node_number_map
     }
 
 

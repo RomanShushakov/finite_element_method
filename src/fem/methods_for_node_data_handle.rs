@@ -66,13 +66,15 @@ impl<V> FEM<V>
 
     pub fn add_node(&mut self, number: u32, x: V, y: V, z: V) -> Result<(), String>
     {
-        if let Some(node_error) = self.check_node_data(number, *self.get_nodes_count(), x, y, z)
+        let node_index = *self.get_nodes_count();
+        if let Some(node_error) = self.check_node_data(number, node_index, x, y, z)
         {
             return Err(node_error.compose_error_message());
         }
 
-        let node = Node::create(*self.get_nodes_count(), x, y, z);
+        let node = Node::create(node_index, x, y, z);
         self.get_mut_nodes().insert(number, node);
+        self.get_mut_index_node_number_map().insert(node_index, number);
 
         *self.get_mut_nodes_count() += 1;
         Ok(())

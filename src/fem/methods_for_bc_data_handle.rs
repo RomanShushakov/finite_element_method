@@ -16,6 +16,24 @@ pub enum DOFParameter
 }
 
 
+impl DOFParameter
+{
+    pub fn from_usize(number: usize) -> Self
+    {
+        match number
+        {
+            0 => DOFParameter::X,
+            1 => DOFParameter::Y,
+            2 => DOFParameter::Z,
+            3 => DOFParameter::ThX,
+            4 => DOFParameter::ThY,
+            5 => DOFParameter::ThZ,
+            _ => unreachable!("Incorrect dof parameter number!"),
+        }
+    }
+}
+
+
 impl<V> FEM<V>
     where V: FloatTrait<Output = V>
 {
