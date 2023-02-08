@@ -13,6 +13,8 @@ pub struct FEM<V>
     forces_vector: Vector<V>,
     nodes_count: usize,
     indexes: Vec<usize>,
+    imposed_constraints: Vec<bool>,
+    skyline: Vec<usize>,
     nodes: HashMap<u32, Node<V>>,
     truss_elements: HashMap<u32, Truss<V>>,
 }
@@ -32,13 +34,16 @@ impl<V> FEM<V>
         let forces_vector = displacements_vector.clone();
         let nodes_count = 0;
         let indexes = (0..nodes_number as usize * NODE_DOF).collect::<Vec<usize>>();
+        let imposed_constraints = vec![false; nodes_number as usize * NODE_DOF];
+        let skyline = vec![0; nodes_number as usize * NODE_DOF];
 
         let nodes = HashMap::new();
         let truss_elements = HashMap::new();
 
         FEM 
         { 
-            props, stiffness_matrix, displacements_vector, forces_vector, nodes_count, indexes, nodes, truss_elements,
+            props, stiffness_matrix, displacements_vector, forces_vector, nodes_count, indexes, imposed_constraints,
+            skyline, nodes, truss_elements,
         }
     }
 
@@ -52,6 +57,12 @@ impl<V> FEM<V>
     pub(crate) fn get_stiffness_matrix(&self) -> &SquareMatrix<V>
     {
         &self.stiffness_matrix
+    }
+
+
+    pub(crate) fn get_mut_stiffness_matrix(&mut self) -> &mut SquareMatrix<V>
+    {
+        &mut self.stiffness_matrix
     }
 
 
@@ -82,6 +93,18 @@ impl<V> FEM<V>
     pub(crate) fn get_indexes(&self) -> &Vec<usize>
     {
         &self.indexes
+    }
+
+
+    pub(crate) fn get_skyline(&self) -> &Vec<usize>
+    {
+        &self.skyline
+    }
+
+
+    pub(crate) fn get_mut_skyline(&mut self) -> &mut Vec<usize>
+    {
+        &mut self.skyline
     }
 
 

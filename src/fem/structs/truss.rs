@@ -10,13 +10,12 @@ use crate::fem::structs::Node;
 
 
 const TRUSS_NODES_NUMBER: usize = 2;
-const TRUSS_NODE_DOF: usize = 3;
+pub const TRUSS_NODE_DOF: usize = 3;
 
 
 enum TrussDataError<V>
 {
     YoungModulus(V),
-    PoissonRatio(V),
     Area(V),
     Area2(V),
 }
@@ -30,7 +29,6 @@ impl<V> TrussDataError<V>
         match self
         {
             TrussDataError::YoungModulus(value) => format!("Young's modulus {value:?} is less or equal to zero!"),
-            TrussDataError::PoissonRatio(value) => format!("Poisson's ratio {value:?} is less or equal to zero!"),
             TrussDataError::Area(value) => format!("Area {value:?} is less or equal to zero!"),
             TrussDataError::Area2(value) => format!("Area2 {value:?} is less or equal to zero!"),
         }
@@ -38,19 +36,12 @@ impl<V> TrussDataError<V>
 }
 
 
-fn check_truss_properties<V>(
-    young_modulus: V, poisson_ratio: V, area: V, optional_area_2: Option<V>,
-) 
-    -> Result<(), String>
+fn check_truss_properties<V>(young_modulus: V,area: V, optional_area_2: Option<V>) -> Result<(), String>
     where V: Debug + PartialEq + PartialOrd + From<f32>
 {
     if young_modulus <= V::from(0f32)
     {
         return Err(TrussDataError::<V>::YoungModulus(young_modulus).compose_error_message());
-    }
-    if poisson_ratio <= V::from(0f32)
-    {
-        return Err(TrussDataError::<V>::PoissonRatio(poisson_ratio).compose_error_message());
     }
     if area <= V::from(0f32)
     {
@@ -255,12 +246,59 @@ fn local_stiffness_matrix_at_ip<V>(
 }
 
 
+fn compose_local_stiffness_matrix<V>(
+    integration_points: &[(V, V)], 
+    node_1_number: u32,
+    node_2_number: u32,
+    young_modulus: V,
+    area: V,
+    optional_area_2: Option<V>,
+    nodes: &HashMap<u32, Node<V>>,
+) 
+    -> Result<SquareMatrix<V>, String>
+    where V: FloatTrait<Output = V>
+{
+    let mut local_stiffness_matrix = SquareMatrix::create(
+        TRUSS_NODES_NUMBER * TRUSS_NODE_DOF, 
+        &[V::from(0f32); TRUSS_NODES_NUMBER * TRUSS_NODE_DOF],
+    );
+
+    for (r, alpha) in integration_points
+    {
+        let local_stiffness_matrix_at_ip = local_stiffness_matrix_at_ip(
+            node_1_number, node_2_number, young_modulus, area, optional_area_2, *r, *alpha, nodes,
+        )?;
+        local_stiffness_matrix = local_stiffness_matrix.add(&local_stiffness_matrix_at_ip)?;
+    }
+
+    Ok(local_stiffness_matrix)
+}
+
+
+fn compose_rotation_matrix<V>(rotation_matrix_elements: &[V; 9]) -> SquareMatrix<V>
+    where V: FloatTrait
+{
+    let [q_11, q_12, q_13, q_21, q_22, q_23, q_31, q_32, q_33] = 
+        rotation_matrix_elements;
+    SquareMatrix::create(
+        TRUSS_NODES_NUMBER * TRUSS_NODE_DOF,
+        &vec![
+            [*q_11, *q_12, *q_13], [V::from(0f32); TRUSS_NODE_DOF],
+            [*q_21, *q_22, *q_23], [V::from(0f32); TRUSS_NODE_DOF],
+            [*q_31, *q_32, *q_33], [V::from(0f32); TRUSS_NODE_DOF],
+            [V::from(0f32); TRUSS_NODE_DOF], [*q_11, *q_12, *q_13],
+            [V::from(0f32); TRUSS_NODE_DOF], [*q_21, *q_22, *q_23],
+            [V::from(0f32); TRUSS_NODE_DOF], [*q_31, *q_32, *q_33],
+        ].concat(),
+    )
+}
+
+
 pub struct Truss<V>
 {
     node_1_number: u32,
     node_2_number: u32,
     young_modulus: V,
-    poisson_ratio: V,
     area: V,
     optional_area_2: Option<V>,
     rotation_matrix_elements: [V; 9],
@@ -269,12 +307,12 @@ pub struct Truss<V>
 
 
 impl<V> Truss<V>
+    where V: FloatTrait<Output = V>
 {
     pub fn create(
         node_1_number: u32,
         node_2_number: u32,
         young_modulus: V,
-        poisson_ratio: V,
         area: V,
         optional_area_2: Option<V>,
         nodes: &HashMap<u32, Node<V>>,
@@ -282,36 +320,19 @@ impl<V> Truss<V>
         abs_tol: V,
     )
         -> Result<Self, String>
-        where V: FloatTrait<Output = V>
     {
-        check_truss_properties(young_modulus, poisson_ratio, area, optional_area_2)?;
+        check_truss_properties(young_modulus, area, optional_area_2)?;
 
         let rotation_matrix_elements = find_rotation_matrix_elements(
             node_1_number, node_2_number, nodes, rel_tol, abs_tol,
         )?;
-
-        let mut local_stiffness_matrix = SquareMatrix::create(
-            TRUSS_NODES_NUMBER * TRUSS_NODE_DOF, 
-            &[V::from(0f32); TRUSS_NODES_NUMBER * TRUSS_NODE_DOF],
-        );
         let integration_points = [(V::from(0f32), V::from(2f32))];
-        for (r, alpha) in integration_points
-        {
-            let local_stiffness_matrix_at_ip = local_stiffness_matrix_at_ip(
-                node_1_number, node_2_number, young_modulus, area, optional_area_2, r, alpha, nodes,
-            )?;
-            local_stiffness_matrix = local_stiffness_matrix.add(&local_stiffness_matrix_at_ip)?;
-        }
-
-        let f = |data: &str| println!("{data}");
-        local_stiffness_matrix.show(f);
-        println!();
 
         Ok(
             Truss
             {
-                node_1_number, node_2_number, young_modulus, poisson_ratio, area, optional_area_2, 
-                rotation_matrix_elements, integration_points,
+                node_1_number, node_2_number, young_modulus, area, optional_area_2, rotation_matrix_elements,
+                integration_points,
             }
         )
     }
@@ -321,5 +342,25 @@ impl<V> Truss<V>
     {
         (node_1_number == self.node_1_number && node_2_number == self.node_2_number) ||
         (node_1_number == self.node_2_number && node_2_number == self.node_1_number)
+    }
+
+
+    pub fn extract_rotation_matrix(&self) -> SquareMatrix<V>
+    {
+        compose_rotation_matrix(&self.rotation_matrix_elements)
+    }
+
+
+    pub fn extract_local_stiffness_matrix(&self, nodes: &HashMap<u32, Node<V>>) -> Result<SquareMatrix<V>, String>
+    {
+        compose_local_stiffness_matrix(
+            &self.integration_points,
+            self.node_1_number,
+            self.node_2_number,
+            self.young_modulus,
+            self.area, 
+            self.optional_area_2,
+            nodes,
+        )
     }
 }
