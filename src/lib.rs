@@ -1,3 +1,3 @@
 mod fem;
 
-pub use fem::FEM;
+pub use fem::{FEM, DOFParameter};

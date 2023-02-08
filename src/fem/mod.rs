@@ -13,4 +13,10 @@ mod structs;
 pub use structs::Props;
 
 mod methods_for_node_data_handle;
+
 mod methods_for_truss_data_handle;
+
+mod methods_for_bc_data_handle;
+pub use methods_for_bc_data_handle::DOFParameter;
+
+mod methods_for_shrink_indexes;

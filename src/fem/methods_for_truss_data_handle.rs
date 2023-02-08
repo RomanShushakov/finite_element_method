@@ -1,5 +1,3 @@
-// use std::fmt::Debug;
-
 use extended_matrix::{FloatTrait, BasicOperationsTrait, Position};
 
 use crate::fem::FEM;
@@ -48,7 +46,7 @@ impl<V> FEM<V>
         None
     }
 
-    
+
     pub fn add_truss(&mut self,
         number: u32,
         node_1_number: u32,

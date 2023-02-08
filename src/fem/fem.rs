@@ -72,9 +72,21 @@ impl<V> FEM<V>
     }
 
 
+    pub(crate) fn get_mut_displacements_vector(&mut self) -> &mut Vector<V>
+    {
+        &mut self.displacements_vector
+    }
+
+
     pub(crate) fn get_forces_vector(&self) -> &Vector<V>
     {
         &self.forces_vector
+    }
+
+
+    pub(crate) fn get_mut_forces_vector(&mut self) -> &mut Vector<V>
+    {
+        &mut self.forces_vector
     }
 
 
@@ -93,6 +105,18 @@ impl<V> FEM<V>
     pub(crate) fn get_indexes(&self) -> &Vec<usize>
     {
         &self.indexes
+    }
+
+
+    pub(crate) fn get_imposed_constraints(&self) -> &Vec<bool>
+    {
+        &self.imposed_constraints
+    }
+
+
+    pub(crate) fn get_mut_imposed_constraints(&mut self) -> &mut Vec<bool>
+    {
+        &mut self.imposed_constraints
     }
 
 
