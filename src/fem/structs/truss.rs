@@ -4,9 +4,11 @@ use std::collections::HashMap;
 use extended_matrix::
 {
     FloatTrait, Vector3, VectorTrait, BasicOperationsTrait, Position, Matrix, TryIntoSquareMatrixTrait, SquareMatrix,
+    Vector
 };
 
-use crate::fem::structs::Node;
+use crate::fem::structs::{Node, NODE_DOF};
+use crate::fem::methods_for_element_analysis::ElementForceComponent;
 
 
 const TRUSS_NODES_NUMBER: usize = 2;
@@ -362,5 +364,62 @@ impl<V> Truss<V>
             self.optional_area_2,
             nodes,
         )
+    }
+
+
+    pub fn extract_element_analysis_result(
+        &self, nodes: &HashMap<u32, Node<V>>, displacements: &Vector<V>,
+    )
+        -> Result<Vec<(ElementForceComponent, V)>, String>
+    {
+        let node_1_index = nodes.get(&self.node_1_number)
+            .ok_or(format!("Node: {} is absent!", self.node_1_number))?
+            .get_index();
+        let node_2_index = nodes.get(&self.node_2_number)
+            .ok_or(format!("Node: {} is absent!", self.node_2_number))?
+            .get_index();
+        let mut global_displacements = Vector::create(
+            &[V::from(0f32); TRUSS_NODES_NUMBER * TRUSS_NODE_DOF],
+        );
+
+        for i in 0..TRUSS_NODE_DOF
+        {
+            *global_displacements.get_mut_element_value(&Position(i, 0))? = 
+                *displacements.get_element_value(&Position(node_1_index * NODE_DOF + i, 0))?;
+        }
+
+        for i in 0..TRUSS_NODE_DOF
+        {
+            *global_displacements.get_mut_element_value(&Position(i + 3, 0))? = 
+                *displacements.get_element_value(&Position(node_2_index * NODE_DOF + i, 0))?;
+        }
+
+        let rotation_matrix = compose_rotation_matrix(&self.rotation_matrix_elements);
+        let local_displacements = rotation_matrix.multiply(&global_displacements)?;
+        let mut strain_displacement_matrix = Matrix::create(
+            1,
+            TRUSS_NODES_NUMBER * TRUSS_NODE_DOF,
+            &[V::from(0f32); TRUSS_NODES_NUMBER * TRUSS_NODE_DOF],
+        );
+        let mut area = V::from(0f32);
+        for (r, _alpha) in self.integration_points.iter()
+        {
+            let strain_displacement_matrix_at_r = strain_displacement_matrix_at_r(
+                self.node_1_number, self.node_2_number, *r, nodes,
+            )?;
+            strain_displacement_matrix = strain_displacement_matrix.add(&strain_displacement_matrix_at_r)?;
+            area += area_at_r(self.area, self.optional_area_2, *r);
+        }
+        let element_strains = strain_displacement_matrix.multiply(&local_displacements)?;
+        let element_forces = element_strains.multiply_by_scalar(self.young_modulus * area);
+
+        let element_analysis_data = vec![
+            (
+                ElementForceComponent::ForceR,
+                *element_forces.get_element_value(&Position(0, 0))?,
+            ),
+        ];
+
+        Ok(element_analysis_data)
     }
 }

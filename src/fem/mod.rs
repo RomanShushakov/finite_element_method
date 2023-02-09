@@ -22,3 +22,5 @@ pub use methods_for_bc_data_handle::DOFParameter;
 mod methods_for_separate_stiffness_matrix;
 
 mod methods_for_global_analysis;
+
+mod methods_for_element_analysis;

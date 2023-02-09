@@ -3,9 +3,7 @@ use colsol::{factorization, find_unknown};
 
 use crate::DOFParameter;
 use crate::fem::FEM;
-use crate::fem::structs::SeparatedStiffnessMatrix;
-
-use super::structs::NODE_DOF;
+use crate::fem::structs::{SeparatedStiffnessMatrix, NODE_DOF};
 
 
 fn find_b<V>(r_a_vector: &Vector<V>, k_ab_matrix: &Matrix<V>, u_b_vector: &Vector<V>) -> Result<Vec<V>, String>

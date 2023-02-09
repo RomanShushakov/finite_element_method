@@ -361,7 +361,7 @@ impl<V> FiniteElementTrait<V> for Truss2n1ip<V>
     ) 
         -> Result<ElementAnalysisData<V>, String>
     {
-        let element_local_displacements =self.extract_local_displacements(global_displacements)?;
+        let element_local_displacements = self.extract_local_displacements(global_displacements)?;
         if self.area_2.is_some()
         {
             let mut forces_components = Vec::new();
