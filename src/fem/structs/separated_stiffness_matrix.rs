@@ -34,7 +34,7 @@ impl<V> SeparatedStiffnessMatrix<V>
             k_aa_matrix,
             k_ab_matrix,
             k_ba_matrix,
-            k_bb_matrix
+            k_bb_matrix,
         }
     }
 

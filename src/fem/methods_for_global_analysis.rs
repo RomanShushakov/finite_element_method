@@ -1,8 +1,11 @@
 use extended_matrix::{FloatTrait, BasicOperationsTrait, Position, Matrix, SquareMatrix, Vector};
 use colsol::{factorization, find_unknown};
 
+use crate::DOFParameter;
 use crate::fem::FEM;
 use crate::fem::structs::SeparatedStiffnessMatrix;
+
+use super::structs::NODE_DOF;
 
 
 fn find_b<V>(r_a_vector: &Vector<V>, k_ab_matrix: &Matrix<V>, u_b_vector: &Vector<V>) -> Result<Vec<V>, String>
@@ -126,4 +129,26 @@ impl<V> FEM<V>
 
         Ok(())
     } 
+
+
+    pub fn extract_global_analysis_result(&self) -> Result<Vec<(u32, DOFParameter, V, V)>, String>
+    {
+        let mut global_analysis_result = Vec::new();
+
+        for (node_number, node) in self.get_nodes()
+        {
+            let index = node.get_index() * NODE_DOF;
+            for i in 0..NODE_DOF
+            {
+                let dof_parameter = DOFParameter::from_usize(i);
+                let displacement_value = self.get_displacements_vector()
+                    .get_element_value(&Position(index + i, 0))?;
+                let load_value = self.get_forces_vector()
+                    .get_element_value(&Position(index + i, 0))?;
+                global_analysis_result.push((*node_number, dof_parameter, *displacement_value, *load_value));
+            }
+        }
+
+        Ok(global_analysis_result)
+    }
 }
