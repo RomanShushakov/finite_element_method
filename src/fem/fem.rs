@@ -15,7 +15,6 @@ pub struct FEM<V>
     indexes: Vec<usize>,
     index_node_number_map: HashMap<usize, u32>,
     imposed_constraints: Vec<bool>,
-    skyline: Vec<usize>,
     nodes: HashMap<u32, Node<V>>,
     truss_elements: HashMap<u32, Truss<V>>,
 }
@@ -37,7 +36,6 @@ impl<V> FEM<V>
         let indexes = (0..nodes_number as usize * NODE_DOF).collect::<Vec<usize>>();
         let index_node_number_map = HashMap::new();
         let imposed_constraints = vec![false; nodes_number as usize * NODE_DOF];
-        let skyline = vec![0; nodes_number as usize * NODE_DOF];
 
         let nodes = HashMap::new();
         let truss_elements = HashMap::new();
@@ -45,7 +43,7 @@ impl<V> FEM<V>
         FEM 
         { 
             props, stiffness_matrix, displacements_vector, forces_vector, nodes_count, indexes, index_node_number_map,
-            imposed_constraints, skyline, nodes, truss_elements,
+            imposed_constraints, nodes, truss_elements,
         }
     }
 
@@ -131,18 +129,6 @@ impl<V> FEM<V>
     pub(crate) fn get_mut_imposed_constraints(&mut self) -> &mut Vec<bool>
     {
         &mut self.imposed_constraints
-    }
-
-
-    pub(crate) fn get_skyline(&self) -> &Vec<usize>
-    {
-        &self.skyline
-    }
-
-
-    pub(crate) fn get_mut_skyline(&mut self) -> &mut Vec<usize>
-    {
-        &mut self.skyline
     }
 
 

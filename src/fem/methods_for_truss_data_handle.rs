@@ -110,15 +110,6 @@ impl<V> FEM<V>
                         *self.get_mut_stiffness_matrix()
                             .get_mut_element_value(&Position(global_row + i, global_column + j))? += 
                                 *local_stiffness_matrix_element_value;
-
-                        if global_column + j >= global_row + i
-                        {
-                            let m = (global_column + j) - (global_row + i);
-                            if m > self.get_skyline()[global_column + j]
-                            {
-                                self.get_mut_skyline()[global_column + j] = m;
-                            }
-                        }
                     }
                 }
             }
