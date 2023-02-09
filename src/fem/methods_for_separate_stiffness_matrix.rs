@@ -1,4 +1,4 @@
-use extended_matrix::{FloatTrait, BasicOperationsTrait, Position, Matrix, SquareMatrix};
+use extended_matrix::{FloatTrait, BasicOperationsTrait, Position, Matrix, SquareMatrix, Vector};
 
 use crate::fem::FEM;
 use crate::fem::structs::{NODE_DOF, SeparatedStiffnessMatrix};
@@ -195,5 +195,31 @@ impl<V> FEM<V>
                 k_aa_indexes, k_bb_indexes, k_aa_skyline, k_aa_matrix, k_ab_matrix, k_ba_matrix, k_bb_matrix,
             )
         )
+    }
+
+
+    pub(crate) fn compose_r_a_vector(&self, k_aa_indexes: &Vec<usize>) -> Result<Vector<V>, String>
+    {
+        let mut r_a_vector = Vector::create(&vec![V::from(0f32); k_aa_indexes.len()]);
+        for i in 0..k_aa_indexes.len()
+        {
+            *r_a_vector.get_mut_element_value(&Position(i, 0))? = *self.get_forces_vector()
+                .get_element_value(&Position(k_aa_indexes[i], 0))?;
+        }
+
+        Ok(r_a_vector)
+    }
+
+
+    pub(crate) fn compose_u_b_vector(&self, k_bb_indexes: &Vec<usize>) -> Result<Vector<V>, String>
+    {
+        let mut u_b_vector = Vector::create(&vec![V::from(0f32); k_bb_indexes.len()]);
+        for i in 0..k_bb_indexes.len()
+        {
+            *u_b_vector.get_mut_element_value(&Position(i, 0))? = *self.get_displacements_vector()
+                .get_element_value(&Position(k_bb_indexes[i], 0))?;
+        }
+
+        Ok(u_b_vector)
     }
 }
