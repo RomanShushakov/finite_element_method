@@ -1,3 +1,3 @@
 mod fem;
 
-pub use fem::{FEM, DOFParameter};
+pub use fem::{FEM, DOFParameter, SeparatedStiffnessMatrix};

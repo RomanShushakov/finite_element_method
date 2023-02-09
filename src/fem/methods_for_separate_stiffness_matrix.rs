@@ -58,7 +58,7 @@ impl<V> FEM<V>
     }
 
 
-    pub(crate) fn separate_stiffness_matrix(&self) -> Result<SeparatedStiffnessMatrix<V>, String>
+    pub fn separate_stiffness_matrix(&self) -> Result<SeparatedStiffnessMatrix<V>, String>
     {
         let mut k_aa_indexes = Vec::new();
         let mut k_bb_indexes = Vec::new();
@@ -198,7 +198,7 @@ impl<V> FEM<V>
     }
 
 
-    pub(crate) fn compose_r_a_vector(&self, k_aa_indexes: &Vec<usize>) -> Result<Vector<V>, String>
+    pub fn compose_r_a_vector(&self, k_aa_indexes: &Vec<usize>) -> Result<Vector<V>, String>
     {
         let mut r_a_vector = Vector::create(&vec![V::from(0f32); k_aa_indexes.len()]);
         for i in 0..k_aa_indexes.len()
@@ -211,7 +211,7 @@ impl<V> FEM<V>
     }
 
 
-    pub(crate) fn compose_u_b_vector(&self, k_bb_indexes: &Vec<usize>) -> Result<Vector<V>, String>
+    pub fn compose_u_b_vector(&self, k_bb_indexes: &Vec<usize>) -> Result<Vector<V>, String>
     {
         let mut u_b_vector = Vector::create(&vec![V::from(0f32); k_bb_indexes.len()]);
         for i in 0..k_bb_indexes.len()

@@ -71,7 +71,7 @@ fn find_truss_element_vector<V>(
         .get_coordinates()
         .iter()
         .zip(node_1.get_coordinates())
-        .map(|(n, m)| *n + m)
+        .map(|(n, m)| *n - m)
         .collect::<Vec<V>>()
         .try_into()
         .map_err(|e| format!("{e:?} could not be converted to arr[3]"))?;
