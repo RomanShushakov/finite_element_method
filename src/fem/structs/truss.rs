@@ -38,7 +38,7 @@ impl<V> TrussDataError<V>
 }
 
 
-fn check_truss_properties<V>(young_modulus: V,area: V, optional_area_2: Option<V>) -> Result<(), String>
+fn check_truss_properties<V>(young_modulus: V, area: V, optional_area_2: Option<V>) -> Result<(), String>
     where V: Debug + PartialEq + PartialOrd + From<f32>
 {
     if young_modulus <= V::from(0f32)
