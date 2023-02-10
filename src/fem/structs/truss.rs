@@ -197,11 +197,11 @@ fn strain_displacement_matrix_at_r<V>(
     let inverse_jacobian = inverse_jacobian_at_r(node_1_number, node_2_number, r, nodes)?;
     Ok(
         Matrix::create(
-                1,
-                TRUSS_NODES_NUMBER * TRUSS_NODE_DOF,
-                &[dh1_dr(r), V::from(0f32), V::from(0f32), dh2_dr(r), V::from(0f32), V::from(0f32)],
-            )
-            .multiply_by_scalar(inverse_jacobian)
+            1,
+            TRUSS_NODES_NUMBER * TRUSS_NODE_DOF,
+            &[dh1_dr(r), V::from(0f32), V::from(0f32), dh2_dr(r), V::from(0f32), V::from(0f32)],
+        )
+        .multiply_by_scalar(inverse_jacobian)
     )
 }
 
@@ -411,7 +411,9 @@ impl<V> Truss<V>
             area += area_at_r(self.area, self.optional_area_2, *r);
         }
         let element_strains = strain_displacement_matrix.multiply(&local_displacements)?;
-        let element_forces = element_strains.multiply_by_scalar(self.young_modulus * area);
+        let element_forces = element_strains.multiply_by_scalar(
+            self.young_modulus * area / V::from(self.integration_points.len() as f32),
+        );
 
         let element_analysis_data = vec![
             (

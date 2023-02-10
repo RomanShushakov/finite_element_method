@@ -1,26 +1,26 @@
 use extended_matrix::{FloatTrait, BasicOperationsTrait, Position};
 
 use crate::fem::FEM;
-use crate::fem::structs::{Truss, TRUSS_NODE_DOF, NODE_DOF};
+use crate::fem::structs::{Beam, BEAM_NODE_DOF, NODE_DOF};
 
 
-enum TrussError
+enum BeamError
 {
     Number(u32),
     SameNodes(u32, u32),
 }
 
 
-impl TrussError
+impl BeamError
 {
     fn compose_error_message(&self) -> String
     {
         match self
         {
-            TrussError::Number(number) => format!("Truss element with number {number} already exists!"),
-            TrussError::SameNodes(node_1_number, node_2_number) => 
+            Self::Number(number) => format!("Beam element with number {number} already exists!"),
+            Self::SameNodes(node_1_number, node_2_number) => 
             {
-                format!("Truss element with node number {node_1_number} and {node_2_number} already exists!")
+                format!("Beam element with node number {node_1_number} and {node_2_number} already exists!")
             },
         }
     }
@@ -30,53 +30,66 @@ impl TrussError
 impl<V> FEM<V>
     where V: FloatTrait<Output = V>
 {
-    fn check_truss_data(&self, number: u32, node_1_number: u32, node_2_number: u32) -> Option<TrussError>
+    fn check_beam_data(&self, number: u32, node_1_number: u32, node_2_number: u32) -> Option<BeamError>
     {
-        for (truss_number, truss_element) in self.get_truss_elements().iter()
+        for (beam_number, beam_element) in self.get_beam_elements().iter()
         {
-            if *truss_number == number
+            if *beam_number == number
             {
-                return Some(TrussError::Number(number));
+                return Some(BeamError::Number(number));
             }
-            if truss_element.is_nodes_numbers_same(node_1_number, node_2_number)
+            if beam_element.is_nodes_numbers_same(node_1_number, node_2_number)
             {
-                return Some(TrussError::SameNodes(node_1_number, node_2_number));
+                return Some(BeamError::SameNodes(node_1_number, node_2_number));
             }
         }
         None
     }
 
 
-    pub fn add_truss(&mut self,
+    pub fn add_beam(&mut self,
         number: u32,
         node_1_number: u32,
         node_2_number: u32,
         young_modulus: V,
+        poisson_ratio: V,
         area: V,
-        optional_area_2: Option<V>,
+        i11: V,
+        i22: V,
+        i12: V,
+        it: V,
+        shear_factor: V,
+        local_axis_1_direction: [V; 3]
     )
         -> Result<(), String>
     {
         self.check_node_exist(node_1_number)?;
         self.check_node_exist(node_2_number)?;
-        if let Some(truss_error) = self.check_truss_data(number, node_1_number, node_2_number)
+        if let Some(beam_error) = self.check_beam_data(number, node_1_number, node_2_number)
         {
-            return Err(truss_error.compose_error_message());
+            return Err(beam_error.compose_error_message());
         }
 
-        let truss_element = Truss::create(
-            node_1_number, 
-            node_2_number, 
-            young_modulus, 
-            area, 
-            optional_area_2, 
+        let beam_element = Beam::create(
+            node_1_number,
+            node_2_number,
+            young_modulus,
+            poisson_ratio,
+            area,
+            i11,
+            i22,
+            i12,
+            it,
+            shear_factor,
+            local_axis_1_direction,
             self.get_nodes(),
             self.get_props().get_rel_tol(),
             self.get_props().get_abs_tol(),
         )?;
 
-        let rotation_matrix = truss_element.extract_rotation_matrix();
-        let local_stiffness_matrix = truss_element.extract_local_stiffness_matrix(self.get_nodes())?;
+        let rotation_matrix = beam_element.extract_rotation_matrix();
+
+        let local_stiffness_matrix = beam_element.extract_local_stiffness_matrix(self.get_nodes())?;
         let transformed_local_stiffness_matrix = rotation_matrix
             .transpose()
             .multiply(&local_stiffness_matrix)?
@@ -92,16 +105,16 @@ impl<V> FEM<V>
             .get_index();
         let start_positions = [
             ((0, 0), (node_1_index * NODE_DOF, node_1_index * NODE_DOF)),
-            ((0, TRUSS_NODE_DOF), (node_1_index * NODE_DOF, node_2_index * NODE_DOF)),
-            ((TRUSS_NODE_DOF, 0), (node_2_index * NODE_DOF, node_1_index * NODE_DOF)),
-            ((TRUSS_NODE_DOF, TRUSS_NODE_DOF), (node_2_index * NODE_DOF, node_2_index * NODE_DOF)),
+            ((0, BEAM_NODE_DOF), (node_1_index * NODE_DOF, node_2_index * NODE_DOF)),
+            ((BEAM_NODE_DOF, 0), (node_2_index * NODE_DOF, node_1_index * NODE_DOF)),
+            ((BEAM_NODE_DOF, BEAM_NODE_DOF), (node_2_index * NODE_DOF, node_2_index * NODE_DOF)),
         ];
 
         for ((local_row, local_column), (global_row, global_column)) in start_positions
         {
-            for i in 0..TRUSS_NODE_DOF
+            for i in 0..BEAM_NODE_DOF
             {
-                for j in 0..TRUSS_NODE_DOF
+                for j in 0..BEAM_NODE_DOF
                 {
                     let local_stiffness_matrix_element_value = transformed_local_stiffness_matrix
                         .get_element_value(&Position(local_row + i, local_column + j))?;
@@ -115,7 +128,7 @@ impl<V> FEM<V>
             }
         }
 
-        self.get_mut_truss_elements().insert(number, truss_element);
+        self.get_mut_beam_elements().insert(number, beam_element);
 
         Ok(())
     }

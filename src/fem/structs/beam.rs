@@ -254,35 +254,49 @@ fn dx_dr<V>(x_1: V, x_2: V, r: V) -> V
 }
 
 
-// fn jacobian_at_r<V>(node_1_number: u32, node_2_number: u32, r: V, nodes: &HashMap<u32, Node<V>>) -> Result<V, String>
-//     where V: FloatTrait<Output = V>
-// {
-//     let truss_element_vector = find_truss_element_vector(node_1_number, node_2_number, nodes)?;
-//     let truss_element_length = truss_element_vector.norm()?;
-//     let x_1 = V::from(-1f32) * truss_element_length / V::from(2f32);
-//     let x_2 = truss_element_length / V::from(2f32);
-//     Ok(dx_dr(x_1, x_2, r))
-// }
+fn jacobian_at_r<V>(node_1_number: u32, node_2_number: u32, r: V, nodes: &HashMap<u32, Node<V>>) -> Result<V, String>
+    where V: FloatTrait<Output = V>
+{
+    let beam_element_vector = find_beam_element_vector(node_1_number, node_2_number, nodes)?;
+    let beam_element_length = beam_element_vector.norm()?;
+    let x_1 = V::from(-1f32) * beam_element_length / V::from(2f32);
+    let x_2 = beam_element_length / V::from(2f32);
+    Ok(dx_dr(x_1, x_2, r))
+}
 
 
-// fn inverse_jacobian_at_r<V>(
-//     node_1_number: u32, node_2_number: u32, r: V, nodes: &HashMap<u32, Node<V>>,
-// ) 
-//     -> Result<V, String>
-//     where V: FloatTrait<Output = V>
-// {
-//     Ok(V::from(1f32) / jacobian_at_r(node_1_number, node_2_number, r, nodes)?)
-// }
+fn inverse_jacobian_at_r<V>(
+    node_1_number: u32, node_2_number: u32, r: V, nodes: &HashMap<u32, Node<V>>,
+) 
+    -> Result<V, String>
+    where V: FloatTrait<Output = V>
+{
+    Ok(V::from(1f32) / jacobian_at_r(node_1_number, node_2_number, r, nodes)?)
+}
 
 
-// fn determinant_of_jacobian_at_r<V>(
-//     node_1_number: u32, node_2_number: u32, r: V, nodes: &HashMap<u32, Node<V>>,
-// ) 
-//     -> Result<V, String>
-//     where V: FloatTrait<Output = V>
-// {
-//     jacobian_at_r(node_1_number, node_2_number, r, nodes)
-// }
+fn determinant_of_jacobian_at_r<V>(
+    node_1_number: u32, node_2_number: u32, r: V, nodes: &HashMap<u32, Node<V>>,
+) 
+    -> Result<V, String>
+    where V: FloatTrait<Output = V>
+{
+    jacobian_at_r(node_1_number, node_2_number, r, nodes)
+}
+
+
+pub fn h1_r<V>(r: V) -> V
+    where V: FloatTrait<Output = V>
+{
+    V::from(0.5f32) * (V::from(1f32) - r)
+}
+
+
+pub fn h2_r<V>(r: V) -> V
+    where V: FloatTrait<Output = V>
+{
+    V::from(0.5f32) * (V::from(1f32) + r)
+}
 
 
 fn dh1_dr<V>(r: V) -> V
@@ -301,96 +315,306 @@ fn dh2_dr<V>(r: V) -> V
 }
 
 
-// fn strain_displacement_matrix_at_r<V>(
-//     node_1_number: u32, 
-//     node_2_number: u32, 
-//     r: V, 
-//     nodes: &HashMap<u32, Node<V>>
-// ) 
-//     -> Result<Matrix<V>, String>
-//     where V: FloatTrait<Output = V>
-// {
-//     let inverse_jacobian = inverse_jacobian_at_r(node_1_number, node_2_number, r, nodes)?;
-//     Ok(
-//         Matrix::create(
-//                 1,
-//                 TRUSS_NODES_NUMBER * TRUSS_NODE_DOF,
-//                 &[dh1_dr(r), V::from(0f32), V::from(0f32), dh2_dr(r), V::from(0f32), V::from(0f32)],
-//             )
-//             .multiply_by_scalar(inverse_jacobian)
-//     )
-// }
-
-
-fn area_at_r<V>(area: V, optional_area_2: Option<V>, r: V) -> V
+pub fn strain_displacement_matrix_u_at_r<V>(
+    node_1_number: u32, 
+    node_2_number: u32, 
+    r: V, 
+    nodes: &HashMap<u32, Node<V>>
+)
+    -> Result<Matrix<V>, String>
     where V: FloatTrait<Output = V>
 {
-    if let Some(area_2) = optional_area_2
-    {
-        (area_2 - area) / V::from(2f32) * r + area - (area_2 - area) / V::from(2f32) * V::from(-1f32)
-    }
-    else
-    {
-        area
-    }
+    let inverse_jacobian = inverse_jacobian_at_r(node_1_number, node_2_number, r, nodes)?;
+    Ok
+    (
+        Matrix::create(
+            1,
+            BEAM_NODES_NUMBER * BEAM_NODE_DOF,
+            &[
+                dh1_dr(r), V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32),
+                dh2_dr(r), V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32),
+            ],
+        )
+        .multiply_by_scalar(inverse_jacobian)
+    )
 }
 
 
-// fn local_stiffness_matrix_at_ip<V>(
-//     node_1_number: u32, 
-//     node_2_number: u32, 
-//     young_modulus: V, 
-//     area: V,
-//     optional_area_2: Option<V>,  
-//     r: V, 
-//     alpha: V,
-//     nodes: &HashMap<u32, Node<V>>,
-// ) 
-//     -> Result<SquareMatrix<V>, String>
-//     where V: FloatTrait<Output = V>
-// {
-//     let b_at_r = strain_displacement_matrix_at_r(node_1_number, node_2_number, r, nodes)?;
-//     let b_t_at_r = b_at_r.transpose();
-//     let c_at_r = area_at_r(area, optional_area_2, r) * young_modulus;
+fn strain_displacement_matrix_v_at_r<V>(
+    node_1_number: u32,
+    node_2_number: u32, 
+    r: V,
+    nodes: &HashMap<u32, Node<V>>,
+) 
+    -> Result<Matrix<V>, String>
+    where V: FloatTrait<Output = V>
+{
+    let inverse_jacobian = inverse_jacobian_at_r(node_1_number, node_2_number, r, nodes)?;
+    
+    let lhs_matrix = Matrix::create(
+            1,
+            BEAM_NODES_NUMBER * BEAM_NODE_DOF,
+            &[
+                V::from(0f32), dh1_dr(r), V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32),
+                V::from(0f32), dh2_dr(r), V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32),
+            ],
+        )
+        .multiply_by_scalar(inverse_jacobian);
 
-//     Ok(
-//         b_t_at_r
-//             .multiply_by_scalar(c_at_r)
-//             .multiply(&b_at_r)?
-//             .multiply_by_scalar(determinant_of_jacobian_at_r(node_1_number, node_2_number, r, nodes)?)
-//             .multiply_by_scalar(alpha)
-//             .try_into_square_matrix()?
-//     )
-// }
+    let rhs_matrix = Matrix::create(
+        1,
+        BEAM_NODES_NUMBER * BEAM_NODE_DOF,
+        &[
+            V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), h1_r(r),
+            V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), h2_r(r),
+        ],
+    );
+
+    let matrix = lhs_matrix.subtract(&rhs_matrix)?;
+
+    Ok(matrix)
+}
 
 
-// fn compose_local_stiffness_matrix<V>(
-//     integration_points: &[(V, V)], 
-//     node_1_number: u32,
-//     node_2_number: u32,
-//     young_modulus: V,
-//     area: V,
-//     optional_area_2: Option<V>,
-//     nodes: &HashMap<u32, Node<V>>,
-// ) 
-//     -> Result<SquareMatrix<V>, String>
-//     where V: FloatTrait<Output = V>
-// {
-//     let mut local_stiffness_matrix = SquareMatrix::create(
-//         TRUSS_NODES_NUMBER * TRUSS_NODE_DOF, 
-//         &[V::from(0f32); TRUSS_NODES_NUMBER * TRUSS_NODE_DOF],
-//     );
+fn strain_displacement_matrix_w_at_r<V>(
+    node_1_number: u32, 
+    node_2_number: u32, 
+    r: V,
+    nodes: &HashMap<u32, Node<V>>
+) 
+    -> Result<Matrix<V>, String>
+    where V: FloatTrait<Output = V>
+{
+    let inverse_jacobian = inverse_jacobian_at_r(node_1_number, node_2_number, r, nodes)?;
 
-//     for (r, alpha) in integration_points
-//     {
-//         let local_stiffness_matrix_at_ip = local_stiffness_matrix_at_ip(
-//             node_1_number, node_2_number, young_modulus, area, optional_area_2, *r, *alpha, nodes,
-//         )?;
-//         local_stiffness_matrix = local_stiffness_matrix.add(&local_stiffness_matrix_at_ip)?;
-//     }
+    let lhs_matrix = Matrix::create(
+            1,
+            BEAM_NODES_NUMBER * BEAM_NODE_DOF,
+            &[
+                V::from(0f32), V::from(0f32), dh1_dr(r), V::from(0f32), V::from(0f32), V::from(0f32),
+                V::from(0f32), V::from(0f32), dh2_dr(r), V::from(0f32), V::from(0f32), V::from(0f32),
+            ],
+        )
+        .multiply_by_scalar(inverse_jacobian);
 
-//     Ok(local_stiffness_matrix)
-// }
+    let rhs_matrix = Matrix::create(
+        1,
+        BEAM_NODES_NUMBER * BEAM_NODE_DOF,
+        &[
+            V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), h1_r(r), V::from(0f32),
+            V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), h2_r(r), V::from(0f32),
+        ],
+    );
+
+    let matrix = lhs_matrix.subtract(&rhs_matrix)?;
+
+    Ok(matrix)
+}
+
+
+fn strain_displacement_matrix_thu_at_r<V>(
+    node_1_number: u32, 
+    node_2_number: u32, 
+    r: V,
+    nodes: &HashMap<u32, Node<V>>,
+) 
+    -> Result<Matrix<V>, String>
+    where V: FloatTrait<Output = V>
+{
+    let inverse_jacobian = inverse_jacobian_at_r(node_1_number, node_2_number, r, nodes)?;
+    Ok
+    (
+        Matrix::create(
+            1,
+            BEAM_NODES_NUMBER * BEAM_NODE_DOF,
+            &[
+                V::from(0f32), V::from(0f32), V::from(0f32), dh1_dr(r), V::from(0f32), V::from(0f32),
+                V::from(0f32), V::from(0f32), V::from(0f32), dh2_dr(r), V::from(0f32), V::from(0f32),
+            ],
+        )
+        .multiply_by_scalar(inverse_jacobian)
+    )
+}
+
+
+fn strain_displacement_matrix_thv_at_r<V>(
+    node_1_number: u32, 
+    node_2_number: u32, 
+    r: V, 
+    nodes: &HashMap<u32, Node<V>>
+) 
+    -> Result<Matrix<V>, String>
+    where V: FloatTrait<Output = V>
+{
+    let inverse_jacobian = inverse_jacobian_at_r(node_1_number, node_2_number, r, nodes)?;
+    Ok
+    (
+        Matrix::create(
+            1,
+            BEAM_NODES_NUMBER * BEAM_NODE_DOF,
+            &[
+                V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), dh1_dr(r), V::from(0f32),
+                V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), dh2_dr(r), V::from(0f32),
+            ],
+        )
+        .multiply_by_scalar(inverse_jacobian)
+    )
+}
+
+
+pub fn strain_displacement_matrix_thw_at_r<V>(
+    node_1_number: u32, 
+    node_2_number: u32, 
+    r: V,
+    nodes: &HashMap<u32, Node<V>>,
+) 
+    -> Result<Matrix<V>, String>
+    where V: FloatTrait<Output = V>
+{
+    let inverse_jacobian = inverse_jacobian_at_r(node_1_number, node_2_number, r, nodes)?;
+
+    Ok
+    (
+        Matrix::create(
+            1,
+            BEAM_NODES_NUMBER * BEAM_NODE_DOF,
+            &[
+                V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), dh1_dr(r),
+                V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), dh2_dr(r),
+            ],
+        )
+        .multiply_by_scalar(inverse_jacobian)
+    )
+}
+
+
+fn local_stiffness_matrix_at_ip<V>(
+    node_1_number: u32,
+    node_2_number: u32,
+    young_modulus: V,
+    poisson_ratio: V,
+    area: V,
+    i11_p: V,
+    i22_p: V,
+    it: V,
+    shear_factor: V,
+    r: V,
+    alpha: V,
+    nodes: &HashMap<u32, Node<V>>,
+) 
+    -> Result<SquareMatrix<V>, String>
+    where V: FloatTrait<Output = V>
+{
+    let b_u_at_r = strain_displacement_matrix_u_at_r(node_1_number, node_2_number, r, nodes)?;
+    let b_u_t_at_r = b_u_at_r.transpose();
+    let c_u_at_r = area * young_modulus;
+    let k_u_at_ip = b_u_t_at_r
+        .multiply_by_scalar(c_u_at_r)
+        .multiply(&b_u_at_r)?
+        .multiply_by_scalar(determinant_of_jacobian_at_r(node_1_number, node_2_number, r, nodes)?)
+        .multiply_by_scalar(alpha);
+
+    let shear_modulus = young_modulus / (V::from(2f32) * (V::from(1f32) + poisson_ratio));
+
+    let b_v_at_r = strain_displacement_matrix_v_at_r(node_1_number, node_2_number, r, nodes)?;
+    let b_v_t_at_r = b_v_at_r.transpose();
+    let c_v_at_r = shear_modulus * area * shear_factor;
+    let k_v_at_ip = b_v_t_at_r
+        .multiply_by_scalar(c_v_at_r)
+        .multiply(&b_v_at_r)?
+        .multiply_by_scalar(determinant_of_jacobian_at_r(node_1_number, node_2_number, r, nodes)?)
+        .multiply_by_scalar(alpha);
+
+    let b_w_at_r = strain_displacement_matrix_w_at_r(node_1_number, node_2_number, r, nodes)?;
+    let b_w_t_at_r = b_w_at_r.transpose();
+    let c_w_at_r = shear_modulus * area * shear_factor;
+    let k_w_at_ip = b_w_t_at_r
+        .multiply_by_scalar(c_w_at_r)
+        .multiply(&b_w_at_r)?
+        .multiply_by_scalar(determinant_of_jacobian_at_r(node_1_number, node_2_number, r, nodes)?)
+        .multiply_by_scalar(alpha);
+
+    let b_thu_at_r = strain_displacement_matrix_thu_at_r(node_1_number, node_2_number, r, nodes)?;
+    let b_thu_t_at_r = b_thu_at_r.transpose();
+    let c_thu_at_r = shear_modulus * it;
+    let k_thu_at_ip = b_thu_t_at_r
+        .multiply_by_scalar(c_thu_at_r)
+        .multiply(&b_thu_at_r)?
+        .multiply_by_scalar(determinant_of_jacobian_at_r(node_1_number, node_2_number, r, nodes)?)
+        .multiply_by_scalar(alpha);
+
+    let b_thv_at_r = strain_displacement_matrix_thv_at_r(node_1_number, node_2_number, r, nodes)?;
+    let b_thv_t_at_r = b_thv_at_r.transpose();
+    let c_thv_at_r = young_modulus * i22_p;
+    let k_thv_at_ip = b_thv_t_at_r
+        .multiply_by_scalar(c_thv_at_r)
+        .multiply(&b_thv_at_r)?
+        .multiply_by_scalar(determinant_of_jacobian_at_r(node_1_number, node_2_number, r, nodes)?)
+        .multiply_by_scalar(alpha);
+
+    let b_thw_at_r = strain_displacement_matrix_thw_at_r(node_1_number, node_2_number, r, nodes)?;
+    let b_thw_t_at_r = b_thw_at_r.transpose();
+    let c_thw_at_r = young_modulus * i11_p;
+    let k_thw_at_ip = b_thw_t_at_r
+        .multiply_by_scalar(c_thw_at_r)
+        .multiply(&b_thw_at_r)?
+        .multiply_by_scalar(determinant_of_jacobian_at_r(node_1_number, node_2_number, r, nodes)?)
+        .multiply_by_scalar(alpha);
+    
+    Ok(
+        k_u_at_ip
+            .add(&k_v_at_ip)?
+            .add(&k_w_at_ip)?
+            .add(&k_thu_at_ip)?
+            .add(&k_thv_at_ip)?
+            .add(&k_thw_at_ip)?
+            .try_into_square_matrix()?
+    )
+}
+
+
+fn compose_local_stiffness_matrix<V>(
+    integration_points: &[(V, V)], 
+    node_1_number: u32,
+    node_2_number: u32,
+    young_modulus: V,
+    poisson_ratio: V,
+    area: V,
+    i11_p: V,
+    i22_p: V,
+    it: V,
+    shear_factor: V,
+    nodes: &HashMap<u32, Node<V>>,
+) 
+    -> Result<SquareMatrix<V>, String>
+    where V: FloatTrait<Output = V>
+{
+    let mut local_stiffness_matrix = SquareMatrix::create(
+        BEAM_NODES_NUMBER * BEAM_NODE_DOF, 
+        &[V::from(0f32); BEAM_NODES_NUMBER * BEAM_NODE_DOF],
+    );
+
+    for (r, alpha) in integration_points
+    {
+        let local_stiffness_matrix_at_ip = local_stiffness_matrix_at_ip(
+            node_1_number,
+            node_2_number,
+            young_modulus,
+            poisson_ratio,
+            area,
+            i11_p,
+            i22_p,
+            it,
+            shear_factor,
+            *r,
+            *alpha,
+            nodes,
+        )?;
+        local_stiffness_matrix = local_stiffness_matrix.add(&local_stiffness_matrix_at_ip)?;
+    }
+
+    Ok(local_stiffness_matrix)
+}
 
 
 fn compose_rotation_matrix<V>(rotation_matrix_elements: &[V; 9]) -> SquareMatrix<V>
@@ -402,31 +626,39 @@ fn compose_rotation_matrix<V>(rotation_matrix_elements: &[V; 9]) -> SquareMatrix
     SquareMatrix::create(
         BEAM_NODES_NUMBER * BEAM_NODE_DOF,
         &[
-            [*r_11, *r_12, *r_13], [V::from(0f32); BEAM_NODE_DOF / 2],
+            [*r_11, *r_12, *r_13], [V::from(0f32); BEAM_NODE_DOF / 2], 
             [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
-            [*r_21, *r_22, *r_23], [V::from(0f32); BEAM_NODE_DOF / 2],
+
+            [*r_21, *r_22, *r_23], [V::from(0f32); BEAM_NODE_DOF / 2], 
             [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
+
             [*r_31, *r_32, *r_33], [V::from(0f32); BEAM_NODE_DOF / 2],
             [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
 
-            [V::from(0f32); BEAM_NODE_DOF / 2], [*r_11, *r_12, *r_13],
+            [V::from(0f32); BEAM_NODE_DOF / 2], [*r_11, *r_12, *r_13], 
             [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
+
             [V::from(0f32); BEAM_NODE_DOF / 2], [*r_21, *r_22, *r_23],
             [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
+
             [V::from(0f32); BEAM_NODE_DOF / 2], [*r_31, *r_32, *r_33],
             [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
 
             [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
             [*r_11, *r_12, *r_13], [V::from(0f32); BEAM_NODE_DOF / 2],
+
             [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
             [*r_21, *r_22, *r_23], [V::from(0f32); BEAM_NODE_DOF / 2],
+
             [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
             [*r_31, *r_32, *r_33], [V::from(0f32); BEAM_NODE_DOF / 2],
 
             [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
             [V::from(0f32); BEAM_NODE_DOF / 2], [*r_11, *r_12, *r_13],
+
             [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
             [V::from(0f32); BEAM_NODE_DOF / 2], [*r_21, *r_22, *r_23],
+
             [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
             [V::from(0f32); BEAM_NODE_DOF / 2], [*r_31, *r_32, *r_33],
         ].concat(),
@@ -504,18 +736,22 @@ impl<V> Beam<V>
     }
 
 
-    // pub fn extract_local_stiffness_matrix(&self, nodes: &HashMap<u32, Node<V>>) -> Result<SquareMatrix<V>, String>
-    // {
-    //     compose_local_stiffness_matrix(
-    //         &self.integration_points,
-    //         self.node_1_number,
-    //         self.node_2_number,
-    //         self.young_modulus,
-    //         self.area, 
-    //         self.optional_area_2,
-    //         nodes,
-    //     )
-    // }
+    pub fn extract_local_stiffness_matrix(&self, nodes: &HashMap<u32, Node<V>>) -> Result<SquareMatrix<V>, String>
+    {
+        compose_local_stiffness_matrix(
+            &self.integration_points,
+            self.node_1_number,
+            self.node_2_number,
+            self.young_modulus,
+            self.poisson_ratio,
+            self.area,
+            self.i11_p,
+            self.i22_p,
+            self.it,
+            self.shear_factor,
+            nodes,
+        )
+    }
 
 
     // pub fn extract_element_analysis_result(

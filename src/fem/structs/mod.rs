@@ -11,4 +11,4 @@ mod separated_stiffness_matrix;
 pub use separated_stiffness_matrix::SeparatedStiffnessMatrix;
 
 mod beam;
-
+pub use beam::{Beam, BEAM_NODE_DOF};

@@ -24,3 +24,5 @@ mod methods_for_separate_stiffness_matrix;
 mod methods_for_global_analysis;
 
 mod methods_for_element_analysis;
+
+mod methods_for_beam_data_handle;

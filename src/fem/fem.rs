@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use extended_matrix::{SquareMatrix, FloatTrait, Vector};
 
-use crate::fem::structs::{Props, Node, NODE_DOF, Truss};
+use crate::fem::structs::{Props, Node, NODE_DOF, Truss, Beam};
 
 
 pub struct FEM<V>
@@ -17,6 +17,7 @@ pub struct FEM<V>
     imposed_constraints: Vec<bool>,
     nodes: HashMap<u32, Node<V>>,
     truss_elements: HashMap<u32, Truss<V>>,
+    beam_elements: HashMap<u32, Beam<V>>
 }
 
 
@@ -39,11 +40,12 @@ impl<V> FEM<V>
 
         let nodes = HashMap::new();
         let truss_elements = HashMap::new();
+        let beam_elements = HashMap::new();
 
         FEM 
         { 
             props, stiffness_matrix, displacements_vector, forces_vector, nodes_count, indexes, index_node_number_map,
-            imposed_constraints, nodes, truss_elements,
+            imposed_constraints, nodes, truss_elements, beam_elements,
         }
     }
 
@@ -153,5 +155,17 @@ impl<V> FEM<V>
     pub(crate) fn get_mut_truss_elements(&mut self) -> &mut HashMap<u32, Truss<V>>
     {
         &mut self.truss_elements
+    }
+
+
+    pub(crate) fn get_beam_elements(&self) -> &HashMap<u32, Beam<V>>
+    {
+        &self.beam_elements
+    }
+
+
+    pub(crate) fn get_mut_beam_elements(&mut self) -> &mut HashMap<u32, Beam<V>>
+    {
+        &mut self.beam_elements
     }
 }
