@@ -753,6 +753,45 @@ impl<V> Beam<V>
     }
 
 
+    pub fn convert_uniformly_distributed_line_force_to_nodal_forces(
+        &self,
+        uniformly_distributed_line_force_value: V,
+        nodes: &HashMap<u32, Node<V>>,
+    ) 
+        -> Result<Vector<V>, String>
+    {
+        let distributed_force_matrix = Matrix::create(
+            1, 
+            1,
+            &[uniformly_distributed_line_force_value],
+        );
+
+        let mut nodal_forces = Vector::create(&[V::from(0f32); 2]);
+        for (r, alpha) in self.integration_points.iter()
+        {
+            let determinant_of_jacobian_at_r = determinant_of_jacobian_at_r(
+                self.node_1_number, self.node_2_number, *r, nodes,
+            )?;
+
+            let displacement_interpolation_matrix = Vector::create(&[h1_r(*r), h2_r(*r)]);
+
+            let matrix = displacement_interpolation_matrix
+                .multiply(&distributed_force_matrix)?
+                .multiply_by_scalar(determinant_of_jacobian_at_r)
+                .multiply_by_scalar(*alpha);
+            nodal_forces = nodal_forces.add(&matrix)?;
+        }
+
+        Ok(nodal_forces)
+    }
+
+
+    pub fn get_nodes_numbers(&self) -> [u32; 2]
+    {
+        [self.node_1_number, self.node_2_number]
+    }
+
+
     pub fn extract_element_analysis_result(
         &self, nodes: &HashMap<u32, Node<V>>, displacements: &Vector<V>,
     )

@@ -4,14 +4,15 @@ use crate::fem::FEM;
 use crate::fem::structs::{Beam, BEAM_NODE_DOF, NODE_DOF};
 
 
-enum BeamError
+enum BeamElementError
 {
     Number(u32),
     SameNodes(u32, u32),
+    NumberNotExist(u32),
 }
 
 
-impl BeamError
+impl BeamElementError
 {
     fn compose_error_message(&self) -> String
     {
@@ -22,6 +23,7 @@ impl BeamError
             {
                 format!("Beam element with node number {node_1_number} and {node_2_number} already exists!")
             },
+            Self::NumberNotExist(number) => format!("Beam element with number {number} does not exist!"),
         }
     }
 }
@@ -30,17 +32,17 @@ impl BeamError
 impl<V> FEM<V>
     where V: FloatTrait<Output = V>
 {
-    fn check_beam_data(&self, number: u32, node_1_number: u32, node_2_number: u32) -> Option<BeamError>
+    fn check_beam_data(&self, number: u32, node_1_number: u32, node_2_number: u32) -> Option<BeamElementError>
     {
         for (beam_number, beam_element) in self.get_beam_elements().iter()
         {
             if *beam_number == number
             {
-                return Some(BeamError::Number(number));
+                return Some(BeamElementError::Number(number));
             }
             if beam_element.is_nodes_numbers_same(node_1_number, node_2_number)
             {
-                return Some(BeamError::SameNodes(node_1_number, node_2_number));
+                return Some(BeamElementError::SameNodes(node_1_number, node_2_number));
             }
         }
         None
@@ -130,6 +132,16 @@ impl<V> FEM<V>
 
         self.get_mut_beam_elements().insert(number, beam_element);
 
+        Ok(())
+    }
+
+
+    pub(crate) fn check_beam_element_exist(&self, number: u32) -> Result<(), String>
+    {
+        if !self.get_beam_elements().contains_key(&number) 
+        {
+            return Err(BeamElementError::NumberNotExist(number).compose_error_message());
+        }
         Ok(())
     }
 }

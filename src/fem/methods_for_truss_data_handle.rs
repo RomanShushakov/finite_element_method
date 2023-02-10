@@ -4,21 +4,21 @@ use crate::fem::FEM;
 use crate::fem::structs::{Truss, TRUSS_NODE_DOF, NODE_DOF};
 
 
-enum TrussError
+enum TrussElementError
 {
     Number(u32),
     SameNodes(u32, u32),
 }
 
 
-impl TrussError
+impl TrussElementError
 {
     fn compose_error_message(&self) -> String
     {
         match self
         {
-            TrussError::Number(number) => format!("Truss element with number {number} already exists!"),
-            TrussError::SameNodes(node_1_number, node_2_number) => 
+            Self::Number(number) => format!("Truss element with number {number} already exists!"),
+            Self::SameNodes(node_1_number, node_2_number) => 
             {
                 format!("Truss element with node number {node_1_number} and {node_2_number} already exists!")
             },
@@ -30,17 +30,17 @@ impl TrussError
 impl<V> FEM<V>
     where V: FloatTrait<Output = V>
 {
-    fn check_truss_data(&self, number: u32, node_1_number: u32, node_2_number: u32) -> Option<TrussError>
+    fn check_truss_data(&self, number: u32, node_1_number: u32, node_2_number: u32) -> Option<TrussElementError>
     {
         for (truss_number, truss_element) in self.get_truss_elements().iter()
         {
             if *truss_number == number
             {
-                return Some(TrussError::Number(number));
+                return Some(TrussElementError::Number(number));
             }
             if truss_element.is_nodes_numbers_same(node_1_number, node_2_number)
             {
-                return Some(TrussError::SameNodes(node_1_number, node_2_number));
+                return Some(TrussElementError::SameNodes(node_1_number, node_2_number));
             }
         }
         None
