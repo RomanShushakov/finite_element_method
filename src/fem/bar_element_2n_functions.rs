@@ -68,6 +68,20 @@ pub fn determinant_of_jacobian_at_r<V>(
 }
 
 
+pub fn h1_r<V>(r: V) -> V
+    where V: FloatTrait<Output = V>
+{
+    V::from(0.5f32) * (V::from(1f32) - r)
+}
+
+
+pub fn h2_r<V>(r: V) -> V
+    where V: FloatTrait<Output = V>
+{
+    V::from(0.5f32) * (V::from(1f32) + r)
+}
+
+
 pub fn dh1_dr<V>(r: V) -> V
     where V: FloatTrait<Output = V>
 {

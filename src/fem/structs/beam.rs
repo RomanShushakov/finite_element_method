@@ -10,9 +10,10 @@ use extended_matrix::
 
 use crate::fem::structs::{Node, NODE_DOF};
 use crate::fem::methods_for_element_analysis::ElementForceComponent;
+use crate::fem::math_functions::compare_with_tolerance;
 use crate::fem::bar_element_2n_functions::
 {
-    find_2n_element_vector, inverse_jacobian_at_r, determinant_of_jacobian_at_r, dh1_dr, dh2_dr,
+    find_2n_element_vector, inverse_jacobian_at_r, determinant_of_jacobian_at_r, h1_r, h2_r, dh1_dr, dh2_dr,
 };
 
 
@@ -120,20 +121,6 @@ fn find_principal_moments_of_inertia<V>(i11: V, i22: V, i12: V) -> (V, V, V)
 }
 
 
-fn compare_with_tolerance<V>(value: V, abs_tol: V) -> V
-    where V: FloatTrait<Output = V>
-{
-    if value.my_abs() < abs_tol
-    {
-        V::from(0f32)
-    }
-    else
-    {
-        value
-    }
-}
-
-
 fn find_rotation_matrix_elements<V>(
     node_1_number: u32,
     node_2_number: u32,
@@ -207,20 +194,6 @@ fn find_rotation_matrix_elements<V>(
         { (c_y * c_z * s + c_x * c) / c_xz } else { c };
 
     Ok([r_11, r_12, r_13, r_21, r_22, r_23, r_31, r_32, r_33])
-}
-
-
-pub fn h1_r<V>(r: V) -> V
-    where V: FloatTrait<Output = V>
-{
-    V::from(0.5f32) * (V::from(1f32) - r)
-}
-
-
-pub fn h2_r<V>(r: V) -> V
-    where V: FloatTrait<Output = V>
-{
-    V::from(0.5f32) * (V::from(1f32) + r)
 }
 
 
