@@ -12,3 +12,6 @@ pub use separated_stiffness_matrix::SeparatedStiffnessMatrix;
 
 mod beam;
 pub use beam::{Beam, BEAM_NODE_DOF};
+
+mod plate;
+pub use plate::{Plate, PLATE_NODE_DOF};

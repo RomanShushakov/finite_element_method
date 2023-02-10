@@ -10,13 +10,17 @@ use extended_matrix::
 
 use crate::fem::structs::{Node, NODE_DOF};
 use crate::fem::methods_for_element_analysis::ElementForceComponent;
+use crate::fem::bar_element_2n_functions::
+{
+    find_2n_element_vector, inverse_jacobian_at_r, determinant_of_jacobian_at_r, dh1_dr, dh2_dr,
+};
 
 
 const BEAM_NODES_NUMBER: usize = 2;
 pub const BEAM_NODE_DOF: usize = 6;
 
 
-enum BeamDataError<V>
+enum BeamElementDataError<V>
 {
     YoungModulus(V),
     PoissonRatio(V),
@@ -28,7 +32,7 @@ enum BeamDataError<V>
 }
 
 
-impl<V> BeamDataError<V>
+impl<V> BeamElementDataError<V>
     where V: Debug
 {
     fn compose_error_message(&self) -> String
@@ -55,31 +59,31 @@ fn check_beam_properties<V>(
 {
     if young_modulus <= V::from(0f32)
     {
-        return Err(BeamDataError::<V>::YoungModulus(young_modulus).compose_error_message());
+        return Err(BeamElementDataError::<V>::YoungModulus(young_modulus).compose_error_message());
     }
     if poisson_ratio <= V::from(0f32)
     {
-        return Err(BeamDataError::<V>::PoissonRatio(young_modulus).compose_error_message());
+        return Err(BeamElementDataError::<V>::PoissonRatio(young_modulus).compose_error_message());
     }
     if area <= V::from(0f32)
     {
-        return Err(BeamDataError::<V>::Area(area).compose_error_message());
+        return Err(BeamElementDataError::<V>::Area(area).compose_error_message());
     }
     if i11 <= V::from(0f32)
     {
-        return Err(BeamDataError::<V>::I11(i11).compose_error_message());
+        return Err(BeamElementDataError::<V>::I11(i11).compose_error_message());
     }
     if i22 <= V::from(0f32)
     {
-        return Err(BeamDataError::<V>::I22(i22).compose_error_message());
+        return Err(BeamElementDataError::<V>::I22(i22).compose_error_message());
     }
     if it <= V::from(0f32)
     {
-        return Err(BeamDataError::<V>::It(it).compose_error_message());
+        return Err(BeamElementDataError::<V>::It(it).compose_error_message());
     }
     if shear_factor <= V::from(0f32)
     {
-        return Err(BeamDataError::<V>::ShearFactor(shear_factor).compose_error_message());
+        return Err(BeamElementDataError::<V>::ShearFactor(shear_factor).compose_error_message());
     }
     Ok(())
 }
@@ -116,28 +120,6 @@ fn find_principal_moments_of_inertia<V>(i11: V, i22: V, i12: V) -> (V, V, V)
 }
 
 
-fn find_beam_element_vector<V>(
-    node_1_number: u32, node_2_number: u32, nodes: &HashMap<u32, Node<V>>,
-)
-    -> Result<Vector3<V>, String>
-    where V: FloatTrait<Output = V>
-{
-    let node_1 = nodes.get(&node_1_number).ok_or(format!("Node {node_1_number} does not exist!"))?;
-    let node_2 = nodes.get(&node_2_number).ok_or(format!("Node {node_2_number} does not exist!"))?;
-
-    let truss_element_vector_components: [V; 3] = node_2
-        .get_coordinates()
-        .iter()
-        .zip(node_1.get_coordinates())
-        .map(|(n, m)| *n - m)
-        .collect::<Vec<V>>()
-        .try_into()
-        .map_err(|e| format!("{e:?} could not be converted to arr[3]"))?;
-
-    Ok(Vector3::create(&truss_element_vector_components))
-}
-
-
 fn compare_with_tolerance<V>(value: V, abs_tol: V) -> V
     where V: FloatTrait<Output = V>
 {
@@ -164,7 +146,7 @@ fn find_rotation_matrix_elements<V>(
     -> Result<[V; 9], String>
     where V: FloatTrait<Output = V>
 {
-    let beam_element_vector = find_beam_element_vector(node_1_number, node_2_number, nodes)?;
+    let beam_element_vector = find_2n_element_vector(node_1_number, node_2_number, nodes)?;
 
     let beam_element_length = beam_element_vector.norm()?;
     let direction_vector = Vector3::create(
@@ -228,63 +210,6 @@ fn find_rotation_matrix_elements<V>(
 }
 
 
-fn power_func_x<V>(a: V, x: V, n: i32) -> V
-    where V: FloatTrait<Output = V>
-{
-    (0..n).fold(a, |acc, _| acc * x)
-}
-
-
-fn derivative_x<V>(f: fn(V, V, i32) -> V, a: V, x: V, n: i32) -> V
-    where V: FloatTrait<Output = V>
-{
-    let mut converted_n = V::from(0f32);
-    (0..n).for_each(|_| converted_n += V::from(1f32));
-    f(a * converted_n, x, n - 1)
-}
-
-
-fn dx_dr<V>(x_1: V, x_2: V, r: V) -> V
-    where V: FloatTrait<Output = V>
-{
-    derivative_x(power_func_x, x_1 * V::from(0.5f32), V::from(0f32), 0) -
-    derivative_x(power_func_x, x_1 * V::from(0.5f32), r, 1) +
-    derivative_x(power_func_x, x_2 * V::from(0.5f32), V::from(0f32), 0) +
-    derivative_x(power_func_x, x_2 * V::from(0.5f32), r, 1)
-}
-
-
-fn jacobian_at_r<V>(node_1_number: u32, node_2_number: u32, r: V, nodes: &HashMap<u32, Node<V>>) -> Result<V, String>
-    where V: FloatTrait<Output = V>
-{
-    let beam_element_vector = find_beam_element_vector(node_1_number, node_2_number, nodes)?;
-    let beam_element_length = beam_element_vector.norm()?;
-    let x_1 = V::from(-1f32) * beam_element_length / V::from(2f32);
-    let x_2 = beam_element_length / V::from(2f32);
-    Ok(dx_dr(x_1, x_2, r))
-}
-
-
-fn inverse_jacobian_at_r<V>(
-    node_1_number: u32, node_2_number: u32, r: V, nodes: &HashMap<u32, Node<V>>,
-) 
-    -> Result<V, String>
-    where V: FloatTrait<Output = V>
-{
-    Ok(V::from(1f32) / jacobian_at_r(node_1_number, node_2_number, r, nodes)?)
-}
-
-
-fn determinant_of_jacobian_at_r<V>(
-    node_1_number: u32, node_2_number: u32, r: V, nodes: &HashMap<u32, Node<V>>,
-) 
-    -> Result<V, String>
-    where V: FloatTrait<Output = V>
-{
-    jacobian_at_r(node_1_number, node_2_number, r, nodes)
-}
-
-
 pub fn h1_r<V>(r: V) -> V
     where V: FloatTrait<Output = V>
 {
@@ -296,22 +221,6 @@ pub fn h2_r<V>(r: V) -> V
     where V: FloatTrait<Output = V>
 {
     V::from(0.5f32) * (V::from(1f32) + r)
-}
-
-
-fn dh1_dr<V>(r: V) -> V
-    where V: FloatTrait<Output = V>
-{
-    derivative_x(power_func_x, V::from(0.5f32), V::from(0f32), 0) -
-    derivative_x(power_func_x, V::from(0.5f32), r, 1)
-}
-
-
-fn dh2_dr<V>(r: V) -> V
-    where V: FloatTrait<Output = V>
-{
-    derivative_x(power_func_x, V::from(0.5f32), V::from(0f32), 0) +
-    derivative_x(power_func_x, V::from(0.5f32), r, 1)
 }
 
 
@@ -894,7 +803,7 @@ impl<V> Beam<V>
             shear_modulus * self.it / V::from(self.integration_points.len() as f32),
         );
 
-        let beam_element_vector = find_beam_element_vector(self.node_1_number, self.node_2_number, nodes)?;
+        let beam_element_vector = find_2n_element_vector(self.node_1_number, self.node_2_number, nodes)?;
         let beam_element_length = beam_element_vector.norm()?;
 
         let mut strain_displacement_matrix_thv = Matrix::create(

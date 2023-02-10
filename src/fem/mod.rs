@@ -26,3 +26,7 @@ mod methods_for_global_analysis;
 mod methods_for_element_analysis;
 
 mod methods_for_beam_data_handle;
+
+mod math_functions;
+
+mod bar_element_2n_functions;
