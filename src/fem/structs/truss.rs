@@ -390,7 +390,7 @@ impl<V> Truss<V>
 
         for i in 0..TRUSS_NODE_DOF
         {
-            *global_displacements.get_mut_element_value(&Position(i + 3, 0))? = 
+            *global_displacements.get_mut_element_value(&Position(i + TRUSS_NODE_DOF, 0))? = 
                 *displacements.get_element_value(&Position(node_2_index * NODE_DOF + i, 0))?;
         }
 
