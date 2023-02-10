@@ -818,6 +818,7 @@ impl<V> Beam<V>
         let element_forces_v = element_strains_v.multiply_by_scalar(
             shear_modulus * self.area  * self.shear_factor / V::from(self.integration_points.len() as f32),
         );
+        let force_s_value = *element_forces_v.get_element_value(&Position(0, 0))?;
 
         let mut strain_displacement_matrix_w = Matrix::create(
             1,
@@ -835,6 +836,67 @@ impl<V> Beam<V>
         let element_forces_w = element_strains_w.multiply_by_scalar(
             shear_modulus * self.area  * self.shear_factor / V::from(self.integration_points.len() as f32),
         );
+        let force_t_value = *element_forces_w.get_element_value(&Position(0, 0))?;
+
+        let mut strain_displacement_matrix_thu = Matrix::create(
+            1,
+            BEAM_NODES_NUMBER * BEAM_NODE_DOF,
+            &[V::from(0f32); BEAM_NODES_NUMBER * BEAM_NODE_DOF],
+        );
+        for (r, _alpha) in self.integration_points.iter()
+        {
+            let strain_displacement_matrix_thu_at_r = strain_displacement_matrix_thu_at_r(
+                self.node_1_number, self.node_2_number, *r, nodes,
+            )?;
+            strain_displacement_matrix_thu = strain_displacement_matrix_thu.add(&strain_displacement_matrix_thu_at_r)?;
+        }
+        let element_strains_thu = strain_displacement_matrix_thu.multiply(&local_displacements)?;
+        let element_forces_thu = element_strains_thu.multiply_by_scalar(
+            shear_modulus * self.it / V::from(self.integration_points.len() as f32),
+        );
+
+        let beam_element_vector = find_beam_element_vector(self.node_1_number, self.node_2_number, nodes)?;
+        let beam_element_length = beam_element_vector.norm()?;
+
+        let mut strain_displacement_matrix_thv = Matrix::create(
+            1,
+            BEAM_NODES_NUMBER * BEAM_NODE_DOF,
+            &[V::from(0f32); BEAM_NODES_NUMBER * BEAM_NODE_DOF],
+        );
+        for (r, _alpha) in self.integration_points.iter()
+        {
+            let strain_displacement_matrix_thv_at_r = strain_displacement_matrix_thv_at_r(
+                self.node_1_number, self.node_2_number, *r, nodes,
+            )?;
+            strain_displacement_matrix_thv = strain_displacement_matrix_thv.add(&strain_displacement_matrix_thv_at_r)?;
+        }
+        let element_strains_thv = strain_displacement_matrix_thv.multiply(&local_displacements)?;
+        let element_forces_thv = element_strains_thv.multiply_by_scalar(
+            self.young_modulus * self.i22_p / V::from(self.integration_points.len() as f32),
+        );
+        let moment_s_average = *element_forces_thv.get_element_value(&Position(0, 0))?;
+        let moment_s_at_node_1 = moment_s_average + beam_element_length * force_t_value / V::from(2f32);
+        let moment_s_at_node_2 = moment_s_average - beam_element_length * force_t_value / V::from(2f32);
+
+        let mut strain_displacement_matrix_thw = Matrix::create(
+            1,
+            BEAM_NODES_NUMBER * BEAM_NODE_DOF,
+            &[V::from(0f32); BEAM_NODES_NUMBER * BEAM_NODE_DOF],
+        );
+        for (r, _alpha) in self.integration_points.iter()
+        {
+            let strain_displacement_matrix_thw_at_r = strain_displacement_matrix_thw_at_r(
+                self.node_1_number, self.node_2_number, *r, nodes,
+            )?;
+            strain_displacement_matrix_thw = strain_displacement_matrix_thw.add(&strain_displacement_matrix_thw_at_r)?;
+        }
+        let element_strains_thw = strain_displacement_matrix_thw.multiply(&local_displacements)?;
+        let element_forces_thw = element_strains_thw.multiply_by_scalar(
+            self.young_modulus * self.i11_p / V::from(self.integration_points.len() as f32),
+        );
+        let moment_t_average = *element_forces_thw.get_element_value(&Position(0, 0))?;
+        let moment_t_at_node_1 = moment_t_average + beam_element_length * force_s_value / V::from(2f32);
+        let moment_t_at_node_2 = moment_t_average - beam_element_length * force_s_value / V::from(2f32);
 
         let element_analysis_data = vec![
             (
@@ -843,11 +905,39 @@ impl<V> Beam<V>
             ),
             (
                 ElementForceComponent::ForceS,
-                *element_forces_v.get_element_value(&Position(0, 0))?,
+                force_s_value,
             ),
             (
                 ElementForceComponent::ForceT,
-                *element_forces_w.get_element_value(&Position(0, 0))?,
+                force_t_value,
+            ),
+            (
+                ElementForceComponent::MomentR,
+                *element_forces_thu.get_element_value(&Position(0, 0))?,
+            ),
+            (
+                ElementForceComponent::MomentS,
+                moment_s_at_node_1,
+            ),
+            (
+                ElementForceComponent::MomentS,
+                moment_s_average,
+            ),
+            (
+                ElementForceComponent::MomentS,
+                moment_s_at_node_2,
+            ),
+            (
+                ElementForceComponent::MomentT,
+                moment_t_at_node_1,
+            ),
+            (
+                ElementForceComponent::MomentT,
+                moment_t_average,
+            ),
+            (
+                ElementForceComponent::MomentT,
+                moment_t_at_node_2,
             ),
         ];
 
