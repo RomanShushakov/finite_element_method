@@ -98,6 +98,9 @@ impl<V> FEM<V>
 
         let rotation_matrix = plate_element.extract_rotation_matrix();
 
+        let f = |data: &str| println!("{data}");
+        rotation_matrix.show(f);
+
         // let local_stiffness_matrix = beam_element.extract_local_stiffness_matrix(self.get_nodes())?;
         // let transformed_local_stiffness_matrix = rotation_matrix
         //     .transpose()

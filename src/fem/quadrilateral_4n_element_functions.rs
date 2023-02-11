@@ -1,6 +1,10 @@
 use std::collections::HashMap;
 
-use extended_matrix::{FloatTrait, Vector3, VectorTrait, BasicOperationsTrait, Position, Matrix, SquareMatrix};
+use extended_matrix::
+{
+    FloatTrait, Vector3, VectorTrait, BasicOperationsTrait, Position, Matrix, SquareMatrix, Vector,
+    SquareMatrixTrait,
+};
 
 use crate::fem::math_functions::compare_with_tolerance;
 use crate::fem::convex_hull_on_plane::{Point, convex_hull_on_plane};
@@ -302,24 +306,26 @@ fn extract_transformed_directions_of_nodes<V>(
     let transformed_node_2_direction = rotation_matrix.multiply(&node_2_direction)?;
     let transformed_node_4_direction = rotation_matrix.multiply(&node_4_direction)?;
 
-    let transformed_directions_of_nodes = [
+    Ok
+    (
         [
-            *transformed_node_1_direction.get_element_value(&Position(0, 0))?, 
-            *transformed_node_1_direction.get_element_value(&Position(1, 0))?, 
-            *transformed_node_1_direction.get_element_value(&Position(2, 0))?,
-        ],
-        [
-            *transformed_node_2_direction.get_element_value(&Position(0, 0))?, 
-            *transformed_node_2_direction.get_element_value(&Position(1, 0))?, 
-            *transformed_node_2_direction.get_element_value(&Position(2, 0))?,
-        ],
-        [
-            *transformed_node_4_direction.get_element_value(&Position(0, 0))?,
-            *transformed_node_4_direction.get_element_value(&Position(1, 0))?,
-            *transformed_node_4_direction.get_element_value(&Position(2, 0))?,
-        ],
-    ];
-    Ok(transformed_directions_of_nodes)
+            [
+                *transformed_node_1_direction.get_element_value(&Position(0, 0))?, 
+                *transformed_node_1_direction.get_element_value(&Position(1, 0))?, 
+                *transformed_node_1_direction.get_element_value(&Position(2, 0))?,
+            ],
+            [
+                *transformed_node_2_direction.get_element_value(&Position(0, 0))?, 
+                *transformed_node_2_direction.get_element_value(&Position(1, 0))?, 
+                *transformed_node_2_direction.get_element_value(&Position(2, 0))?,
+            ],
+            [
+                *transformed_node_4_direction.get_element_value(&Position(0, 0))?,
+                *transformed_node_4_direction.get_element_value(&Position(1, 0))?,
+                *transformed_node_4_direction.get_element_value(&Position(2, 0))?,
+            ],
+        ]
+    )
 }
 
 
@@ -330,14 +336,14 @@ pub fn jacobian_at_r_s<V>(
     node_4_number: u32,
     r: V, 
     s: V, 
-    ref_nodes: &HashMap<u32, Node<V>>, 
+    nodes: &HashMap<u32, Node<V>>, 
     rotation_matrix_elements: &[V; 9],
 ) 
     -> Result<SquareMatrix<V>, String>
     where V: FloatTrait<Output = V>
 {
     let transformed_directions_of_nodes = extract_transformed_directions_of_nodes(
-        node_1_number, node_2_number, node_3_number, node_4_number, ref_nodes, rotation_matrix_elements,
+        node_1_number, node_2_number, node_3_number, node_4_number, nodes, rotation_matrix_elements,
     )?;
 
     let transformed_node_1_direction_x = transformed_directions_of_nodes[0][0];
@@ -346,43 +352,202 @@ pub fn jacobian_at_r_s<V>(
     let transformed_node_2_direction_y = transformed_directions_of_nodes[1][1];
     let transformed_node_4_direction_x = transformed_directions_of_nodes[2][0];
     let transformed_node_4_direction_y = transformed_directions_of_nodes[2][1];
-    
-    let jacobian_elements = [
-        dx_dr(
-            transformed_node_1_direction_x,
-            transformed_node_2_direction_x, 
-            V::from(0f32),
-            transformed_node_4_direction_x,
-            r,
-            s,
-        ),
-        dy_dr(
-            transformed_node_1_direction_y,
-            transformed_node_2_direction_y, 
-            V::from(0f32),
-            transformed_node_4_direction_y,
-            r,
-            s,
-        ),
-        dx_ds(
-            transformed_node_1_direction_x,
-            transformed_node_2_direction_x, 
-            V::from(0f32),
-            transformed_node_4_direction_x,
-            r,
-            s,
-        ),
-        dy_ds(
-            transformed_node_1_direction_y,
-            transformed_node_2_direction_y, 
-            V::from(0f32),
-            transformed_node_4_direction_y,
-            r,
-            s,
-        ),
-    ];
 
-    let jacobian = SquareMatrix::create(2, &jacobian_elements);
+    Ok
+    (
+        SquareMatrix::create(
+            2,
+            &[
+                dx_dr(
+                    transformed_node_1_direction_x,
+                    transformed_node_2_direction_x, 
+                    V::from(0f32),
+                    transformed_node_4_direction_x,
+                    r,
+                    s,
+                ),
+                dy_dr(
+                    transformed_node_1_direction_y,
+                    transformed_node_2_direction_y, 
+                    V::from(0f32),
+                    transformed_node_4_direction_y,
+                    r,
+                    s,
+                ),
+                dx_ds(
+                    transformed_node_1_direction_x,
+                    transformed_node_2_direction_x, 
+                    V::from(0f32),
+                    transformed_node_4_direction_x,
+                    r,
+                    s,
+                ),
+                dy_ds(
+                    transformed_node_1_direction_y,
+                    transformed_node_2_direction_y, 
+                    V::from(0f32),
+                    transformed_node_4_direction_y,
+                    r,
+                    s,
+                ),
+            ],
+        )
+    )
+}
 
-    Ok(jacobian)
+
+fn inverse_jacobian_at_r_s<V>(
+    node_1_number: u32, 
+    node_2_number: u32, 
+    node_3_number: u32, 
+    node_4_number: u32,
+    r: V, 
+    s: V, 
+    nodes: &HashMap<u32, Node<V>>, 
+    rotation_matrix_elements: &[V; 9],
+    rel_tol: V,
+) 
+    -> Result<SquareMatrix<V>, String>
+    where V: FloatTrait<Output = V>
+{
+    let jacobian = jacobian_at_r_s(
+        node_1_number, node_2_number, node_3_number, node_4_number, r, s, nodes, rotation_matrix_elements,
+    )?;
+    let mut x = Vector::create(&vec![V::from(0f32); jacobian.get_shape().0]);
+    let inverse_jacobian = jacobian.inverse(&mut x, rel_tol)?;
+    Ok(inverse_jacobian)
+}
+
+
+pub fn determinant_of_jacobian_at_r_s<V>(
+    node_1_number: u32, 
+    node_2_number: u32, 
+    node_3_number: u32, 
+    node_4_number: u32,
+    r: V, 
+    s: V, 
+    nodes: &HashMap<u32, Node<V>>, 
+    rotation_matrix_elements: &[V; 9],
+    rel_tol: V,
+) 
+    -> Result<V, String>
+    where V: FloatTrait<Output = V>
+{
+    let jacobian = jacobian_at_r_s(
+        node_1_number, node_2_number, node_3_number, node_4_number, r, s, nodes, rotation_matrix_elements,
+    )?;
+    let determinant_of_jacobian = jacobian.determinant(rel_tol);
+    Ok(determinant_of_jacobian)
+}
+
+
+
+fn dh1_dr<V>(r: V, s: V) -> V
+    where V: FloatTrait<Output = V>
+{
+    derivative_x(power_func_x, V::from(0.25f32), V::from(0f32), 0) +
+    derivative_x(power_func_x, V::from(0.25f32) * s, V::from(0f32), 0) + 
+    derivative_x(power_func_x, V::from(0.25f32), r, 1) + 
+    derivative_x(power_func_x, V::from(0.25f32) * s, r, 1)
+}
+
+
+fn dh2_dr<V>(r: V, s: V) -> V
+    where V: FloatTrait<Output = V>
+{
+    derivative_x(power_func_x, V::from(0.25f32), V::from(0f32), 0) +
+    derivative_x(power_func_x, V::from(0.25f32) * s, V::from(0f32), 0) - 
+    derivative_x(power_func_x, V::from(0.25f32), r, 1) - 
+    derivative_x(power_func_x, V::from(0.25f32) * s, r, 1)
+}
+
+
+fn dh3_dr<V>(r: V, s: V) -> V
+    where V: FloatTrait<Output = V>
+{
+    derivative_x(power_func_x, V::from(0.25f32), V::from(0f32), 0) -
+    derivative_x(power_func_x, V::from(0.25f32) * s, V::from(0f32), 0) - 
+    derivative_x(power_func_x, V::from(0.25f32), r, 1) + 
+    derivative_x(power_func_x, V::from(0.25f32) * s, r, 1)
+}
+
+
+fn dh4_dr<V>(r: V, s: V) -> V
+    where V: FloatTrait<Output = V>
+{
+    derivative_x(power_func_x, V::from(0.25f32), V::from(0f32), 0) -
+    derivative_x(power_func_x, V::from(0.25f32) * s, V::from(0f32), 0) + 
+    derivative_x(power_func_x, V::from(0.25f32), r, 1) - 
+    derivative_x(power_func_x, V::from(0.25f32) * s, r, 1)
+}
+
+
+fn dh1_ds<V>(r: V, s: V) -> V
+    where V: FloatTrait<Output = V>
+{
+    derivative_x(power_func_x, V::from(0.25f32), V::from(0f32), 0) +
+    derivative_x(power_func_x, V::from(0.25f32), s, 1) + 
+    derivative_x(power_func_x, V::from(0.25f32) * r, V::from(0f32), 0) + 
+    derivative_x(power_func_x, V::from(0.25f32) * r, s, 1)
+}
+
+
+fn dh2_ds<V>(r: V, s: V) -> V
+    where V: FloatTrait<Output = V>
+{
+    derivative_x(power_func_x, V::from(0.25f32), V::from(0f32), 0) +
+    derivative_x(power_func_x, V::from(0.25f32), s, 1) - 
+    derivative_x(power_func_x, V::from(0.25f32) * r, V::from(0f32), 0) - 
+    derivative_x(power_func_x, V::from(0.25f32) * r, s, 1)
+}
+
+
+fn dh3_ds<V>(r: V, s: V) -> V
+    where V: FloatTrait<Output = V>
+{
+    derivative_x(power_func_x, V::from(0.25f32), V::from(0f32), 0) -
+    derivative_x(power_func_x, V::from(0.25f32), s, 1) - 
+    derivative_x(power_func_x, V::from(0.25f32) * r, V::from(0f32), 0) + 
+    derivative_x(power_func_x, V::from(0.25f32) * r, s, 1)
+}
+
+
+fn dh4_ds<V>(r: V, s: V) -> V
+    where V: FloatTrait<Output = V>
+{
+    derivative_x(power_func_x, V::from(0.25f32), V::from(0f32), 0) -
+    derivative_x(power_func_x, V::from(0.25f32), s, 1) + 
+    derivative_x(power_func_x, V::from(0.25f32) * r, V::from(0f32), 0) - 
+    derivative_x(power_func_x, V::from(0.25f32) * r, s, 1)
+}
+
+
+fn dh_dx_dh_dy<V>(
+    node_1_number: u32, 
+    node_2_number: u32, 
+    node_3_number: u32, 
+    node_4_number: u32,
+    r: V, 
+    s: V, 
+    nodes: &HashMap<u32, Node<V>>, 
+    rotation_matrix_elements: &[V; 9],
+    rel_tol: V,
+) 
+    -> Result<Matrix<V>, String>
+    where V: FloatTrait<Output = V>
+{
+    let inverse_jacobian = inverse_jacobian_at_r_s(
+        node_1_number, node_2_number, node_3_number, node_4_number, r, s, nodes, rotation_matrix_elements, rel_tol,
+    )?;
+    let dh_dr_dh_ds = Matrix::create(
+        2, 
+        4, 
+        &[
+            dh1_dr(r, s), dh2_dr(r, s), 
+            dh3_dr(r, s), dh4_dr(r, s),
+            dh1_ds(r, s), dh2_ds(r, s), 
+            dh3_ds(r, s), dh4_ds(r, s),
+        ], 
+    );
+    Ok(inverse_jacobian.multiply(&dh_dr_dh_ds)?)
 }
