@@ -11,7 +11,7 @@ use extended_matrix::
 use crate::fem::structs::{Node, NODE_DOF};
 use crate::fem::methods_for_element_analysis::ElementForceComponent;
 use crate::fem::math_functions::compare_with_tolerance;
-use crate::fem::bar_element_2n_functions::
+use crate::fem::bar_2n_element_functions::
 {
     find_2n_element_vector, inverse_jacobian_at_r, determinant_of_jacobian_at_r, h1_r, h2_r, dh1_dr, dh2_dr,
 };

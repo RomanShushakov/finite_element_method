@@ -29,4 +29,10 @@ mod methods_for_beam_data_handle;
 
 mod math_functions;
 
-mod bar_element_2n_functions;
+mod bar_2n_element_functions;
+
+mod quadrilateral_4n_element_functions;
+pub use quadrilateral_4n_element_functions::
+{
+    is_points_of_quadrilateral_on_the_same_line, is_points_of_quadrilateral_on_the_same_plane,
+};
