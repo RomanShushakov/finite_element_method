@@ -81,14 +81,14 @@ pub fn is_points_of_quadrilateral_on_the_same_plane<V>(
 }
 
 
-fn rotation_matrix_of_quadrilateral<V>(
+pub fn find_rotation_matrix_elements_of_quadrilateral<V>(
     point_2: &[V], 
     point_3: &[V], 
     point_4: &[V], 
     rel_tol: V,
     abs_tol: V,
 ) 
-    -> Result<Matrix<V>, String>
+    -> Result<[V; 9], String>
     where V: FloatTrait<Output = V>
 {
     let edge_3_4 = Vector3::create(
@@ -108,7 +108,14 @@ fn rotation_matrix_of_quadrilateral<V>(
     let rotation_matrix = normal_through_node_3_vector
         .rotation_matrix_to_align_with_vector(&direction_vector, rel_tol, abs_tol)?;
 
-    Ok(rotation_matrix)
+    let mut rotation_matrix_elements = [V::from(0f32); 9];
+    for i in 0..9
+    {
+        let element_value = *rotation_matrix.get_element_value(&Position(i / 3, i % 3))?;
+        rotation_matrix_elements[i] = element_value;
+    }
+
+    Ok(rotation_matrix_elements)
 }
 
 
@@ -121,9 +128,12 @@ pub fn convex_hull_on_four_points_on_plane<V>(
     -> Result<Vec<u32>, String>
     where V: FloatTrait<Output = V>
 {
-    let rotation_matrix = rotation_matrix_of_quadrilateral::<V>(
+    let rotation_matrix_elements = find_rotation_matrix_elements_of_quadrilateral::<V>(
         points[1], points[2], points[3], rel_tol, abs_tol,
     )?;
+    let rotation_matrix = Matrix::create(
+        3, 3, &rotation_matrix_elements,
+    );
 
     let point_1_direction = Vector3::create(&[
         points[0][0] - points[2][0], points[0][1] - points[2][1], points[0][2] - points[2][2],

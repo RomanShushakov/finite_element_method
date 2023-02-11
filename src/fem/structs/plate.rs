@@ -10,6 +10,11 @@ use extended_matrix::
 
 use crate::fem::structs::{Node, NODE_DOF};
 use crate::fem::methods_for_element_analysis::ElementForceComponent;
+use crate::fem::quadrilateral_4n_element_functions::
+{
+    is_points_of_quadrilateral_on_the_same_line, is_points_of_quadrilateral_on_the_same_plane, 
+    find_rotation_matrix_elements_of_quadrilateral, convex_hull_on_four_points_on_plane,
+};
 
 
 const PLATE_NODES_NUMBER: usize = 4;
@@ -22,6 +27,9 @@ enum PlateElementDataError<V>
     PoissonRatio(V),
     Thickness(V),
     ShearFactor(V),
+    NodesOnLine(u32),
+    NodesNotOnPlane(u32),
+    NotConvex(u32),
 }
 
 
@@ -36,13 +44,30 @@ impl<V> PlateElementDataError<V>
             Self::PoissonRatio(value) => format!("Poisson's ratio {value:?} is less or equal to zero!"),
             Self::Thickness(value) => format!("Thickness {value:?} is less or equal to zero!"),
             Self::ShearFactor(value) => format!("Shear factor {value:?} is less or equal to zero!"),
+            Self::NodesOnLine(n) => format!("Some nodes of {n} element lie on the line!"),
+            Self::NodesNotOnPlane(n) => format!("Not all nodes of {n} element lie on the plane!"),
+            Self::NotConvex(n) => format!("Element {n} non-convex!"),
         }
     }
 }
 
 
-fn check_plate_properties<V>(young_modulus: V, poisson_ratio: V, thickness: V, shear_factor: V) -> Result<(), String>
-    where V: Debug + PartialEq + PartialOrd + From<f32>
+fn check_plate_properties<V>(
+    number: u32,
+    young_modulus: V,
+    poisson_ratio: V,
+    thickness: V,
+    shear_factor: V,
+    node_1_number: u32,
+    node_2_number: u32,
+    node_3_number: u32,
+    node_4_number: u32,
+    nodes: &HashMap<u32, Node<V>>,
+    rel_tol: V,
+    abs_tol: V,
+) 
+    -> Result<(), String>
+    where V: FloatTrait<Output = V>
 {
     if young_modulus <= V::from(0f32)
     {
@@ -60,6 +85,41 @@ fn check_plate_properties<V>(young_modulus: V, poisson_ratio: V, thickness: V, s
     {
         return Err(PlateElementDataError::<V>::ShearFactor(shear_factor).compose_error_message());
     }
+    if is_points_of_quadrilateral_on_the_same_line(
+        &nodes.get(&node_1_number).ok_or(format!("Node {node_1_number} is absent!"))?.get_coordinates(),
+        &nodes.get(&node_2_number).ok_or(format!("Node {node_1_number} is absent!"))?.get_coordinates(),
+        &nodes.get(&node_3_number).ok_or(format!("Node {node_1_number} is absent!"))?.get_coordinates(),
+        &nodes.get(&node_4_number).ok_or(format!("Node {node_1_number} is absent!"))?.get_coordinates(),
+    )
+    {
+        return Err(PlateElementDataError::<V>::NodesOnLine(number).compose_error_message());
+    }
+    if is_points_of_quadrilateral_on_the_same_plane(
+        &nodes.get(&node_1_number).ok_or(format!("Node {node_1_number} is absent!"))?.get_coordinates(),
+        &nodes.get(&node_2_number).ok_or(format!("Node {node_1_number} is absent!"))?.get_coordinates(),
+        &nodes.get(&node_3_number).ok_or(format!("Node {node_1_number} is absent!"))?.get_coordinates(),
+        &nodes.get(&node_4_number).ok_or(format!("Node {node_1_number} is absent!"))?.get_coordinates(),
+        abs_tol,
+    )
+    {
+        return Err(PlateElementDataError::<V>::NodesNotOnPlane(number).compose_error_message());
+    }
+    if convex_hull_on_four_points_on_plane(
+            &[node_1_number, node_2_number, node_3_number, node_4_number],
+            &[
+                &nodes.get(&node_1_number).ok_or(format!("Node {node_1_number} is absent!"))?.get_coordinates(),
+                &nodes.get(&node_2_number).ok_or(format!("Node {node_1_number} is absent!"))?.get_coordinates(),
+                &nodes.get(&node_3_number).ok_or(format!("Node {node_1_number} is absent!"))?.get_coordinates(),
+                &nodes.get(&node_4_number).ok_or(format!("Node {node_1_number} is absent!"))?.get_coordinates(),
+            ],
+            rel_tol,
+            abs_tol,
+        )?
+        .len() != 4
+    {
+        return Err(PlateElementDataError::<V>::NotConvex(number).compose_error_message());
+    }
+
     Ok(())
 }
 
