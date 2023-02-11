@@ -73,6 +73,7 @@ impl<V> FEM<V>
         }
 
         let beam_element = Beam::create(
+            number,
             node_1_number,
             node_2_number,
             young_modulus,

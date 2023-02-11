@@ -30,6 +30,7 @@ enum BeamElementDataError<V>
     I22(V),
     It(V),
     ShearFactor(V),
+    ParallelLocalAxis(u32, V, V, V),
 }
 
 
@@ -47,16 +48,31 @@ impl<V> BeamElementDataError<V>
             Self::I22(value) => format!("I22 {value:?} is less or equal to zero!"),
             Self::It(value) => format!("It {value:?} is less or equal to zero!"),
             Self::ShearFactor(value) => format!("Shear factor {value:?} is less or equal to zero!"),
+            Self::ParallelLocalAxis(number, x, y, z) => 
+            {
+                format!("Local axis 1 direction [{x:?}, {y:?}, {z:?}] parallel to element {number}!")
+            },
         }
     }
 }
 
 
 fn check_beam_properties<V>(
-    young_modulus: V, poisson_ratio: V, area: V, i11: V, i22: V, it: V, shear_factor: V,
+    number: u32,
+    young_modulus: V, 
+    poisson_ratio: V, 
+    area: V, 
+    i11: V, 
+    i22: V, 
+    it: V, 
+    shear_factor: V, 
+    node_1_number: u32,
+    node_2_number: u32,
+    nodes: &HashMap<u32, Node<V>>,
+    local_axis_1_direction: &[V; 3],
 ) 
     -> Result<(), String>
-    where V: Debug + PartialEq + PartialOrd + From<f32>
+    where V: FloatTrait<Output = V>
 {
     if young_modulus <= V::from(0f32)
     {
@@ -86,6 +102,20 @@ fn check_beam_properties<V>(
     {
         return Err(BeamElementDataError::<V>::ShearFactor(shear_factor).compose_error_message());
     }
+
+    let beam_element_vector = find_2n_element_vector(node_1_number, node_2_number, nodes)?;
+    let local_axis_1_direction_vector = Vector3::create(local_axis_1_direction);
+    let projection_of_beam_section_orientation = local_axis_1_direction_vector
+        .projection_perpendicular_to_vector(&beam_element_vector);
+    if projection_of_beam_section_orientation.norm()? == V::from(0f32)
+    {
+        return Err(BeamElementDataError::<V>::ParallelLocalAxis(
+                number, local_axis_1_direction[0], local_axis_1_direction[1], local_axis_1_direction[2]
+            )
+            .compose_error_message()
+        );
+    }
+
     Ok(())
 }
 
@@ -568,6 +598,7 @@ impl<V> Beam<V>
     where V: FloatTrait<Output = V>
 {
     pub fn create(
+        number: u32,
         node_1_number: u32,
         node_2_number: u32,
         young_modulus: V,
@@ -585,7 +616,20 @@ impl<V> Beam<V>
     )
         -> Result<Self, String>
     {
-        check_beam_properties(young_modulus, poisson_ratio, area, i11, i22, it, shear_factor)?;
+        check_beam_properties(
+            number, 
+            young_modulus, 
+            poisson_ratio, 
+            area, 
+            i11, 
+            i22, 
+            it, 
+            shear_factor, 
+            node_1_number, 
+            node_2_number, 
+            nodes, 
+            &local_axis_1_direction,
+        )?;
 
         let (i11_p, i22_p, angle) = find_principal_moments_of_inertia(i11, i22, i12);
 
