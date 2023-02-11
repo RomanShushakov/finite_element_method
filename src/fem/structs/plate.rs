@@ -45,7 +45,7 @@ impl<V> PlateElementDataError<V>
             Self::Thickness(value) => format!("Thickness {value:?} is less or equal to zero!"),
             Self::ShearFactor(value) => format!("Shear factor {value:?} is less or equal to zero!"),
             Self::NodesOnLine(n) => format!("Some nodes of {n} element lie on the line!"),
-            Self::NodesNotOnPlane(n) => format!("Not all nodes of {n} element lie on the plane!"),
+            Self::NodesNotOnPlane(n) => format!("Not all nodes of element {n} lie on the plane!"),
             Self::NotConvex(n) => format!("Element {n} non-convex!"),
         }
     }
@@ -94,7 +94,7 @@ fn check_plate_properties<V>(
     {
         return Err(PlateElementDataError::<V>::NodesOnLine(number).compose_error_message());
     }
-    if is_points_of_quadrilateral_on_the_same_plane(
+    if !is_points_of_quadrilateral_on_the_same_plane(
         &nodes.get(&node_1_number).ok_or(format!("Node {node_1_number} is absent!"))?.get_coordinates(),
         &nodes.get(&node_2_number).ok_or(format!("Node {node_1_number} is absent!"))?.get_coordinates(),
         &nodes.get(&node_3_number).ok_or(format!("Node {node_1_number} is absent!"))?.get_coordinates(),
@@ -122,149 +122,6 @@ fn check_plate_properties<V>(
 
     Ok(())
 }
-
-
-// fn find_principal_moments_of_inertia<V>(i11: V, i22: V, i12: V) -> (V, V, V)
-//     where V: FloatTrait<Output = V>
-// {
-//     let mut angle = (V::from(2f32) * i12 / (i22 - i11)).my_atan() / V::from(2f32);
-
-//     let mut i11_p = i11 * (angle.my_cos()).my_powi(2) +
-//         i22 * (angle.my_sin()).my_powi(2) -
-//         i12 * (V::from(2f32) * angle).my_sin();
-
-//     let mut i22_p = i11 * (angle.my_sin()).my_powi(2) +
-//         i22 * (angle.my_cos()).my_powi(2) +
-//         i12 * (V::from(2f32) * angle).my_sin();
-
-//     let mut i = 1;
-//     while i11_p < i22_p
-//     {
-//         angle = ((V::from(2f32) * i12 / (i22 - i11)).my_atan() +
-//             V::from(PI) * V::from(i as f32)) / V::from(2f32);
-//         i11_p = i11 * (angle.my_cos()).my_powi(2) +
-//             i22 * (angle.my_sin()).my_powi(2) -
-//             i12 * (V::from(2f32) * angle).my_sin();
-//         i22_p = i11 * (angle.my_sin()).my_powi(2) +
-//             i22 * (angle.my_cos()).my_powi(2) +
-//             i12 * (V::from(2f32) * angle).my_sin();
-//         i += 1;
-//     }
-
-//     (i11_p, i22_p, angle)
-// }
-
-
-// fn find_beam_element_vector<V>(
-//     node_1_number: u32, node_2_number: u32, nodes: &HashMap<u32, Node<V>>,
-// )
-//     -> Result<Vector3<V>, String>
-//     where V: FloatTrait<Output = V>
-// {
-//     let node_1 = nodes.get(&node_1_number).ok_or(format!("Node {node_1_number} does not exist!"))?;
-//     let node_2 = nodes.get(&node_2_number).ok_or(format!("Node {node_2_number} does not exist!"))?;
-
-//     let truss_element_vector_components: [V; 3] = node_2
-//         .get_coordinates()
-//         .iter()
-//         .zip(node_1.get_coordinates())
-//         .map(|(n, m)| *n - m)
-//         .collect::<Vec<V>>()
-//         .try_into()
-//         .map_err(|e| format!("{e:?} could not be converted to arr[3]"))?;
-
-//     Ok(Vector3::create(&truss_element_vector_components))
-// }
-
-
-// fn compare_with_tolerance<V>(value: V, abs_tol: V) -> V
-//     where V: FloatTrait<Output = V>
-// {
-//     if value.my_abs() < abs_tol
-//     {
-//         V::from(0f32)
-//     }
-//     else
-//     {
-//         value
-//     }
-// }
-
-
-// fn find_rotation_matrix_elements<V>(
-//     node_1_number: u32,
-//     node_2_number: u32,
-//     local_axis_1_direction: &[V; 3],
-//     angle: V,
-//     nodes: &HashMap<u32, Node<V>>,
-//     rel_tol: V,
-//     abs_tol: V,
-// )
-//     -> Result<[V; 9], String>
-//     where V: FloatTrait<Output = V>
-// {
-//     let beam_element_vector = find_beam_element_vector(node_1_number, node_2_number, nodes)?;
-
-//     let beam_element_length = beam_element_vector.norm()?;
-//     let direction_vector = Vector3::create(
-//         &[beam_element_length, V::from(0f32), V::from(0f32)],
-//     );
-
-//     let interim_rotation_matrix = beam_element_vector
-//         .rotation_matrix_to_align_with_vector(&direction_vector, rel_tol, abs_tol)?;
-
-//     let local_axis_1_direction_vector = Vector3::create(local_axis_1_direction);
-//     let projection_of_beam_section_orientation = local_axis_1_direction_vector
-//         .projection_perpendicular_to_vector(&beam_element_vector);
-
-//     let transformed_projection_of_beam_section_orientation = interim_rotation_matrix
-//         .multiply(&projection_of_beam_section_orientation)?;
-
-//     let transformed_projection_of_beam_section_orientation_x = 
-//         *transformed_projection_of_beam_section_orientation.get_element_value(&Position(0, 0))?;
-
-//     let transformed_projection_of_beam_section_orientation_y =
-//         *transformed_projection_of_beam_section_orientation.get_element_value(&Position(1, 0))?;
-
-//     let transformed_projection_of_beam_section_orientation_z =
-//         *transformed_projection_of_beam_section_orientation.get_element_value(&Position(2, 0))?;
-
-//     let angle_between_beam_section_local_axis_1_direction_and_axis_t =
-//         (transformed_projection_of_beam_section_orientation_z /
-//         (transformed_projection_of_beam_section_orientation_x.my_powi(2) +
-//         transformed_projection_of_beam_section_orientation_y.my_powi(2) +
-//         transformed_projection_of_beam_section_orientation_z.my_powi(2))
-//             .my_sqrt()
-//         ).my_acos();
-
-//     let total_angle = angle + angle_between_beam_section_local_axis_1_direction_and_axis_t;
-//     let [x, y, z] = beam_element_vector.get_components();
-
-//     let c_x = compare_with_tolerance(x / beam_element_length, abs_tol);
-//     let c_y = compare_with_tolerance(y / beam_element_length, abs_tol);
-//     let c_z = compare_with_tolerance(z / beam_element_length, abs_tol);
-//     let c_xz = compare_with_tolerance((c_x.my_powi(2) + c_z.my_powi(2)).my_sqrt(), abs_tol);
-
-//     let c = compare_with_tolerance(total_angle.my_cos(), abs_tol);
-//     let s = compare_with_tolerance(total_angle.my_sin(), abs_tol);
-
-//     let r_11 = if c_xz != V::from(0f32) { c_x } else { V::from(0f32) };
-//     let r_12 = c_y;
-//     let r_13 = if c_xz != V::from(0f32) { c_z } else { V::from(0f32) };
-//     let r_21 = if c_xz != V::from(0f32) { (V::from(-1f32) * c_x * c_y * c - c_z * s) / c_xz }
-//         else { V::from(-1f32) * c_y * c };
-//     let r_22 = if c_xz != V::from(0f32) { c_xz * c } else { V::from(0f32) };
-//     let r_23 = if c_xz != V::from(0f32)
-//         { (V::from(-1f32) * c_y * c_z * c + c_x * s) / c_xz } else { s };
-//     let r_31 = if c_xz != V::from(0f32)
-//         { (c_x * c_y * s - c_z * c) / c_xz } else { c_y * s };
-//     let r_32 = if c_xz != V::from(0f32)
-//         { V::from(-1f32) * c_xz * s } else { V::from(0f32) };
-//     let r_33 = if c_xz != V::from(0f32)
-//         { (c_y * c_z * s + c_x * c) / c_xz } else { c };
-
-//     Ok([r_11, r_12, r_13, r_21, r_22, r_23, r_31, r_32, r_33])
-// }
 
 
 // fn power_func_x<V>(a: V, x: V, n: i32) -> V
@@ -656,53 +513,141 @@ fn check_plate_properties<V>(
 // }
 
 
-// fn compose_rotation_matrix<V>(rotation_matrix_elements: &[V; 9]) -> SquareMatrix<V>
-//     where V: FloatTrait<>
-// {
-//     let [r_11, r_12, r_13, r_21, r_22, r_23, r_31, r_32, r_33] = 
-//         rotation_matrix_elements;
+fn compose_rotation_matrix<V>(rotation_matrix_elements: &[V; 9]) -> SquareMatrix<V>
+    where V: FloatTrait<>
+{
+    let [q_11, q_12, q_13, q_21, q_22, q_23, q_31, q_32, q_33] = 
+        rotation_matrix_elements;
 
-//     SquareMatrix::create(
-//         BEAM_NODES_NUMBER * BEAM_NODE_DOF,
-//         &[
-//             [*r_11, *r_12, *r_13], [V::from(0f32); BEAM_NODE_DOF / 2], 
-//             [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
+    SquareMatrix::create(
+        PLATE_NODES_NUMBER * PLATE_NODE_DOF,
+        &[
+            [*q_11, *q_12, *q_13, V::from(0f32), V::from(0f32), V::from(0f32)],
+            [V::from(0f32); PLATE_NODE_DOF], 
+            [V::from(0f32); PLATE_NODE_DOF],
+            [V::from(0f32); PLATE_NODE_DOF],
 
-//             [*r_21, *r_22, *r_23], [V::from(0f32); BEAM_NODE_DOF / 2], 
-//             [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
+            [*q_21, *q_22, *q_23, V::from(0f32), V::from(0f32), V::from(0f32)], 
+            [V::from(0f32); PLATE_NODE_DOF],
+            [V::from(0f32); PLATE_NODE_DOF], 
+            [V::from(0f32); PLATE_NODE_DOF],
 
-//             [*r_31, *r_32, *r_33], [V::from(0f32); BEAM_NODE_DOF / 2],
-//             [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
+            [*q_31, *q_32, *q_33, V::from(0f32), V::from(0f32), V::from(0f32)], 
+            [V::from(0f32); PLATE_NODE_DOF],
+            [V::from(0f32); PLATE_NODE_DOF], 
+            [V::from(0f32); PLATE_NODE_DOF],
 
-//             [V::from(0f32); BEAM_NODE_DOF / 2], [*r_11, *r_12, *r_13], 
-//             [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
+            [V::from(0f32), V::from(0f32), V::from(0f32), *q_11, *q_12, *q_13],
+            [V::from(0f32); PLATE_NODE_DOF], 
+            [V::from(0f32); PLATE_NODE_DOF],
+            [V::from(0f32); PLATE_NODE_DOF],
 
-//             [V::from(0f32); BEAM_NODE_DOF / 2], [*r_21, *r_22, *r_23],
-//             [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
+            [V::from(0f32), V::from(0f32), V::from(0f32), *q_21, *q_22, *q_23],
+            [V::from(0f32); PLATE_NODE_DOF],
+            [V::from(0f32); PLATE_NODE_DOF], 
+            [V::from(0f32); PLATE_NODE_DOF],
 
-//             [V::from(0f32); BEAM_NODE_DOF / 2], [*r_31, *r_32, *r_33],
-//             [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
+            [V::from(0f32), V::from(0f32), V::from(0f32), *q_31, *q_32, *q_33],
+            [V::from(0f32); PLATE_NODE_DOF],
+            [V::from(0f32); PLATE_NODE_DOF], 
+            [V::from(0f32); PLATE_NODE_DOF],
 
-//             [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
-//             [*r_11, *r_12, *r_13], [V::from(0f32); BEAM_NODE_DOF / 2],
 
-//             [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
-//             [*r_21, *r_22, *r_23], [V::from(0f32); BEAM_NODE_DOF / 2],
+            [V::from(0f32); PLATE_NODE_DOF], 
+            [*q_11, *q_12, *q_13, V::from(0f32), V::from(0f32), V::from(0f32)],
+            [V::from(0f32); PLATE_NODE_DOF],
+            [V::from(0f32); PLATE_NODE_DOF],
 
-//             [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
-//             [*r_31, *r_32, *r_33], [V::from(0f32); BEAM_NODE_DOF / 2],
+            [V::from(0f32); PLATE_NODE_DOF],
+            [*q_21, *q_22, *q_23, V::from(0f32), V::from(0f32), V::from(0f32)], 
+            [V::from(0f32); PLATE_NODE_DOF], 
+            [V::from(0f32); PLATE_NODE_DOF],
 
-//             [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
-//             [V::from(0f32); BEAM_NODE_DOF / 2], [*r_11, *r_12, *r_13],
+            [V::from(0f32); PLATE_NODE_DOF],
+            [*q_31, *q_32, *q_33, V::from(0f32), V::from(0f32), V::from(0f32)], 
+            [V::from(0f32); PLATE_NODE_DOF], 
+            [V::from(0f32); PLATE_NODE_DOF],
 
-//             [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
-//             [V::from(0f32); BEAM_NODE_DOF / 2], [*r_21, *r_22, *r_23],
+            [V::from(0f32); PLATE_NODE_DOF], 
+            [V::from(0f32), V::from(0f32), V::from(0f32), *q_11, *q_12, *q_13],
+            [V::from(0f32); PLATE_NODE_DOF],
+            [V::from(0f32); PLATE_NODE_DOF],
 
-//             [V::from(0f32); BEAM_NODE_DOF / 2], [V::from(0f32); BEAM_NODE_DOF / 2],
-//             [V::from(0f32); BEAM_NODE_DOF / 2], [*r_31, *r_32, *r_33],
-//         ].concat(),
-//     )
-// }
+            [V::from(0f32); PLATE_NODE_DOF],
+            [V::from(0f32), V::from(0f32), V::from(0f32), *q_21, *q_22, *q_23],
+            [V::from(0f32); PLATE_NODE_DOF], 
+            [V::from(0f32); PLATE_NODE_DOF],
+
+            [V::from(0f32); PLATE_NODE_DOF],
+            [V::from(0f32), V::from(0f32), V::from(0f32), *q_31, *q_32, *q_33],
+            [V::from(0f32); PLATE_NODE_DOF], 
+            [V::from(0f32); PLATE_NODE_DOF],
+
+
+            [V::from(0f32); PLATE_NODE_DOF],
+            [V::from(0f32); PLATE_NODE_DOF], 
+            [*q_11, *q_12, *q_13, V::from(0f32), V::from(0f32), V::from(0f32)],
+            [V::from(0f32); PLATE_NODE_DOF],
+
+            [V::from(0f32); PLATE_NODE_DOF], 
+            [V::from(0f32); PLATE_NODE_DOF],
+            [*q_21, *q_22, *q_23, V::from(0f32), V::from(0f32), V::from(0f32)], 
+            [V::from(0f32); PLATE_NODE_DOF],
+
+            [V::from(0f32); PLATE_NODE_DOF], 
+            [V::from(0f32); PLATE_NODE_DOF],
+            [*q_31, *q_32, *q_33, V::from(0f32), V::from(0f32), V::from(0f32)], 
+            [V::from(0f32); PLATE_NODE_DOF],
+
+            [V::from(0f32); PLATE_NODE_DOF],
+            [V::from(0f32); PLATE_NODE_DOF], 
+            [V::from(0f32), V::from(0f32), V::from(0f32), *q_11, *q_12, *q_13],
+            [V::from(0f32); PLATE_NODE_DOF],
+
+            [V::from(0f32); PLATE_NODE_DOF], 
+            [V::from(0f32); PLATE_NODE_DOF],
+            [V::from(0f32), V::from(0f32), V::from(0f32), *q_21, *q_22, *q_23],
+            [V::from(0f32); PLATE_NODE_DOF],
+
+            [V::from(0f32); PLATE_NODE_DOF], 
+            [V::from(0f32); PLATE_NODE_DOF],
+            [V::from(0f32), V::from(0f32), V::from(0f32), *q_31, *q_32, *q_33],
+            [V::from(0f32); PLATE_NODE_DOF],
+
+
+            [V::from(0f32); PLATE_NODE_DOF],
+            [V::from(0f32); PLATE_NODE_DOF],
+            [V::from(0f32); PLATE_NODE_DOF], 
+            [*q_11, *q_12, *q_13, V::from(0f32), V::from(0f32), V::from(0f32)],
+
+            [V::from(0f32); PLATE_NODE_DOF],
+            [V::from(0f32); PLATE_NODE_DOF], 
+            [V::from(0f32); PLATE_NODE_DOF],
+            [*q_21, *q_22, *q_23, V::from(0f32), V::from(0f32), V::from(0f32)], 
+
+            [V::from(0f32); PLATE_NODE_DOF],
+            [V::from(0f32); PLATE_NODE_DOF], 
+            [V::from(0f32); PLATE_NODE_DOF],
+            [*q_31, *q_32, *q_33, V::from(0f32), V::from(0f32), V::from(0f32)], 
+
+            [V::from(0f32); PLATE_NODE_DOF],
+            [V::from(0f32); PLATE_NODE_DOF],
+            [V::from(0f32); PLATE_NODE_DOF], 
+            [V::from(0f32), V::from(0f32), V::from(0f32), *q_11, *q_12, *q_13],
+            
+            [V::from(0f32); PLATE_NODE_DOF],
+            [V::from(0f32); PLATE_NODE_DOF], 
+            [V::from(0f32); PLATE_NODE_DOF],
+            [V::from(0f32), V::from(0f32), V::from(0f32), *q_21, *q_22, *q_23],
+            
+            [V::from(0f32); PLATE_NODE_DOF],
+            [V::from(0f32); PLATE_NODE_DOF], 
+            [V::from(0f32); PLATE_NODE_DOF],
+            [V::from(0f32), V::from(0f32), V::from(0f32), *q_31, *q_32, *q_33],
+        ]
+        .concat(),
+    )
+}
 
 
 pub struct Plate<V>
@@ -723,86 +668,115 @@ pub struct Plate<V>
 impl<V> Plate<V>
     where V: FloatTrait<Output = V>
 {
-    // pub fn create(
-    //     node_1_number: u32,
-    //     node_2_number: u32,
-    //     node_3_number: u32,
-    //     node_4_number: u32,
-    //     young_modulus: V,
-    //     poisson_ratio: V,
-    //     thickness: V,
-    //     shear_factor: V,
-    //     nodes: &HashMap<u32, Node<V>>,
-    //     rel_tol: V,
-    //     abs_tol: V,
-    // )
-    //     -> Result<Self, String>
+    pub fn create(
+        number: u32,
+        node_1_number: u32,
+        node_2_number: u32,
+        node_3_number: u32,
+        node_4_number: u32,
+        young_modulus: V,
+        poisson_ratio: V,
+        thickness: V,
+        shear_factor: V,
+        nodes: &HashMap<u32, Node<V>>,
+        rel_tol: V,
+        abs_tol: V,
+    )
+        -> Result<Self, String>
+    {
+        check_plate_properties(
+            number,
+            young_modulus,
+            poisson_ratio,
+            thickness,
+            shear_factor,
+            node_1_number,
+            node_2_number,
+            node_3_number,
+            node_4_number,
+            nodes,
+            rel_tol,
+            abs_tol,
+        )?;
+
+        let rotation_matrix_elements = find_rotation_matrix_elements_of_quadrilateral(
+
+            &nodes.get(&node_2_number)
+                .ok_or(format!("Node {node_1_number} is absent!"))?
+                .get_coordinates(),
+            &nodes.get(&node_3_number)
+                .ok_or(format!("Node {node_1_number} is absent!"))?
+                .get_coordinates(),
+            &nodes.get(&node_4_number)
+                .ok_or(format!("Node {node_1_number} is absent!"))?
+                .get_coordinates(),
+            rel_tol,
+            abs_tol,
+        )?;
+        let integration_points = [
+            (
+                V::from(1f32 / 3f32).my_sqrt() * V::from(1f32), V::from(1f32 / 3f32).my_sqrt() * V::from(1f32),
+                V::from(1f32), V::from(1f32),
+            ),
+            (
+                V::from(1f32 / 3f32).my_sqrt() * V::from(-1f32), V::from(1f32 / 3f32).my_sqrt() * V::from(1f32),
+                V::from(1f32), V::from(1f32),
+            ),
+            (
+                V::from(1f32 / 3f32).my_sqrt() * V::from(-1f32), V::from(1f32 / 3f32).my_sqrt() * V::from(-1f32),
+                V::from(1f32), V::from(1f32),
+            ),
+            (
+                V::from(1f32 / 3f32).my_sqrt() * V::from(1f32), V::from(1f32 / 3f32).my_sqrt() * V::from(-1f32),
+                V::from(1f32), V::from(1f32),
+            ),
+        ];
+
+        Ok(
+            Plate 
+            { 
+                node_1_number, node_2_number, node_3_number, node_4_number, young_modulus, poisson_ratio, thickness, 
+                shear_factor, rotation_matrix_elements, integration_points,
+            }
+        )
+    }
+
+
+    fn is_node_belongs_to_element(&self, node_number: u32) -> bool
+    {
+        self.node_1_number == node_number || self.node_2_number == node_number ||
+        self.node_3_number == node_number || self.node_4_number == node_number
+    }
+
+
+    pub fn is_nodes_numbers_same(&self, nodes_numbers: &[u32; 4]) -> bool
+    {
+        nodes_numbers.iter().all(|node_number| self.is_node_belongs_to_element(*node_number))
+    }
+
+
+    pub fn extract_rotation_matrix(&self) -> SquareMatrix<V>
+    {
+        compose_rotation_matrix(&self.rotation_matrix_elements)
+    }
+
+
+    // pub fn extract_local_stiffness_matrix(&self, nodes: &HashMap<u32, Node<V>>) -> Result<SquareMatrix<V>, String>
     // {
-    //     check_plate_properties(young_modulus, poisson_ratio, thickness, shear_factor)?;
-
-    //     // let (i11_p, i22_p, angle) = find_principal_moments_of_inertia(i11, i22, i12);
-
-    //     // let rotation_matrix_elements = find_rotation_matrix_elements(
-    //     //     node_1_number, node_2_number, &local_axis_1_direction, angle, nodes, rel_tol, abs_tol,
-    //     // )?;
-    //     let integration_points = [
-    //         (
-    //             V::from(1f32 / 3f32).my_sqrt() * V::from(1f32), V::from(1f32 / 3f32).my_sqrt() * V::from(1f32),
-    //             V::from(1f32), V::from(1f32),
-    //         ),
-    //         (
-    //             V::from(1f32 / 3f32).my_sqrt() * V::from(-1f32), V::from(1f32 / 3f32).my_sqrt() * V::from(1f32),
-    //             V::from(1f32), V::from(1f32),
-    //         ),
-    //         (
-    //             V::from(1f32 / 3f32).my_sqrt() * V::from(-1f32), V::from(1f32 / 3f32).my_sqrt() * V::from(-1f32),
-    //             V::from(1f32), V::from(1f32),
-    //         ),
-    //         (
-    //             V::from(1f32 / 3f32).my_sqrt() * V::from(1f32), V::from(1f32 / 3f32).my_sqrt() * V::from(-1f32),
-    //             V::from(1f32), V::from(1f32),
-    //         ),
-    //     ];
-
-    //     Ok(
-    //         Plate 
-    //         { 
-    //             node_1_number, node_2_number, node_3_number, node_4_number, young_modulus, poisson_ratio, thickness, 
-    //             shear_factor, rotation_matrix_elements, integration_points,
-    //         }
+    //     compose_local_stiffness_matrix(
+    //         &self.integration_points,
+    //         self.node_1_number,
+    //         self.node_2_number,
+    //         self.young_modulus,
+    //         self.poisson_ratio,
+    //         self.area,
+    //         self.i11_p,
+    //         self.i22_p,
+    //         self.it,
+    //         self.shear_factor,
+    //         nodes,
     //     )
     // }
-
-
-//     pub fn is_nodes_numbers_same(&self, node_1_number: u32, node_2_number: u32) -> bool
-//     {
-//         (node_1_number == self.node_1_number && node_2_number == self.node_2_number) ||
-//         (node_1_number == self.node_2_number && node_2_number == self.node_1_number)
-//     }
-
-
-//     pub fn extract_rotation_matrix(&self) -> SquareMatrix<V>
-//     {
-//         compose_rotation_matrix(&self.rotation_matrix_elements)
-//     }
-
-
-//     pub fn extract_local_stiffness_matrix(&self, nodes: &HashMap<u32, Node<V>>) -> Result<SquareMatrix<V>, String>
-//     {
-//         compose_local_stiffness_matrix(
-//             &self.integration_points,
-//             self.node_1_number,
-//             self.node_2_number,
-//             self.young_modulus,
-//             self.poisson_ratio,
-//             self.area,
-//             self.i11_p,
-//             self.i22_p,
-//             self.it,
-//             self.shear_factor,
-//             nodes,
-//         )
-//     }
 
 
 //     pub fn convert_uniformly_distributed_line_force_to_nodal_forces(

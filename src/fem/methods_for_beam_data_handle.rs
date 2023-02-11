@@ -49,7 +49,8 @@ impl<V> FEM<V>
     }
 
 
-    pub fn add_beam(&mut self,
+    pub fn add_beam(
+        &mut self,
         number: u32,
         node_1_number: u32,
         node_2_number: u32,

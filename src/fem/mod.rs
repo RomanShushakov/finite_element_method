@@ -37,3 +37,5 @@ pub use quadrilateral_4n_element_functions::
     is_points_of_quadrilateral_on_the_same_line, is_points_of_quadrilateral_on_the_same_plane,
     find_rotation_matrix_elements_of_quadrilateral, convex_hull_on_four_points_on_plane,
 };
+
+mod methods_for_plate_data_handle;
