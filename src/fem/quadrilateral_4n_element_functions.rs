@@ -1,7 +1,12 @@
-use extended_matrix::{FloatTrait, Vector3, VectorTrait, BasicOperationsTrait, Position, Matrix};
+use std::collections::HashMap;
+
+use extended_matrix::{FloatTrait, Vector3, VectorTrait, BasicOperationsTrait, Position, Matrix, SquareMatrix};
 
 use crate::fem::math_functions::compare_with_tolerance;
 use crate::fem::convex_hull_on_plane::{Point, convex_hull_on_plane};
+use crate::fem::math_functions::{power_func_x, derivative_x};
+use crate::fem::structs::Node;
+use crate::fem::bar_2n_element_functions::find_2n_element_vector;
 
 
 pub fn is_points_of_quadrilateral_on_the_same_line<V>(
@@ -179,4 +184,205 @@ pub fn convex_hull_on_four_points_on_plane<V>(
         .collect::<Vec<u32>>();
 
     Ok(convex_hull_point_numbers)
+}
+
+
+fn dx_dr<V>(x_1: V, x_2: V, x_3: V, x_4: V, r: V, s: V) -> V
+    where V: FloatTrait<Output = V>
+{
+    derivative_x(power_func_x, x_1 * V::from(0.25f32), V::from(0f32), 0) +
+    derivative_x(power_func_x, x_1 * V::from(0.25f32) * s, V::from(0f32), 0) +
+    derivative_x(power_func_x, x_1 * V::from(0.25f32), r, 1) +
+    derivative_x(power_func_x, x_1 * V::from(0.25f32) * s, r, 1) +
+    derivative_x(power_func_x, x_2 * V::from(0.25f32), V::from(0f32), 0) +
+    derivative_x(power_func_x, x_2 * V::from(0.25f32) * s, V::from(0f32), 0) -
+    derivative_x(power_func_x, x_2 * V::from(0.25f32), r, 1) -
+    derivative_x(power_func_x, x_2 * V::from(0.25f32) * s, r, 1) +
+    derivative_x(power_func_x, x_3 * V::from(0.25f32), V::from(0f32), 0) -
+    derivative_x(power_func_x, x_3 * V::from(0.25f32) * s, V::from(0f32), 0) -
+    derivative_x(power_func_x, x_3 * V::from(0.25f32), r, 1) +
+    derivative_x(power_func_x, x_3 * V::from(0.25f32) * s, r, 1) +
+    derivative_x(power_func_x, x_4 * V::from(0.25f32), V::from(0f32), 0) -
+    derivative_x(power_func_x, x_4 * V::from(0.25f32) * s, V::from(0f32), 0) +
+    derivative_x(power_func_x, x_4 * V::from(0.25f32), r, 1) -
+    derivative_x(power_func_x, x_4 * V::from(0.25f32) * s, r, 1)
+}
+
+
+fn dx_ds<V>(x_1: V, x_2: V, x_3: V, x_4: V, r: V, s: V) -> V
+    where V: FloatTrait<Output = V>
+{
+    derivative_x(power_func_x, x_1 * V::from(0.25f32), V::from(0f32), 0) +
+    derivative_x(power_func_x, x_1 * V::from(0.25f32), s, 1) +
+    derivative_x(power_func_x, x_1 * V::from(0.25f32) * r, V::from(0f32), 0) +
+    derivative_x(power_func_x, x_1 * V::from(0.25f32) * r, s, 1) +
+    derivative_x(power_func_x, x_2 * V::from(0.25f32), V::from(0f32), 0) +
+    derivative_x(power_func_x, x_2 * V::from(0.25f32), s, 1) -
+    derivative_x(power_func_x, x_2 * V::from(0.25f32) * r, V::from(0f32), 0) -
+    derivative_x(power_func_x, x_2 * V::from(0.25f32) * r, s, 1) +
+    derivative_x(power_func_x, x_3 * V::from(0.25f32), V::from(0f32), 0) -
+    derivative_x(power_func_x, x_3 * V::from(0.25f32), s, 1) -
+    derivative_x(power_func_x, x_3 * V::from(0.25f32) * r, V::from(0f32), 0) +
+    derivative_x(power_func_x, x_3 * V::from(0.25f32) * r, s, 1) +
+    derivative_x(power_func_x, x_4 * V::from(0.25f32), V::from(0f32), 0) -
+    derivative_x(power_func_x, x_4 * V::from(0.25f32), s, 1) +
+    derivative_x(power_func_x, x_4 * V::from(0.25f32) * r, V::from(0f32), 0) -
+    derivative_x(power_func_x, x_4 * V::from(0.25f32) * r, s, 1)
+}
+
+
+fn dy_dr<V>(y_1: V, y_2: V, y_3: V, y_4: V, r: V, s: V) -> V
+    where V: FloatTrait<Output = V>
+{
+    derivative_x(power_func_x, y_1 * V::from(0.25f32), V::from(0f32), 0) +
+    derivative_x(power_func_x, y_1 * V::from(0.25f32) * s, V::from(0f32), 0) +
+    derivative_x(power_func_x, y_1 * V::from(0.25f32), r, 1) +
+    derivative_x(power_func_x, y_1 * V::from(0.25f32) * s, r, 1) +
+    derivative_x(power_func_x, y_2 * V::from(0.25f32), V::from(0f32), 0) +
+    derivative_x(power_func_x, y_2 * V::from(0.25f32) * s, V::from(0f32), 0) -
+    derivative_x(power_func_x, y_2 * V::from(0.25f32), r, 1) -
+    derivative_x(power_func_x, y_2 * V::from(0.25f32) * s, r, 1) +
+    derivative_x(power_func_x, y_3 * V::from(0.25f32), V::from(0f32), 0) -
+    derivative_x(power_func_x, y_3 * V::from(0.25f32) * s, V::from(0f32), 0) -
+    derivative_x(power_func_x, y_3 * V::from(0.25f32), r, 1) +
+    derivative_x(power_func_x, y_3 * V::from(0.25f32) * s, r, 1) +
+    derivative_x(power_func_x, y_4 * V::from(0.25f32), V::from(0f32), 0) -
+    derivative_x(power_func_x, y_4 * V::from(0.25f32) * s, V::from(0f32), 0) +
+    derivative_x(power_func_x, y_4 * V::from(0.25f32), r, 1) -
+    derivative_x(power_func_x, y_4 * V::from(0.25f32) * s, r, 1)
+}
+
+
+fn dy_ds<V>(y_1: V, y_2: V, y_3: V, y_4: V, r: V, s: V) -> V
+    where V: FloatTrait<Output = V>
+{
+    derivative_x(power_func_x, y_1 * V::from(0.25f32), V::from(0f32), 0) +
+    derivative_x(power_func_x, y_1 * V::from(0.25f32), s, 1) +
+    derivative_x(power_func_x, y_1 * V::from(0.25f32) * r, V::from(0f32), 0) +
+    derivative_x(power_func_x, y_1 * V::from(0.25f32) * r, s, 1) +
+    derivative_x(power_func_x, y_2 * V::from(0.25f32), V::from(0f32), 0) +
+    derivative_x(power_func_x, y_2 * V::from(0.25f32), s, 1) -
+    derivative_x(power_func_x, y_2 * V::from(0.25f32) * r, V::from(0f32), 0) -
+    derivative_x(power_func_x, y_2 * V::from(0.25f32) * r, s, 1) +
+    derivative_x(power_func_x, y_3 * V::from(0.25f32), V::from(0f32), 0) -
+    derivative_x(power_func_x, y_3 * V::from(0.25f32), s, 1) -
+    derivative_x(power_func_x, y_3 * V::from(0.25f32) * r, V::from(0f32), 0) +
+    derivative_x(power_func_x, y_3 * V::from(0.25f32) * r, s, 1) +
+    derivative_x(power_func_x, y_4 * V::from(0.25f32), V::from(0f32), 0) -
+    derivative_x(power_func_x, y_4 * V::from(0.25f32), s, 1) +
+    derivative_x(power_func_x, y_4 * V::from(0.25f32) * r, V::from(0f32), 0) -
+    derivative_x(power_func_x, y_4 * V::from(0.25f32) * r, s, 1)
+}
+
+
+fn extract_transformed_directions_of_nodes<V>(
+    node_1_number: u32, 
+    node_2_number: u32, 
+    node_3_number: u32, 
+    node_4_number: u32,
+    nodes: &HashMap<u32, Node<V>>, 
+    rotation_matrix_elements: &[V; 9],
+)
+    -> Result<[[V; 3]; 3], String>
+    where V: FloatTrait<Output = V>
+{
+    let rotation_matrix = SquareMatrix::create(3, rotation_matrix_elements);
+    
+    let node_1_direction = find_2n_element_vector(
+        node_3_number, node_1_number, nodes,
+    )?;
+    let node_2_direction = find_2n_element_vector(
+        node_3_number, node_2_number, nodes,
+    )?;
+    let node_4_direction = find_2n_element_vector(
+        node_3_number, node_4_number, nodes,
+    )?;
+
+    let transformed_node_1_direction = rotation_matrix.multiply(&node_1_direction)?;
+    let transformed_node_2_direction = rotation_matrix.multiply(&node_2_direction)?;
+    let transformed_node_4_direction = rotation_matrix.multiply(&node_4_direction)?;
+
+    let transformed_directions_of_nodes = [
+        [
+            *transformed_node_1_direction.get_element_value(&Position(0, 0))?, 
+            *transformed_node_1_direction.get_element_value(&Position(1, 0))?, 
+            *transformed_node_1_direction.get_element_value(&Position(2, 0))?,
+        ],
+        [
+            *transformed_node_2_direction.get_element_value(&Position(0, 0))?, 
+            *transformed_node_2_direction.get_element_value(&Position(1, 0))?, 
+            *transformed_node_2_direction.get_element_value(&Position(2, 0))?,
+        ],
+        [
+            *transformed_node_4_direction.get_element_value(&Position(0, 0))?,
+            *transformed_node_4_direction.get_element_value(&Position(1, 0))?,
+            *transformed_node_4_direction.get_element_value(&Position(2, 0))?,
+        ],
+    ];
+    Ok(transformed_directions_of_nodes)
+}
+
+
+pub fn jacobian_at_r_s<V>(
+    node_1_number: u32,
+    node_2_number: u32,
+    node_3_number: u32,
+    node_4_number: u32,
+    r: V, 
+    s: V, 
+    ref_nodes: &HashMap<u32, Node<V>>, 
+    rotation_matrix_elements: &[V; 9],
+) 
+    -> Result<SquareMatrix<V>, String>
+    where V: FloatTrait<Output = V>
+{
+    let transformed_directions_of_nodes = extract_transformed_directions_of_nodes(
+        node_1_number, node_2_number, node_3_number, node_4_number, ref_nodes, rotation_matrix_elements,
+    )?;
+
+    let transformed_node_1_direction_x = transformed_directions_of_nodes[0][0];
+    let transformed_node_1_direction_y = transformed_directions_of_nodes[0][1];
+    let transformed_node_2_direction_x = transformed_directions_of_nodes[1][0];
+    let transformed_node_2_direction_y = transformed_directions_of_nodes[1][1];
+    let transformed_node_4_direction_x = transformed_directions_of_nodes[2][0];
+    let transformed_node_4_direction_y = transformed_directions_of_nodes[2][1];
+    
+    let jacobian_elements = [
+        dx_dr(
+            transformed_node_1_direction_x,
+            transformed_node_2_direction_x, 
+            V::from(0f32),
+            transformed_node_4_direction_x,
+            r,
+            s,
+        ),
+        dy_dr(
+            transformed_node_1_direction_y,
+            transformed_node_2_direction_y, 
+            V::from(0f32),
+            transformed_node_4_direction_y,
+            r,
+            s,
+        ),
+        dx_ds(
+            transformed_node_1_direction_x,
+            transformed_node_2_direction_x, 
+            V::from(0f32),
+            transformed_node_4_direction_x,
+            r,
+            s,
+        ),
+        dy_ds(
+            transformed_node_1_direction_y,
+            transformed_node_2_direction_y, 
+            V::from(0f32),
+            transformed_node_4_direction_y,
+            r,
+            s,
+        ),
+    ];
+
+    let jacobian = SquareMatrix::create(2, &jacobian_elements);
+
+    Ok(jacobian)
 }

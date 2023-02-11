@@ -19,7 +19,7 @@ pub fn find_2n_element_vector<V>(
         .get_coordinates()
         .iter()
         .zip(node_1.get_coordinates())
-        .map(|(n, m)| *n - m)
+        .map(|(n_2, n_1)| *n_2 - n_1)
         .collect::<Vec<V>>()
         .try_into()
         .map_err(|e| format!("{e:?} could not be converted to arr[3]"))?;
