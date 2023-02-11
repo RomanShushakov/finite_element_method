@@ -180,22 +180,15 @@ fn find_rotation_matrix_elements<V>(
     let transformed_projection_of_beam_section_orientation = interim_rotation_matrix
         .multiply(&projection_of_beam_section_orientation)?;
 
-    let transformed_projection_of_beam_section_orientation_x = 
-        *transformed_projection_of_beam_section_orientation.get_element_value(&Position(0, 0))?;
-
-    let transformed_projection_of_beam_section_orientation_y =
-        *transformed_projection_of_beam_section_orientation.get_element_value(&Position(1, 0))?;
-
-    let transformed_projection_of_beam_section_orientation_z =
-        *transformed_projection_of_beam_section_orientation.get_element_value(&Position(2, 0))?;
-
-    let angle_between_beam_section_local_axis_1_direction_and_axis_t =
-        (transformed_projection_of_beam_section_orientation_z /
-        (transformed_projection_of_beam_section_orientation_x.my_powi(2) +
-        transformed_projection_of_beam_section_orientation_y.my_powi(2) +
-        transformed_projection_of_beam_section_orientation_z.my_powi(2))
-            .my_sqrt()
-        ).my_acos();
+    let angle_between_beam_section_local_axis_1_direction_and_axis_t = Vector3::create(
+        &[V::from(0f32), V::from(0f32), V::from(1f32)]
+        )
+        .cosine_angle_between_vectors(&Vector3::create(&[
+            *transformed_projection_of_beam_section_orientation.get_element_value(&Position(0, 0))?,
+            *transformed_projection_of_beam_section_orientation.get_element_value(&Position(1, 0))?,
+            *transformed_projection_of_beam_section_orientation.get_element_value(&Position(2, 0))?,
+        ]))
+        .my_acos();
 
     let total_angle = angle + angle_between_beam_section_local_axis_1_direction_and_axis_t;
     let [x, y, z] = beam_element_vector.get_components();
