@@ -206,23 +206,6 @@ pub fn strain_displacement_matrix_plate_bending_at_r_s<V>(
     let dh3_dy = *dh_dx_dh_dy_matrix.get_element_value(&Position(1, 2))?;
     let dh4_dy = *dh_dx_dh_dy_matrix.get_element_value(&Position(1, 3))?;
 
-    let elements = vec![
-        V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), V::from(-1f32) * dh1_dx, V::from(0f32),
-        V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), V::from(-1f32) * dh2_dx, V::from(0f32),
-        V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), V::from(-1f32) * dh3_dx, V::from(0f32),
-        V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), V::from(-1f32) * dh4_dx, V::from(0f32),
-
-        V::from(0f32), V::from(0f32), V::from(0f32), dh1_dy, V::from(0f32), V::from(0f32),
-        V::from(0f32), V::from(0f32), V::from(0f32), dh2_dy, V::from(0f32), V::from(0f32),
-        V::from(0f32), V::from(0f32), V::from(0f32), dh3_dy, V::from(0f32), V::from(0f32),
-        V::from(0f32), V::from(0f32), V::from(0f32), dh4_dy, V::from(0f32), V::from(0f32),
-
-        V::from(0f32), V::from(0f32), V::from(0f32), dh1_dx, V::from(-1f32) * dh1_dy, V::from(0f32),
-        V::from(0f32), V::from(0f32), V::from(0f32), dh2_dx, V::from(-1f32) * dh2_dy, V::from(0f32),
-        V::from(0f32), V::from(0f32), V::from(0f32), dh3_dx, V::from(-1f32) * dh3_dy, V::from(0f32),
-        V::from(0f32), V::from(0f32), V::from(0f32), dh4_dx, V::from(-1f32) * dh4_dy, V::from(0f32),
-    ];
-
     Ok(
         Matrix::create(
             3, 
@@ -368,10 +351,10 @@ pub fn local_stiffness_matrix_at_ip<V>(
     young_modulus: V, 
     poisson_ratio: V, 
     thickness: V, 
-    shear_factor: V, 
-    alpha: V, 
+    shear_factor: V,  
     r: V, 
     s: V,
+    alpha: V,
     nodes: &HashMap<u32, Node<V>>, 
     rotation_matrix_elements: &[V; 9], 
     rel_tol: V,
@@ -488,48 +471,62 @@ pub fn local_stiffness_matrix_at_ip<V>(
 }
 
 
-// fn compose_local_stiffness_matrix<V>(
-//     integration_points: &[(V, V)], 
-//     node_1_number: u32,
-//     node_2_number: u32,
-//     young_modulus: V,
-//     poisson_ratio: V,
-//     area: V,
-//     i11_p: V,
-//     i22_p: V,
-//     it: V,
-//     shear_factor: V,
-//     nodes: &HashMap<u32, Node<V>>,
-// ) 
-//     -> Result<SquareMatrix<V>, String>
-//     where V: FloatTrait<Output = V>
-// {
-//     let mut local_stiffness_matrix = SquareMatrix::create(
-//         BEAM_NODES_NUMBER * BEAM_NODE_DOF, 
-//         &[V::from(0f32); BEAM_NODES_NUMBER * BEAM_NODE_DOF],
-//     );
+fn compose_local_stiffness_matrix<V>(
+    integration_points: &[(V, V, V, V); 4], 
+    node_1_number: u32,
+    node_2_number: u32,
+    node_3_number: u32,
+    node_4_number: u32,
+    young_modulus: V,
+    poisson_ratio: V,
+    thickness: V,
+    shear_factor: V,
+    nodes: &HashMap<u32, Node<V>>,
+    rotation_matrix_elements: &[V; 9],
+    rel_tol: V,
+) 
+    -> Result<SquareMatrix<V>, String>
+    where V: FloatTrait<Output = V>
+{
+    let mut local_stiffness_matrix = SquareMatrix::create(
+        PLATE_NODES_NUMBER * PLATE_NODE_DOF, 
+        &[V::from(0f32); PLATE_NODES_NUMBER * PLATE_NODE_DOF],
+    );
 
-//     for (r, alpha) in integration_points
-//     {
-//         let local_stiffness_matrix_at_ip = local_stiffness_matrix_at_ip(
-//             node_1_number,
-//             node_2_number,
-//             young_modulus,
-//             poisson_ratio,
-//             area,
-//             i11_p,
-//             i22_p,
-//             it,
-//             shear_factor,
-//             *r,
-//             *alpha,
-//             nodes,
-//         )?;
-//         local_stiffness_matrix = local_stiffness_matrix.add(&local_stiffness_matrix_at_ip)?;
-//     }
+    for (r, s, alpha_r, alpha_s) in integration_points
+    {
+        let local_stiffness_matrix_at_ip = local_stiffness_matrix_at_ip(
+            node_1_number,
+            node_2_number,
+            node_3_number,
+            node_4_number,
+            young_modulus,
+            poisson_ratio,
+            thickness,
+            shear_factor,
+            *r,
+            *s,
+            *alpha_r * *alpha_s,
+            nodes,
+            rotation_matrix_elements,
+            rel_tol,
+        )?;
+        local_stiffness_matrix = local_stiffness_matrix.add(&local_stiffness_matrix_at_ip)?;
+    }
 
-//     Ok(local_stiffness_matrix)
-// }
+    let krot6 = V::from(1f32);
+    for i in 0..PLATE_NODES_NUMBER
+    {
+        for j in 0..PLATE_NODES_NUMBER
+        {
+            *local_stiffness_matrix.get_mut_element_value(
+                &Position(i * PLATE_NODE_DOF + PLATE_NODE_DOF - 1, j * PLATE_NODE_DOF + PLATE_NODE_DOF - 1),
+            )? += krot6;
+        }
+    }
+
+    Ok(local_stiffness_matrix)
+}
 
 
 fn compose_rotation_matrix<V>(rotation_matrix_elements: &[V; 9]) -> SquareMatrix<V>
@@ -780,22 +777,26 @@ impl<V> Plate<V>
     }
 
 
-    // pub fn extract_local_stiffness_matrix(&self, nodes: &HashMap<u32, Node<V>>) -> Result<SquareMatrix<V>, String>
-    // {
-    //     compose_local_stiffness_matrix(
-    //         &self.integration_points,
-    //         self.node_1_number,
-    //         self.node_2_number,
-    //         self.young_modulus,
-    //         self.poisson_ratio,
-    //         self.area,
-    //         self.i11_p,
-    //         self.i22_p,
-    //         self.it,
-    //         self.shear_factor,
-    //         nodes,
-    //     )
-    // }
+    pub fn extract_local_stiffness_matrix(
+        &self, nodes: &HashMap<u32, Node<V>>, rel_tol: V,
+    ) 
+        -> Result<SquareMatrix<V>, String>
+    {
+        compose_local_stiffness_matrix(
+            &self.integration_points,
+            self.node_1_number,
+            self.node_2_number,
+            self.node_3_number,
+            self.node_4_number,
+            self.young_modulus,
+            self.poisson_ratio,
+            self.thickness,
+            self.shear_factor,
+            nodes,
+            &self.rotation_matrix_elements,
+            rel_tol,
+        )
+    }
 
 
 //     pub fn convert_uniformly_distributed_line_force_to_nodal_forces(

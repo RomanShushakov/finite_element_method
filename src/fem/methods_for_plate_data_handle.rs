@@ -98,60 +98,80 @@ impl<V> FEM<V>
 
         let rotation_matrix = plate_element.extract_rotation_matrix();
 
-        let f = |data: &str| println!("{data}");
-        rotation_matrix.show(f);
+        let local_stiffness_matrix = plate_element.extract_local_stiffness_matrix(
+            self.get_nodes(), self.get_props().get_rel_tol(),
+        )?;
 
-        // let local_stiffness_matrix = beam_element.extract_local_stiffness_matrix(self.get_nodes())?;
-        // let transformed_local_stiffness_matrix = rotation_matrix
-        //     .transpose()
-        //     .multiply(&local_stiffness_matrix)?
-        //     .multiply(&rotation_matrix)?;
+        let transformed_local_stiffness_matrix = rotation_matrix
+            .transpose()
+            .multiply(&local_stiffness_matrix)?
+            .multiply(&rotation_matrix)?;
 
-        // let node_1_index = self.get_nodes()
-        //     .get(&node_1_number)
-        //     .ok_or(format!("Node {node_1_number} is absent!"))?
-        //     .get_index();
-        // let node_2_index = self.get_nodes()
-        //     .get(&node_2_number)
-        //     .ok_or(format!("Node {node_2_number} is absent!"))?
-        //     .get_index();
-        // let start_positions = [
-        //     ((0, 0), (node_1_index * NODE_DOF, node_1_index * NODE_DOF)),
-        //     ((0, BEAM_NODE_DOF), (node_1_index * NODE_DOF, node_2_index * NODE_DOF)),
-        //     ((BEAM_NODE_DOF, 0), (node_2_index * NODE_DOF, node_1_index * NODE_DOF)),
-        //     ((BEAM_NODE_DOF, BEAM_NODE_DOF), (node_2_index * NODE_DOF, node_2_index * NODE_DOF)),
-        // ];
+        let node_1_index = self.get_nodes()
+            .get(&node_1_number)
+            .ok_or(format!("Node {node_1_number} is absent!"))?
+            .get_index();
+        let node_2_index = self.get_nodes()
+            .get(&node_2_number)
+            .ok_or(format!("Node {node_2_number} is absent!"))?
+            .get_index();
+        let node_3_index = self.get_nodes()
+            .get(&node_3_number)
+            .ok_or(format!("Node {node_3_number} is absent!"))?
+            .get_index();
+        let node_4_index = self.get_nodes()
+            .get(&node_4_number)
+            .ok_or(format!("Node {node_4_number} is absent!"))?
+            .get_index();
+        let start_positions = [
+            ((0, 0), (node_1_index * NODE_DOF, node_1_index * NODE_DOF)),
+            ((0, PLATE_NODE_DOF), (node_1_index * NODE_DOF, node_2_index * NODE_DOF)),
+            ((0, PLATE_NODE_DOF * 2), (node_1_index * NODE_DOF, node_3_index * NODE_DOF)),
+            ((0, PLATE_NODE_DOF * 3), (node_1_index * NODE_DOF, node_4_index * NODE_DOF)),
+            ((PLATE_NODE_DOF, 0), (node_2_index * NODE_DOF, node_1_index * NODE_DOF)),
+            ((PLATE_NODE_DOF, PLATE_NODE_DOF), (node_2_index * NODE_DOF, node_2_index * NODE_DOF)),
+            ((PLATE_NODE_DOF, PLATE_NODE_DOF * 2), (node_2_index * NODE_DOF, node_3_index * NODE_DOF)),
+            ((PLATE_NODE_DOF, PLATE_NODE_DOF * 3), (node_2_index * NODE_DOF, node_4_index * NODE_DOF)),
+            ((PLATE_NODE_DOF * 2, 0), (node_3_index * NODE_DOF, node_1_index * NODE_DOF)),
+            ((PLATE_NODE_DOF * 2, PLATE_NODE_DOF), (node_3_index * NODE_DOF, node_2_index * NODE_DOF)),
+            ((PLATE_NODE_DOF * 2, PLATE_NODE_DOF * 2), (node_3_index * NODE_DOF, node_3_index * NODE_DOF)),
+            ((PLATE_NODE_DOF * 2, PLATE_NODE_DOF * 3), (node_3_index * NODE_DOF, node_4_index * NODE_DOF)),
+            ((PLATE_NODE_DOF * 3, 0), (node_4_index * NODE_DOF, node_1_index * NODE_DOF)),
+            ((PLATE_NODE_DOF * 3, PLATE_NODE_DOF), (node_4_index * NODE_DOF, node_2_index * NODE_DOF)),
+            ((PLATE_NODE_DOF * 3, PLATE_NODE_DOF * 2), (node_4_index * NODE_DOF, node_3_index * NODE_DOF)),
+            ((PLATE_NODE_DOF * 3, PLATE_NODE_DOF * 3), (node_4_index * NODE_DOF, node_4_index * NODE_DOF)),
+        ];
 
-        // for ((local_row, local_column), (global_row, global_column)) in start_positions
-        // {
-        //     for i in 0..BEAM_NODE_DOF
-        //     {
-        //         for j in 0..BEAM_NODE_DOF
-        //         {
-        //             let local_stiffness_matrix_element_value = transformed_local_stiffness_matrix
-        //                 .get_element_value(&Position(local_row + i, local_column + j))?;
-        //             if *local_stiffness_matrix_element_value != V::from(0f32)
-        //             {
-        //                 *self.get_mut_stiffness_matrix()
-        //                     .get_mut_element_value(&Position(global_row + i, global_column + j))? += 
-        //                         *local_stiffness_matrix_element_value;
-        //             }
-        //         }
-        //     }
-        // }
+        for ((local_row, local_column), (global_row, global_column)) in start_positions
+        {
+            for i in 0..PLATE_NODE_DOF
+            {
+                for j in 0..PLATE_NODE_DOF
+                {
+                    let local_stiffness_matrix_element_value = transformed_local_stiffness_matrix
+                        .get_element_value(&Position(local_row + i, local_column + j))?;
+                    if *local_stiffness_matrix_element_value != V::from(0f32)
+                    {
+                        *self.get_mut_stiffness_matrix()
+                            .get_mut_element_value(&Position(global_row + i, global_column + j))? += 
+                                *local_stiffness_matrix_element_value;
+                    }
+                }
+            }
+        }
 
-        // self.get_mut_beam_elements().insert(number, beam_element);
+        self.get_mut_plate_elements().insert(number, plate_element);
 
         Ok(())
     }
 
 
-    // pub(crate) fn check_beam_element_exist(&self, number: u32) -> Result<(), String>
-    // {
-    //     if !self.get_beam_elements().contains_key(&number) 
-    //     {
-    //         return Err(BeamElementError::NumberNotExist(number).compose_error_message());
-    //     }
-    //     Ok(())
-    // }
+    pub(crate) fn check_plate_element_exist(&self, number: u32) -> Result<(), String>
+    {
+        if !self.get_plate_elements().contains_key(&number) 
+        {
+            return Err(PlateElementError::NumberNotExist(number).compose_error_message());
+        }
+        Ok(())
+    }
 }
