@@ -182,4 +182,23 @@ impl<V> FEM<V>
     {
         &mut self.plate_elements
     }
+
+
+    pub fn reset(&mut self, nodes_number: u32)
+    {
+        self.stiffness_matrix = SquareMatrix::create(
+            nodes_number as usize * NODE_DOF, &Vec::new(),
+        );
+        self.displacements_vector = Vector::create(&vec![V::from(0f32); nodes_number as usize * NODE_DOF]);
+        self.forces_vector = self.displacements_vector.clone();
+        self.nodes_count = 0;
+        self.indexes = (0..nodes_number as usize * NODE_DOF).collect::<Vec<usize>>();
+        self.index_node_number_map = HashMap::new();
+        self.imposed_constraints = vec![false; nodes_number as usize * NODE_DOF];
+
+        self.nodes = HashMap::new();
+        self.truss_elements = HashMap::new();
+        self.beam_elements = HashMap::new();
+        self.plate_elements = HashMap::new();
+    }
 }
