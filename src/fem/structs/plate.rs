@@ -125,7 +125,7 @@ fn check_plate_properties<V>(
 }
 
 
-pub fn strain_displacement_matrix_mem_at_r_s<V>(
+fn strain_displacement_matrix_mem_at_r_s<V>(
     node_1_number: u32, 
     node_2_number: u32, 
     node_3_number: u32, 
@@ -178,7 +178,7 @@ pub fn strain_displacement_matrix_mem_at_r_s<V>(
 }
 
 
-pub fn strain_displacement_matrix_plate_bending_at_r_s<V>(
+fn strain_displacement_matrix_bend_at_r_s<V>(
     node_1_number: u32, 
     node_2_number: u32, 
     node_3_number: u32, 
@@ -231,7 +231,7 @@ pub fn strain_displacement_matrix_plate_bending_at_r_s<V>(
 }
 
 
-pub fn strain_displacement_matrix_plate_shear_at_r_s<V>(
+fn strain_displacement_matrix_shear_at_r_s<V>(
     node_1_number: u32, 
     node_2_number: u32, 
     node_3_number: u32, 
@@ -343,7 +343,7 @@ pub fn strain_displacement_matrix_plate_shear_at_r_s<V>(
 }
 
 
-pub fn local_stiffness_matrix_at_ip<V>(
+fn local_stiffness_matrix_at_ip<V>(
     node_1_number: u32, 
     node_2_number: u32, 
     node_3_number: u32, 
@@ -409,7 +409,7 @@ pub fn local_stiffness_matrix_at_ip<V>(
         )
         .multiply_by_scalar(c_multiplier_bend);
 
-    let b_bend_at_r_s = strain_displacement_matrix_plate_bending_at_r_s(
+    let b_bend_at_r_s = strain_displacement_matrix_bend_at_r_s(
         node_1_number, node_2_number, node_3_number, node_4_number, r, s, nodes, rotation_matrix_elements, rel_tol,
     )?;
     let b_bend_t_at_r_s = b_bend_at_r_s.transpose();
@@ -440,7 +440,7 @@ pub fn local_stiffness_matrix_at_ip<V>(
         )
         .multiply_by_scalar(c_multiplier_shear * alpha);
 
-    let b_shear_at_r_s = strain_displacement_matrix_plate_shear_at_r_s(
+    let b_shear_at_r_s = strain_displacement_matrix_shear_at_r_s(
         node_1_number, node_2_number, node_3_number, node_4_number, r, s, nodes, rotation_matrix_elements, rel_tol,
     )?;
     let b_shear_t_at_r_s = b_shear_at_r_s.transpose();
@@ -517,12 +517,9 @@ fn compose_local_stiffness_matrix<V>(
     let krot6 = V::from(1f32);
     for i in 0..PLATE_NODES_NUMBER
     {
-        for j in 0..PLATE_NODES_NUMBER
-        {
-            *local_stiffness_matrix.get_mut_element_value(
-                &Position(i * PLATE_NODE_DOF + PLATE_NODE_DOF - 1, j * PLATE_NODE_DOF + PLATE_NODE_DOF - 1),
-            )? += krot6;
-        }
+        *local_stiffness_matrix.get_mut_element_value(
+            &Position(i * PLATE_NODE_DOF + PLATE_NODE_DOF - 1, i * PLATE_NODE_DOF + PLATE_NODE_DOF - 1),
+        )? += krot6;
     }
 
     Ok(local_stiffness_matrix)
@@ -838,194 +835,204 @@ impl<V> Plate<V>
 //     }
 
 
-//     pub fn extract_element_analysis_result(
-//         &self, nodes: &HashMap<u32, Node<V>>, displacements: &Vector<V>,
-//     )
-//         -> Result<Vec<(ElementForceComponent, V)>, String>
-//     {
-//         let node_1_index = nodes.get(&self.node_1_number)
-//             .ok_or(format!("Node: {} is absent!", self.node_1_number))?
-//             .get_index();
-//         let node_2_index = nodes.get(&self.node_2_number)
-//             .ok_or(format!("Node: {} is absent!", self.node_2_number))?
-//             .get_index();
-//         let mut global_displacements = Vector::create(
-//             &[V::from(0f32); BEAM_NODES_NUMBER * BEAM_NODE_DOF],
-//         );
+    pub fn extract_element_analysis_result(
+        &self, nodes: &HashMap<u32, Node<V>>, displacements: &Vector<V>, rel_tol: V,
+    )
+        -> Result<Vec<(ElementForceComponent, V)>, String>
+    {
+        let node_1_index = nodes.get(&self.node_1_number)
+            .ok_or(format!("Node: {} is absent!", self.node_1_number))?
+            .get_index();
+        let node_2_index = nodes.get(&self.node_2_number)
+            .ok_or(format!("Node: {} is absent!", self.node_2_number))?
+            .get_index();
+        let node_3_index = nodes.get(&self.node_3_number)
+            .ok_or(format!("Node: {} is absent!", self.node_3_number))?
+            .get_index();
+        let node_4_index = nodes.get(&self.node_4_number)
+            .ok_or(format!("Node: {} is absent!", self.node_4_number))?
+            .get_index();
+        let mut global_displacements = Vector::create(
+            &[V::from(0f32); PLATE_NODES_NUMBER * PLATE_NODE_DOF],
+        );
 
-//         for i in 0..BEAM_NODE_DOF
-//         {
-//             *global_displacements.get_mut_element_value(&Position(i, 0))? = 
-//                 *displacements.get_element_value(&Position(node_1_index * NODE_DOF + i, 0))?;
-//         }
+        for i in 0..PLATE_NODE_DOF
+        {
+            *global_displacements.get_mut_element_value(&Position(i, 0))? = 
+                *displacements.get_element_value(&Position(node_1_index * NODE_DOF + i, 0))?;
+        }
 
-//         for i in 0..BEAM_NODE_DOF
-//         {
-//             *global_displacements.get_mut_element_value(&Position(i + BEAM_NODE_DOF, 0))? = 
-//                 *displacements.get_element_value(&Position(node_2_index * NODE_DOF + i, 0))?;
-//         }
+        for i in 0..PLATE_NODE_DOF
+        {
+            *global_displacements.get_mut_element_value(&Position(i + PLATE_NODE_DOF, 0))? = 
+                *displacements.get_element_value(&Position(node_2_index * NODE_DOF + i, 0))?;
+        }
 
-//         let rotation_matrix = compose_rotation_matrix(&self.rotation_matrix_elements);
-//         let local_displacements = rotation_matrix.multiply(&global_displacements)?;
+        for i in 0..PLATE_NODE_DOF
+        {
+            *global_displacements.get_mut_element_value(&Position(i + PLATE_NODE_DOF * 2, 0))? = 
+                *displacements.get_element_value(&Position(node_3_index * NODE_DOF + i, 0))?;
+        }
 
-//         let mut strain_displacement_matrix_u = Matrix::create(
-//             1,
-//             BEAM_NODES_NUMBER * BEAM_NODE_DOF,
-//             &[V::from(0f32); BEAM_NODES_NUMBER * BEAM_NODE_DOF],
-//         );
-//         for (r, _alpha) in self.integration_points.iter()
-//         {
-//             let strain_displacement_matrix_u_at_r = strain_displacement_matrix_u_at_r(
-//                 self.node_1_number, self.node_2_number, *r, nodes,
-//             )?;
-//             strain_displacement_matrix_u = strain_displacement_matrix_u.add(&strain_displacement_matrix_u_at_r)?;
-//         }
-//         let element_strains_u = strain_displacement_matrix_u.multiply(&local_displacements)?;
-//         let element_forces_u = element_strains_u.multiply_by_scalar(
-//             self.young_modulus * self.area / V::from(self.integration_points.len() as f32),
-//         );
+        for i in 0..PLATE_NODE_DOF
+        {
+            *global_displacements.get_mut_element_value(&Position(i + PLATE_NODE_DOF * 3, 0))? = 
+                *displacements.get_element_value(&Position(node_4_index * NODE_DOF + i, 0))?;
+        }
 
-//         let shear_modulus = self.young_modulus / (V::from(2f32) * (V::from(1f32) + self.poisson_ratio));
+        let rotation_matrix = compose_rotation_matrix(&self.rotation_matrix_elements);
+        let local_displacements = rotation_matrix.multiply(&global_displacements)?;
 
-//         let mut strain_displacement_matrix_v = Matrix::create(
-//             1,
-//             BEAM_NODES_NUMBER * BEAM_NODE_DOF,
-//             &[V::from(0f32); BEAM_NODES_NUMBER * BEAM_NODE_DOF],
-//         );
-//         for (r, _alpha) in self.integration_points.iter()
-//         {
-//             let strain_displacement_matrix_v_at_r = strain_displacement_matrix_v_at_r(
-//                 self.node_1_number, self.node_2_number, *r, nodes,
-//             )?;
-//             strain_displacement_matrix_v = strain_displacement_matrix_v.add(&strain_displacement_matrix_v_at_r)?;
-//         }
-//         let element_strains_v = strain_displacement_matrix_v.multiply(&local_displacements)?;
-//         let element_forces_v = element_strains_v.multiply_by_scalar(
-//             shear_modulus * self.area  * self.shear_factor / V::from(self.integration_points.len() as f32),
-//         );
-//         let force_s_value = *element_forces_v.get_element_value(&Position(0, 0))?;
+        let local_nodes_coordinates = vec![
+            (V::from(1f32), V::from(1f32)), 
+            (V::from(-1f32), V::from(1f32)),
+            (V::from(-1f32), V::from(-1f32)), 
+            (V::from(1f32), V::from(-1f32))
+        ];
 
-//         let mut strain_displacement_matrix_w = Matrix::create(
-//             1,
-//             BEAM_NODES_NUMBER * BEAM_NODE_DOF,
-//             &[V::from(0f32); BEAM_NODES_NUMBER * BEAM_NODE_DOF],
-//         );
-//         for (r, _alpha) in self.integration_points.iter()
-//         {
-//             let strain_displacement_matrix_w_at_r = strain_displacement_matrix_w_at_r(
-//                 self.node_1_number, self.node_2_number, *r, nodes,
-//             )?;
-//             strain_displacement_matrix_w = strain_displacement_matrix_w.add(&strain_displacement_matrix_w_at_r)?;
-//         }
-//         let element_strains_w = strain_displacement_matrix_w.multiply(&local_displacements)?;
-//         let element_forces_w = element_strains_w.multiply_by_scalar(
-//             shear_modulus * self.area  * self.shear_factor / V::from(self.integration_points.len() as f32),
-//         );
-//         let force_t_value = *element_forces_w.get_element_value(&Position(0, 0))?;
+        let c_multiplier_mem = self.young_modulus / (V::from(1f32) - self.poisson_ratio.my_powi(2));
+        let c_mem = Matrix::create(
+                3, 
+                3, 
+                &[
+                    V::from(1f32), self.poisson_ratio, V::from(0f32),
+                    self.poisson_ratio, V::from(1f32), V::from(0f32),
+                    V::from(0f32), V::from(0f32), (V::from(1f32) - self.poisson_ratio) / V::from(2f32),
+                ], 
+            )
+            .multiply_by_scalar(c_multiplier_mem);
+        let mut strain_displacement_matrix_mem = Matrix::create(
+            3,
+            PLATE_NODES_NUMBER * PLATE_NODE_DOF,
+            &[V::from(0f32); PLATE_NODES_NUMBER * PLATE_NODE_DOF * 3],
+        );
+        for (r, s) in local_nodes_coordinates.iter()
+        {
+            let strain_displacement_matrix_mem_at_r_s = strain_displacement_matrix_mem_at_r_s(
+                self.node_1_number, 
+                self.node_2_number,
+                self.node_3_number,
+                self.node_4_number,
+                *r,
+                *s,
+                nodes,
+                &self.rotation_matrix_elements,
+                rel_tol,
+            )?;
+            strain_displacement_matrix_mem = strain_displacement_matrix_mem.add(&strain_displacement_matrix_mem_at_r_s)?;
+        }
+        let element_strains_mem = strain_displacement_matrix_mem.multiply(&local_displacements)?;
+        let element_forces_mem = c_mem
+            .multiply(&element_strains_mem)?
+            .multiply_by_scalar(self.thickness / V::from(local_nodes_coordinates.len() as f32));
 
-//         let mut strain_displacement_matrix_thu = Matrix::create(
-//             1,
-//             BEAM_NODES_NUMBER * BEAM_NODE_DOF,
-//             &[V::from(0f32); BEAM_NODES_NUMBER * BEAM_NODE_DOF],
-//         );
-//         for (r, _alpha) in self.integration_points.iter()
-//         {
-//             let strain_displacement_matrix_thu_at_r = strain_displacement_matrix_thu_at_r(
-//                 self.node_1_number, self.node_2_number, *r, nodes,
-//             )?;
-//             strain_displacement_matrix_thu = strain_displacement_matrix_thu.add(&strain_displacement_matrix_thu_at_r)?;
-//         }
-//         let element_strains_thu = strain_displacement_matrix_thu.multiply(&local_displacements)?;
-//         let element_forces_thu = element_strains_thu.multiply_by_scalar(
-//             shear_modulus * self.it / V::from(self.integration_points.len() as f32),
-//         );
+        let c_multiplier_bend = self.young_modulus * self.thickness / 
+            (V::from(2f32) * (V::from(1f32) - self.poisson_ratio.my_powi(2)));
+        let c_bend = Matrix::create(
+                3, 
+                3, 
+                &[
+                    V::from(1f32), self.poisson_ratio, V::from(0f32),
+                    self.poisson_ratio, V::from(1f32), V::from(0f32),
+                    V::from(0f32), V::from(0f32), (V::from(1f32) - self.poisson_ratio) / V::from(2f32),
+                ], 
+            )
+            .multiply_by_scalar(c_multiplier_bend);
+        let mut strain_displacement_matrix_bend = Matrix::create(
+            3,
+            PLATE_NODES_NUMBER * PLATE_NODE_DOF,
+            &[V::from(0f32); PLATE_NODES_NUMBER * PLATE_NODE_DOF * 3],
+        );
+        for (r, s) in local_nodes_coordinates.iter()
+        {
+            let strain_displacement_matrix_bend_at_r_s = strain_displacement_matrix_bend_at_r_s(
+                self.node_1_number, 
+                self.node_2_number,
+                self.node_3_number,
+                self.node_4_number,
+                *r,
+                *s,
+                nodes,
+                &self.rotation_matrix_elements,
+                rel_tol,
+            )?;
+            strain_displacement_matrix_bend = strain_displacement_matrix_bend.add(&strain_displacement_matrix_bend_at_r_s)?;
+        }
+        let element_strains_bend = strain_displacement_matrix_bend.multiply(&local_displacements)?;
+        let element_forces_bend = c_bend
+            .multiply(&element_strains_bend)?
+            .multiply_by_scalar(self.thickness.my_powi(2) / V::from(24f32));
 
-//         let beam_element_vector = find_beam_element_vector(self.node_1_number, self.node_2_number, nodes)?;
-//         let beam_element_length = beam_element_vector.norm()?;
+        let c_multiplier_shear = self.young_modulus / (V::from(2f32) * (V::from(1f32) + self.poisson_ratio));
+        let c_shear = Matrix::create(
+                2, 
+                2, 
+                &[
+                    V::from(1f32), V::from(0f32),
+                    V::from(0f32), V::from(1f32),
+                ], 
+            )
+            .multiply_by_scalar(c_multiplier_shear);
+        let mut strain_displacement_matrix_shear = Matrix::create(
+            2,
+            PLATE_NODES_NUMBER * PLATE_NODE_DOF,
+            &[V::from(0f32); PLATE_NODES_NUMBER * PLATE_NODE_DOF * 2],
+        );
+        for (r, s) in local_nodes_coordinates.iter()
+        {
+            let strain_displacement_matrix_shear_at_r_s = strain_displacement_matrix_shear_at_r_s(
+                self.node_1_number, 
+                self.node_2_number,
+                self.node_3_number,
+                self.node_4_number,
+                *r,
+                *s,
+                nodes,
+                &self.rotation_matrix_elements,
+                rel_tol,
+            )?;
+            strain_displacement_matrix_shear = strain_displacement_matrix_shear.add(&strain_displacement_matrix_shear_at_r_s)?;
+        }
+        let element_strains_shear = strain_displacement_matrix_shear.multiply(&local_displacements)?;
+        let element_forces_shear = c_shear
+            .multiply(&element_strains_shear)?
+            .multiply_by_scalar(self.thickness * self.shear_factor / V::from(local_nodes_coordinates.len() as f32));
 
-//         let mut strain_displacement_matrix_thv = Matrix::create(
-//             1,
-//             BEAM_NODES_NUMBER * BEAM_NODE_DOF,
-//             &[V::from(0f32); BEAM_NODES_NUMBER * BEAM_NODE_DOF],
-//         );
-//         for (r, _alpha) in self.integration_points.iter()
-//         {
-//             let strain_displacement_matrix_thv_at_r = strain_displacement_matrix_thv_at_r(
-//                 self.node_1_number, self.node_2_number, *r, nodes,
-//             )?;
-//             strain_displacement_matrix_thv = strain_displacement_matrix_thv.add(&strain_displacement_matrix_thv_at_r)?;
-//         }
-//         let element_strains_thv = strain_displacement_matrix_thv.multiply(&local_displacements)?;
-//         let element_forces_thv = element_strains_thv.multiply_by_scalar(
-//             self.young_modulus * self.i22_p / V::from(self.integration_points.len() as f32),
-//         );
-//         let moment_s_average = *element_forces_thv.get_element_value(&Position(0, 0))?;
-//         let moment_s_at_node_1 = moment_s_average + beam_element_length * force_t_value / V::from(2f32);
-//         let moment_s_at_node_2 = moment_s_average - beam_element_length * force_t_value / V::from(2f32);
+        let element_analysis_data = vec![
+            (
+                ElementForceComponent::MembraneForceR,
+                *element_forces_mem.get_element_value(&Position(0, 0))?,
+            ),
+            (
+                ElementForceComponent::MembraneForceS,
+                *element_forces_mem.get_element_value(&Position(1, 0))?,
+            ),
+            (
+                ElementForceComponent::MembraneForceRS,
+                *element_forces_mem.get_element_value(&Position(2, 0))?,
+            ),
+            (
+                ElementForceComponent::BendingMomentR,
+                *element_forces_bend.get_element_value(&Position(1, 0))?,
+            ),
+            (
+                ElementForceComponent::BendingMomentS,
+                *element_forces_bend.get_element_value(&Position(0, 0))?,
+            ),
+            (
+                ElementForceComponent::BendingMomentRS,
+                *element_forces_bend.get_element_value(&Position(2, 0))?,
+            ),
+            (
+                ElementForceComponent::ShearForceRT,
+                *element_forces_shear.get_element_value(&Position(0, 0))?,
+            ),
+            (
+                ElementForceComponent::ShearForceST,
+                *element_forces_shear.get_element_value(&Position(1, 0))?,
+            ),
+        ];
 
-//         let mut strain_displacement_matrix_thw = Matrix::create(
-//             1,
-//             BEAM_NODES_NUMBER * BEAM_NODE_DOF,
-//             &[V::from(0f32); BEAM_NODES_NUMBER * BEAM_NODE_DOF],
-//         );
-//         for (r, _alpha) in self.integration_points.iter()
-//         {
-//             let strain_displacement_matrix_thw_at_r = strain_displacement_matrix_thw_at_r(
-//                 self.node_1_number, self.node_2_number, *r, nodes,
-//             )?;
-//             strain_displacement_matrix_thw = strain_displacement_matrix_thw.add(&strain_displacement_matrix_thw_at_r)?;
-//         }
-//         let element_strains_thw = strain_displacement_matrix_thw.multiply(&local_displacements)?;
-//         let element_forces_thw = element_strains_thw.multiply_by_scalar(
-//             self.young_modulus * self.i11_p / V::from(self.integration_points.len() as f32),
-//         );
-//         let moment_t_average = *element_forces_thw.get_element_value(&Position(0, 0))?;
-//         let moment_t_at_node_1 = moment_t_average + beam_element_length * force_s_value / V::from(2f32);
-//         let moment_t_at_node_2 = moment_t_average - beam_element_length * force_s_value / V::from(2f32);
-
-//         let element_analysis_data = vec![
-//             (
-//                 ElementForceComponent::ForceR,
-//                 *element_forces_u.get_element_value(&Position(0, 0))?,
-//             ),
-//             (
-//                 ElementForceComponent::ForceS,
-//                 force_s_value,
-//             ),
-//             (
-//                 ElementForceComponent::ForceT,
-//                 force_t_value,
-//             ),
-//             (
-//                 ElementForceComponent::MomentR,
-//                 *element_forces_thu.get_element_value(&Position(0, 0))?,
-//             ),
-//             (
-//                 ElementForceComponent::MomentS,
-//                 moment_s_at_node_1,
-//             ),
-//             (
-//                 ElementForceComponent::MomentS,
-//                 moment_s_average,
-//             ),
-//             (
-//                 ElementForceComponent::MomentS,
-//                 moment_s_at_node_2,
-//             ),
-//             (
-//                 ElementForceComponent::MomentT,
-//                 moment_t_at_node_1,
-//             ),
-//             (
-//                 ElementForceComponent::MomentT,
-//                 moment_t_average,
-//             ),
-//             (
-//                 ElementForceComponent::MomentT,
-//                 moment_t_at_node_2,
-//             ),
-//         ];
-
-//         Ok(element_analysis_data)
-//     }
+        Ok(element_analysis_data)
+    }
 }

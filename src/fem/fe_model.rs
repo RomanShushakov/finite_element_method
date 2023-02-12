@@ -1,7 +1,7 @@
 use std::collections::{HashSet, HashMap};
 use std::time::Instant;
 
-use extended_matrix::{Matrix, Position, FloatTrait, BasicOperationsTrait, TryIntoSymmetricCompactedMatrixTrait, Vector, SquareMatrixTrait};
+use extended_matrix::{Matrix, Position, FloatTrait, BasicOperationsTrait, TryIntoSymmetricCompactedMatrixTrait, Vector};
 use colsol::{factorization, find_unknown};
 
 use crate::fem::finite_elements::fe_node::{FENode, DeletedFENodeData};

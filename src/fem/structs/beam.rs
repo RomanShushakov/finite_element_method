@@ -220,7 +220,7 @@ fn find_rotation_matrix_elements<V>(
 }
 
 
-pub fn strain_displacement_matrix_u_at_r<V>(
+fn strain_displacement_matrix_u_at_r<V>(
     node_1_number: u32, 
     node_2_number: u32, 
     r: V, 
@@ -364,7 +364,7 @@ fn strain_displacement_matrix_thv_at_r<V>(
 }
 
 
-pub fn strain_displacement_matrix_thw_at_r<V>(
+fn strain_displacement_matrix_thw_at_r<V>(
     node_1_number: u32, 
     node_2_number: u32, 
     r: V,

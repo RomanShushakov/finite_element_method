@@ -44,6 +44,15 @@ impl<V> FEM<V>
             elements_analysis_result.push((*beam_element_number, element_analysis_result))
         }
 
+        for (plate_element_number, plate_element) in self.get_plate_elements().iter()
+        {
+            let element_analysis_result = plate_element
+                .extract_element_analysis_result(
+                    self.get_nodes(), self.get_displacements_vector(), self.get_props().get_rel_tol(),
+                )?;
+            elements_analysis_result.push((*plate_element_number, element_analysis_result))
+        }
+
         Ok(elements_analysis_result)
     }
 }
