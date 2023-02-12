@@ -93,6 +93,59 @@ impl<V> FEM<V>
     }
 
 
+    pub fn add_uniformly_distributed_surface_load(
+        &mut self, plate_element_number: u32, dof_parameter: DOFParameter, value: V,
+    )
+        -> Result<(), String>
+    {
+        self.check_plate_element_exist(plate_element_number)?;
+
+        let plate = self.get_plate_elements()
+            .get(&plate_element_number)
+            .ok_or(format!("Plate element {plate_element_number} is absent!"))?;
+
+        let nodal_forces = plate.convert_uniformly_distributed_surface_load_to_nodal_loads(
+            value, &self.get_nodes(), self.get_props().get_rel_tol(),
+        )?;
+
+        let [node_1_number, node_2_number, node_3_number, node_4_number] = plate.get_nodes_numbers();
+
+        let node_1_index = self.get_nodes()
+            .get(&node_1_number)
+            .ok_or(format!("Node {node_1_number} is absent!"))?
+            .get_index();
+        *self.get_mut_forces_vector()
+            .get_mut_element_value(&Position(node_1_index * NODE_DOF + dof_parameter as usize, 0))? += 
+                *nodal_forces.get_element_value(&Position(0, 0))?;
+
+        let node_2_index = self.get_nodes()
+            .get(&node_2_number)
+            .ok_or(format!("Node {node_2_number} is absent!"))?
+            .get_index();
+        *self.get_mut_forces_vector()
+            .get_mut_element_value(&Position(node_2_index * NODE_DOF + dof_parameter as usize, 0))? += 
+                *nodal_forces.get_element_value(&Position(1, 0))?;
+            
+        let node_3_index = self.get_nodes()
+            .get(&node_3_number)
+            .ok_or(format!("Node {node_3_number} is absent!"))?
+            .get_index();
+        *self.get_mut_forces_vector()
+            .get_mut_element_value(&Position(node_3_index * NODE_DOF + dof_parameter as usize, 0))? += 
+                *nodal_forces.get_element_value(&Position(2, 0))?;
+
+        let node_4_index = self.get_nodes()
+            .get(&node_4_number)
+            .ok_or(format!("Node {node_4_number} is absent!"))?
+            .get_index();
+        *self.get_mut_forces_vector()
+            .get_mut_element_value(&Position(node_4_index * NODE_DOF + dof_parameter as usize, 0))? += 
+                *nodal_forces.get_element_value(&Position(3, 0))?;
+
+        Ok(())
+    }
+
+
     pub fn add_displacement(
         &mut self, node_number: u32, dof_parameter: DOFParameter, value: V,
     )
