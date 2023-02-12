@@ -53,13 +53,20 @@ fn convert_k_aa_into_compacted_form<V>(
 
 
 fn find_r_r<V>(
-    k_ba_matrix: &Matrix<V>, u_a_vector: &Vector<V>, k_bb_matrix: &SquareMatrix<V>, u_b_vector: &Vector<V>,
+    k_ba_matrix: &Matrix<V>,
+    u_a_vector: &Vector<V>,
+    k_bb_matrix: &SquareMatrix<V>,
+    u_b_vector: &Vector<V>,
+    r_b_vector: Vector<V>,
 ) 
     -> Result<Vec<V>, String>
     where V: FloatTrait<Output = V>
 {
     let mut r_r = Vec::new();
-    let r_r_vector = k_ba_matrix.multiply(u_a_vector)?.add(&k_bb_matrix.multiply(u_b_vector)?)?;
+    let r_r_vector = k_ba_matrix
+        .multiply(u_a_vector)?
+        .add(&k_bb_matrix.multiply(u_b_vector)?)?
+        .subtract(&r_b_vector)?;
     for i in 0..r_r_vector.get_shape().0
     {
         r_r.push(*r_r_vector.get_element_value(&Position(i, 0))?);
@@ -95,11 +102,20 @@ impl<V> FEM<V>
     ) 
         -> Result<Vector<V>, String>
     {
+        let mut r_b_vector = Vector::create(
+            &vec![V::from(0f32); separated_stiffness_matrix.get_k_bb_indexes().len()],
+        );
+        for i in 0..separated_stiffness_matrix.get_k_bb_indexes().len()
+        {
+            *r_b_vector.get_mut_element_value(&Position(i, 0))? = *self.get_forces_vector()
+                .get_element_value(&Position(separated_stiffness_matrix.get_k_bb_indexes()[i], 0))?;
+        }
         let r_r = find_r_r(
             separated_stiffness_matrix.get_k_ba_matrix(), 
             u_a_vector, 
             separated_stiffness_matrix.get_k_bb_matrix(), 
             u_b_vector,
+            r_b_vector,
         )?;
 
         Ok(Vector::create(&r_r))
