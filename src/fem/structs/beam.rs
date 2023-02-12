@@ -410,10 +410,8 @@ fn local_stiffness_matrix_at_ip<V>(
     let b_u_t_at_r = b_u_at_r.transpose();
     let c_u = area * young_modulus;
     let k_u_at_ip = b_u_t_at_r
-        .multiply_by_scalar(c_u)
         .multiply(&b_u_at_r)?
-        .multiply_by_scalar(determinant_of_jacobian_at_r(node_1_number, node_2_number, r, nodes)?)
-        .multiply_by_scalar(alpha);
+        .multiply_by_scalar(c_u * determinant_of_jacobian_at_r(node_1_number, node_2_number, r, nodes)? * alpha);
 
     let shear_modulus = young_modulus / (V::from(2f32) * (V::from(1f32) + poisson_ratio));
 
@@ -421,46 +419,36 @@ fn local_stiffness_matrix_at_ip<V>(
     let b_v_t_at_r = b_v_at_r.transpose();
     let c_v = shear_modulus * area * shear_factor;
     let k_v_at_ip = b_v_t_at_r
-        .multiply_by_scalar(c_v)
         .multiply(&b_v_at_r)?
-        .multiply_by_scalar(determinant_of_jacobian_at_r(node_1_number, node_2_number, r, nodes)?)
-        .multiply_by_scalar(alpha);
+        .multiply_by_scalar(c_v * determinant_of_jacobian_at_r(node_1_number, node_2_number, r, nodes)? * alpha);
 
     let b_w_at_r = strain_displacement_matrix_w_at_r(node_1_number, node_2_number, r, nodes)?;
     let b_w_t_at_r = b_w_at_r.transpose();
     let c_w = shear_modulus * area * shear_factor;
     let k_w_at_ip = b_w_t_at_r
-        .multiply_by_scalar(c_w)
         .multiply(&b_w_at_r)?
-        .multiply_by_scalar(determinant_of_jacobian_at_r(node_1_number, node_2_number, r, nodes)?)
-        .multiply_by_scalar(alpha);
+        .multiply_by_scalar(c_w * determinant_of_jacobian_at_r(node_1_number, node_2_number, r, nodes)? * alpha);
 
     let b_thu_at_r = strain_displacement_matrix_thu_at_r(node_1_number, node_2_number, r, nodes)?;
     let b_thu_t_at_r = b_thu_at_r.transpose();
     let c_thu = shear_modulus * it;
     let k_thu_at_ip = b_thu_t_at_r
-        .multiply_by_scalar(c_thu)
         .multiply(&b_thu_at_r)?
-        .multiply_by_scalar(determinant_of_jacobian_at_r(node_1_number, node_2_number, r, nodes)?)
-        .multiply_by_scalar(alpha);
+        .multiply_by_scalar(c_thu * determinant_of_jacobian_at_r(node_1_number, node_2_number, r, nodes)? * alpha);
 
     let b_thv_at_r = strain_displacement_matrix_thv_at_r(node_1_number, node_2_number, r, nodes)?;
     let b_thv_t_at_r = b_thv_at_r.transpose();
     let c_thv = young_modulus * i22_p;
     let k_thv_at_ip = b_thv_t_at_r
-        .multiply_by_scalar(c_thv)
         .multiply(&b_thv_at_r)?
-        .multiply_by_scalar(determinant_of_jacobian_at_r(node_1_number, node_2_number, r, nodes)?)
-        .multiply_by_scalar(alpha);
+        .multiply_by_scalar(c_thv * determinant_of_jacobian_at_r(node_1_number, node_2_number, r, nodes)? * alpha);
 
     let b_thw_at_r = strain_displacement_matrix_thw_at_r(node_1_number, node_2_number, r, nodes)?;
     let b_thw_t_at_r = b_thw_at_r.transpose();
     let c_thw = young_modulus * i11_p;
     let k_thw_at_ip = b_thw_t_at_r
-        .multiply_by_scalar(c_thw)
         .multiply(&b_thw_at_r)?
-        .multiply_by_scalar(determinant_of_jacobian_at_r(node_1_number, node_2_number, r, nodes)?)
-        .multiply_by_scalar(alpha);
+        .multiply_by_scalar(c_thw * determinant_of_jacobian_at_r(node_1_number, node_2_number, r, nodes)? * alpha);
     
     Ok(
         k_u_at_ip

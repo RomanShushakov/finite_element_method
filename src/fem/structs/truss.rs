@@ -148,10 +148,8 @@ fn local_stiffness_matrix_at_ip<V>(
 
     Ok(
         b_t_at_r
-            .multiply_by_scalar(c_at_r)
             .multiply(&b_at_r)?
-            .multiply_by_scalar(determinant_of_jacobian_at_r(node_1_number, node_2_number, r, nodes)?)
-            .multiply_by_scalar(alpha)
+            .multiply_by_scalar(c_at_r * determinant_of_jacobian_at_r(node_1_number, node_2_number, r, nodes)? * alpha)
             .try_into_square_matrix()?
     )
 }

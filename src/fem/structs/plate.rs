@@ -410,10 +410,8 @@ pub fn local_stiffness_matrix_at_ip<V>(
                 nodes, 
                 rotation_matrix_elements, 
                 rel_tol,
-            )?
-        )
-        .multiply_by_scalar(alpha);
-    
+            )? * alpha,
+        );
 
     let c_multiplier_bend = young_modulus * thickness.my_powi(3) / 
         (V::from(12f32) * (V::from(1f32) - poisson_ratio.my_powi(2)));
@@ -447,9 +445,8 @@ pub fn local_stiffness_matrix_at_ip<V>(
                 nodes, 
                 rotation_matrix_elements,
                 rel_tol
-            )?
-        )
-        .multiply_by_scalar(alpha);
+            )? * alpha,
+        );
 
     let c_multiplier_shear = young_modulus * thickness * shear_factor / 
         (V::from(2f32) * (V::from(1f32) + poisson_ratio));
@@ -479,9 +476,8 @@ pub fn local_stiffness_matrix_at_ip<V>(
                 nodes, 
                 rotation_matrix_elements,
                 rel_tol,
-            )?
-        )
-        .multiply_by_scalar(alpha);
+            )? * alpha,
+        );
 
     Ok(
         k_mem_at_ip
