@@ -67,7 +67,7 @@ impl<V> FEM<V>
             .get(&beam_element_number)
             .ok_or(format!("Beam element {beam_element_number} is absent!"))?;
 
-        let nodal_forces = beam.convert_uniformly_distributed_line_force_to_nodal_forces(
+        let nodal_forces = beam.convert_uniformly_distributed_line_load_to_nodal_loads(
             value, &self.get_nodes(),
         )?;
 

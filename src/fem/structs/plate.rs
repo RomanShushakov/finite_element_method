@@ -14,7 +14,7 @@ use crate::fem::quadrilateral_4n_element_functions::
 {
     is_points_of_quadrilateral_on_the_same_line, is_points_of_quadrilateral_on_the_same_plane, 
     find_rotation_matrix_elements_of_quadrilateral, convex_hull_on_four_points_on_plane, dh_dx_dh_dy,
-    extract_transformed_directions_of_nodes, determinant_of_jacobian_at_r_s,
+    extract_transformed_directions_of_nodes, determinant_of_jacobian_at_r_s, h1_r_s, h2_r_s, h3_r_s, h4_r_s,
 };
 
 
@@ -796,43 +796,54 @@ impl<V> Plate<V>
     }
 
 
-//     pub fn convert_uniformly_distributed_line_force_to_nodal_forces(
-//         &self,
-//         uniformly_distributed_line_force_value: V,
-//         nodes: &HashMap<u32, Node<V>>,
-//     ) 
-//         -> Result<Vector<V>, String>
-//     {
-//         let distributed_force_matrix = Matrix::create(
-//             1, 
-//             1,
-//             &[uniformly_distributed_line_force_value],
-//         );
+    pub fn convert_uniformly_distributed_surface_load_to_nodal_loads(
+        &self,
+        uniformly_distributed_surface_load_value: V,
+        nodes: &HashMap<u32, Node<V>>,
+        rel_tol: V,
+    ) 
+        -> Result<Vector<V>, String>
+    {
+        let distributed_force_matrix = Matrix::create(
+            1, 
+            1,
+            &[uniformly_distributed_surface_load_value],
+        );
 
-//         let mut nodal_forces = Vector::create(&[V::from(0f32); 2]);
-//         for (r, alpha) in self.integration_points.iter()
-//         {
-//             let determinant_of_jacobian_at_r = determinant_of_jacobian_at_r(
-//                 self.node_1_number, self.node_2_number, *r, nodes,
-//             )?;
+        let mut nodal_forces = Vector::create(&[V::from(0f32); 4]);
+        for (r, s, alpha_r, alpha_s) in self.integration_points.iter()
+        {
+            let determinant_of_jacobian_at_r_s = determinant_of_jacobian_at_r_s(
+                self.node_1_number,
+                self.node_2_number, 
+                self.node_3_number,
+                self.node_4_number,
+                *r,
+                *s,
+                nodes,
+                &self.rotation_matrix_elements,
+                rel_tol,
+            )?;
 
-//             let displacement_interpolation_matrix = Vector::create(&[h1_r(*r), h2_r(*r)]);
+            let displacement_interpolation_matrix = Matrix::create(
+                    1, 
+                    4, 
+                    &[h1_r_s(*r, *s), h2_r_s(*r, *s), h3_r_s(*r, *s), h4_r_s(*r, *s)],
+                )
+                .transpose()
+                .multiply(&distributed_force_matrix)?
+                .multiply_by_scalar(determinant_of_jacobian_at_r_s * *alpha_r * *alpha_s);
+            nodal_forces = nodal_forces.add(&displacement_interpolation_matrix)?;
+        }
 
-//             let matrix = displacement_interpolation_matrix
-//                 .multiply(&distributed_force_matrix)?
-//                 .multiply_by_scalar(determinant_of_jacobian_at_r)
-//                 .multiply_by_scalar(*alpha);
-//             nodal_forces = nodal_forces.add(&matrix)?;
-//         }
-
-//         Ok(nodal_forces)
-//     }
+        Ok(nodal_forces)
+    }
 
 
-//     pub fn get_nodes_numbers(&self) -> [u32; 2]
-//     {
-//         [self.node_1_number, self.node_2_number]
-//     }
+    pub fn get_nodes_numbers(&self) -> [u32; 4]
+    {
+        [self.node_1_number, self.node_2_number, self.node_3_number, self.node_4_number]
+    }
 
 
     pub fn extract_element_analysis_result(

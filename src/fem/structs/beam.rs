@@ -656,9 +656,9 @@ impl<V> Beam<V>
     }
 
 
-    pub fn convert_uniformly_distributed_line_force_to_nodal_forces(
+    pub fn convert_uniformly_distributed_line_load_to_nodal_loads(
         &self,
-        uniformly_distributed_line_force_value: V,
+        uniformly_distributed_line_load_value: V,
         nodes: &HashMap<u32, Node<V>>,
     ) 
         -> Result<Vector<V>, String>
@@ -666,7 +666,7 @@ impl<V> Beam<V>
         let distributed_force_matrix = Matrix::create(
             1, 
             1,
-            &[uniformly_distributed_line_force_value],
+            &[uniformly_distributed_line_load_value],
         );
 
         let mut nodal_forces = Vector::create(&[V::from(0f32); 2]);
@@ -680,8 +680,7 @@ impl<V> Beam<V>
 
             let matrix = displacement_interpolation_matrix
                 .multiply(&distributed_force_matrix)?
-                .multiply_by_scalar(determinant_of_jacobian_at_r)
-                .multiply_by_scalar(*alpha);
+                .multiply_by_scalar(determinant_of_jacobian_at_r * *alpha);
             nodal_forces = nodal_forces.add(&matrix)?;
         }
 

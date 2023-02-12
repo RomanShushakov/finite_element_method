@@ -520,28 +520,28 @@ fn dh4_ds<V>(r: V, s: V) -> V
 }
 
 
-fn h1_r_s<V>(r: V, s: V) -> V
+pub fn h1_r_s<V>(r: V, s: V) -> V
     where V: FloatTrait<Output = V>
 {
     V::from(0.25f32) * (V::from(1f32) + r) * (V::from(1f32) + s)
 }
 
 
-fn h2_r_s<V>(r: V, s: V) -> V
+pub fn h2_r_s<V>(r: V, s: V) -> V
     where V: FloatTrait<Output = V>
 {
     V::from(0.25f32) * (V::from(1f32) - r) * (V::from(1f32) + s)
 }
 
 
-fn h3_r_s<V>(r: V, s: V) -> V
+pub fn h3_r_s<V>(r: V, s: V) -> V
     where V: FloatTrait<Output = V>
 {
     V::from(0.25f32) * (V::from(1f32) - r) * (V::from(1f32) - s)
 }
 
 
-fn h4_r_s<V>(r: V, s: V) -> V
+pub fn h4_r_s<V>(r: V, s: V) -> V
     where V: FloatTrait<Output = V>
 {
     V::from(0.25f32) * (V::from(1f32) + r) * (V::from(1f32) - s)
