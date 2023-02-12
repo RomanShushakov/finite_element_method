@@ -279,7 +279,7 @@ fn dy_ds<V>(y_1: V, y_2: V, y_3: V, y_4: V, r: V, s: V) -> V
 }
 
 
-fn extract_transformed_directions_of_nodes<V>(
+pub fn extract_transformed_directions_of_nodes<V>(
     node_1_number: u32, 
     node_2_number: u32, 
     node_3_number: u32, 
@@ -306,8 +306,7 @@ fn extract_transformed_directions_of_nodes<V>(
     let transformed_node_2_direction = rotation_matrix.multiply(&node_2_direction)?;
     let transformed_node_4_direction = rotation_matrix.multiply(&node_4_direction)?;
 
-    Ok
-    (
+    Ok(
         [
             [
                 *transformed_node_1_direction.get_element_value(&Position(0, 0))?, 
@@ -329,7 +328,7 @@ fn extract_transformed_directions_of_nodes<V>(
 }
 
 
-pub fn jacobian_at_r_s<V>(
+fn jacobian_at_r_s<V>(
     node_1_number: u32,
     node_2_number: u32,
     node_3_number: u32,
@@ -353,8 +352,7 @@ pub fn jacobian_at_r_s<V>(
     let transformed_node_4_direction_x = transformed_directions_of_nodes[2][0];
     let transformed_node_4_direction_y = transformed_directions_of_nodes[2][1];
 
-    Ok
-    (
+    Ok(
         SquareMatrix::create(
             2,
             &[
@@ -522,7 +520,35 @@ fn dh4_ds<V>(r: V, s: V) -> V
 }
 
 
-fn dh_dx_dh_dy<V>(
+fn h1_r_s<V>(r: V, s: V) -> V
+    where V: FloatTrait<Output = V>
+{
+    V::from(0.25f32) * (V::from(1f32) + r) * (V::from(1f32) + s)
+}
+
+
+fn h2_r_s<V>(r: V, s: V) -> V
+    where V: FloatTrait<Output = V>
+{
+    V::from(0.25f32) * (V::from(1f32) - r) * (V::from(1f32) + s)
+}
+
+
+fn h3_r_s<V>(r: V, s: V) -> V
+    where V: FloatTrait<Output = V>
+{
+    V::from(0.25f32) * (V::from(1f32) - r) * (V::from(1f32) - s)
+}
+
+
+fn h4_r_s<V>(r: V, s: V) -> V
+    where V: FloatTrait<Output = V>
+{
+    V::from(0.25f32) * (V::from(1f32) + r) * (V::from(1f32) - s)
+}
+
+
+pub fn dh_dx_dh_dy<V>(
     node_1_number: u32, 
     node_2_number: u32, 
     node_3_number: u32, 

@@ -13,7 +13,8 @@ use crate::fem::methods_for_element_analysis::ElementForceComponent;
 use crate::fem::quadrilateral_4n_element_functions::
 {
     is_points_of_quadrilateral_on_the_same_line, is_points_of_quadrilateral_on_the_same_plane, 
-    find_rotation_matrix_elements_of_quadrilateral, convex_hull_on_four_points_on_plane,
+    find_rotation_matrix_elements_of_quadrilateral, convex_hull_on_four_points_on_plane, dh_dx_dh_dy,
+    extract_transformed_directions_of_nodes, determinant_of_jacobian_at_r_s,
 };
 
 
@@ -124,349 +125,371 @@ fn check_plate_properties<V>(
 }
 
 
-// fn power_func_x<V>(a: V, x: V, n: i32) -> V
-//     where V: FloatTrait<Output = V>
-// {
-//     (0..n).fold(a, |acc, _| acc * x)
-// }
+pub fn strain_displacement_matrix_mem_at_r_s<V>(
+    node_1_number: u32, 
+    node_2_number: u32, 
+    node_3_number: u32, 
+    node_4_number: u32,
+    r: V, 
+    s: V, 
+    nodes: &HashMap<u32, Node<V>>, 
+    rotation_matrix_elements: &[V; 9],
+    rel_tol: V,
+) 
+    -> Result<Matrix<V>, String>
+    where V: FloatTrait<Output = V>
+{
+    let dh_dx_dh_dy_matrix = dh_dx_dh_dy(
+        node_1_number, node_2_number, node_3_number, node_4_number, r, s, nodes, rotation_matrix_elements, rel_tol,
+    )?;
+
+    let dh1_dx = *dh_dx_dh_dy_matrix.get_element_value(&Position(0, 0))?;
+    let dh2_dx = *dh_dx_dh_dy_matrix.get_element_value(&Position(0, 1))?;
+    let dh3_dx = *dh_dx_dh_dy_matrix.get_element_value(&Position(0, 2))?;
+    let dh4_dx = *dh_dx_dh_dy_matrix.get_element_value(&Position(0, 3))?;
+
+    let dh1_dy = *dh_dx_dh_dy_matrix.get_element_value(&Position(1, 0))?;
+    let dh2_dy = *dh_dx_dh_dy_matrix.get_element_value(&Position(1, 1))?;
+    let dh3_dy = *dh_dx_dh_dy_matrix.get_element_value(&Position(1, 2))?;
+    let dh4_dy = *dh_dx_dh_dy_matrix.get_element_value(&Position(1, 3))?;
+
+    Ok(
+        Matrix::create(
+            3, 
+            PLATE_NODES_NUMBER * PLATE_NODE_DOF, 
+            &[
+                dh1_dx, V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32),
+                dh2_dx, V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32),
+                dh3_dx, V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32),
+                dh4_dx, V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32),
+        
+                V::from(0f32), dh1_dy, V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32),
+                V::from(0f32), dh2_dy, V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32),
+                V::from(0f32), dh3_dy, V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32),
+                V::from(0f32), dh4_dy, V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32),
+        
+                dh1_dy, dh1_dx, V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32),
+                dh2_dy, dh2_dx, V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32),
+                dh3_dy, dh3_dx, V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32),
+                dh4_dy, dh4_dx, V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32),
+            ],
+        )
+    )
+}
 
 
-// fn derivative_x<V>(f: fn(V, V, i32) -> V, a: V, x: V, n: i32) -> V
-//     where V: FloatTrait<Output = V>
-// {
-//     let mut converted_n = V::from(0f32);
-//     (0..n).for_each(|_| converted_n += V::from(1f32));
-//     f(a * converted_n, x, n - 1)
-// }
+pub fn strain_displacement_matrix_plate_bending_at_r_s<V>(
+    node_1_number: u32, 
+    node_2_number: u32, 
+    node_3_number: u32, 
+    node_4_number: u32,
+    r: V, 
+    s: V, 
+    nodes: &HashMap<u32, Node<V>>, 
+    rotation_matrix_elements: &[V; 9],
+    rel_tol: V,
+) 
+    -> Result<Matrix<V>, String>
+    where V: FloatTrait<Output = V>
+{
+    let dh_dx_dh_dy_matrix = dh_dx_dh_dy(
+        node_1_number, node_2_number, node_3_number, node_4_number, r, s, nodes, rotation_matrix_elements, rel_tol,
+    )?;
+
+    let dh1_dx = *dh_dx_dh_dy_matrix.get_element_value(&Position(0, 0))?;
+    let dh2_dx = *dh_dx_dh_dy_matrix.get_element_value(&Position(0, 1))?;
+    let dh3_dx = *dh_dx_dh_dy_matrix.get_element_value(&Position(0, 2))?;
+    let dh4_dx = *dh_dx_dh_dy_matrix.get_element_value(&Position(0, 3))?;
+
+    let dh1_dy = *dh_dx_dh_dy_matrix.get_element_value(&Position(1, 0))?;
+    let dh2_dy = *dh_dx_dh_dy_matrix.get_element_value(&Position(1, 1))?;
+    let dh3_dy = *dh_dx_dh_dy_matrix.get_element_value(&Position(1, 2))?;
+    let dh4_dy = *dh_dx_dh_dy_matrix.get_element_value(&Position(1, 3))?;
+
+    let elements = vec![
+        V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), V::from(-1f32) * dh1_dx, V::from(0f32),
+        V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), V::from(-1f32) * dh2_dx, V::from(0f32),
+        V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), V::from(-1f32) * dh3_dx, V::from(0f32),
+        V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), V::from(-1f32) * dh4_dx, V::from(0f32),
+
+        V::from(0f32), V::from(0f32), V::from(0f32), dh1_dy, V::from(0f32), V::from(0f32),
+        V::from(0f32), V::from(0f32), V::from(0f32), dh2_dy, V::from(0f32), V::from(0f32),
+        V::from(0f32), V::from(0f32), V::from(0f32), dh3_dy, V::from(0f32), V::from(0f32),
+        V::from(0f32), V::from(0f32), V::from(0f32), dh4_dy, V::from(0f32), V::from(0f32),
+
+        V::from(0f32), V::from(0f32), V::from(0f32), dh1_dx, V::from(-1f32) * dh1_dy, V::from(0f32),
+        V::from(0f32), V::from(0f32), V::from(0f32), dh2_dx, V::from(-1f32) * dh2_dy, V::from(0f32),
+        V::from(0f32), V::from(0f32), V::from(0f32), dh3_dx, V::from(-1f32) * dh3_dy, V::from(0f32),
+        V::from(0f32), V::from(0f32), V::from(0f32), dh4_dx, V::from(-1f32) * dh4_dy, V::from(0f32),
+    ];
+
+    Ok(
+        Matrix::create(
+            3, 
+            PLATE_NODES_NUMBER * PLATE_NODE_DOF, 
+            &[
+                V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), V::from(-1f32) * dh1_dx, V::from(0f32),
+                V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), V::from(-1f32) * dh2_dx, V::from(0f32),
+                V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), V::from(-1f32) * dh3_dx, V::from(0f32),
+                V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), V::from(-1f32) * dh4_dx, V::from(0f32),
+        
+                V::from(0f32), V::from(0f32), V::from(0f32), dh1_dy, V::from(0f32), V::from(0f32),
+                V::from(0f32), V::from(0f32), V::from(0f32), dh2_dy, V::from(0f32), V::from(0f32),
+                V::from(0f32), V::from(0f32), V::from(0f32), dh3_dy, V::from(0f32), V::from(0f32),
+                V::from(0f32), V::from(0f32), V::from(0f32), dh4_dy, V::from(0f32), V::from(0f32),
+        
+                V::from(0f32), V::from(0f32), V::from(0f32), dh1_dx, V::from(-1f32) * dh1_dy, V::from(0f32),
+                V::from(0f32), V::from(0f32), V::from(0f32), dh2_dx, V::from(-1f32) * dh2_dy, V::from(0f32),
+                V::from(0f32), V::from(0f32), V::from(0f32), dh3_dx, V::from(-1f32) * dh3_dy, V::from(0f32),
+                V::from(0f32), V::from(0f32), V::from(0f32), dh4_dx, V::from(-1f32) * dh4_dy, V::from(0f32),
+            ],
+        )
+    )
+}
 
 
-// fn dx_dr<V>(x_1: V, x_2: V, r: V) -> V
-//     where V: FloatTrait<Output = V>
-// {
-//     derivative_x(power_func_x, x_1 * V::from(0.5f32), V::from(0f32), 0) -
-//     derivative_x(power_func_x, x_1 * V::from(0.5f32), r, 1) +
-//     derivative_x(power_func_x, x_2 * V::from(0.5f32), V::from(0f32), 0) +
-//     derivative_x(power_func_x, x_2 * V::from(0.5f32), r, 1)
-// }
+pub fn strain_displacement_matrix_plate_shear_at_r_s<V>(
+    node_1_number: u32, 
+    node_2_number: u32, 
+    node_3_number: u32, 
+    node_4_number: u32,
+    r: V, 
+    s: V, 
+    nodes: &HashMap<u32, Node<V>>, 
+    rotation_matrix_elements: &[V; 9],
+    rel_tol: V,
+) 
+    -> Result<Matrix<V>, String>
+    where V: FloatTrait<Output = V>
+{
+    let transformed_directions_of_nodes = extract_transformed_directions_of_nodes(
+        node_1_number, node_2_number, node_3_number, node_4_number, nodes, rotation_matrix_elements,
+    )?;
 
+    let x_1 = transformed_directions_of_nodes[0][0];
+    let y_1 = transformed_directions_of_nodes[0][1];
+    let x_2 = transformed_directions_of_nodes[1][0];
+    let y_2 = transformed_directions_of_nodes[1][1];
+    let x_3 = V::from(0f32);
+    let y_3 = V::from(0f32);
+    let x_4 = transformed_directions_of_nodes[2][0];
+    let y_4 = transformed_directions_of_nodes[2][1];
 
-// fn jacobian_at_r<V>(node_1_number: u32, node_2_number: u32, r: V, nodes: &HashMap<u32, Node<V>>) -> Result<V, String>
-//     where V: FloatTrait<Output = V>
-// {
-//     let beam_element_vector = find_beam_element_vector(node_1_number, node_2_number, nodes)?;
-//     let beam_element_length = beam_element_vector.norm()?;
-//     let x_1 = V::from(-1f32) * beam_element_length / V::from(2f32);
-//     let x_2 = beam_element_length / V::from(2f32);
-//     Ok(dx_dr(x_1, x_2, r))
-// }
+    let a_x = x_1 - x_2 - x_3 + x_4;
+    let b_x = x_1 - x_2 + x_3 - x_4;
+    let c_x = x_1 + x_2 - x_3 - x_4;
+    let a_y = y_1 - y_2 - y_3 + y_4;
+    let b_y = y_1 - y_2 + y_3 - y_4;
+    let c_y = y_1 + y_2 - y_3 - y_4;
 
+    let determinant_of_jacobian = determinant_of_jacobian_at_r_s(
+        node_1_number, node_2_number, node_3_number, node_4_number, r, s, nodes, rotation_matrix_elements, rel_tol,
+    )?;
 
-// fn inverse_jacobian_at_r<V>(
-//     node_1_number: u32, node_2_number: u32, r: V, nodes: &HashMap<u32, Node<V>>,
-// ) 
-//     -> Result<V, String>
-//     where V: FloatTrait<Output = V>
-// {
-//     Ok(V::from(1f32) / jacobian_at_r(node_1_number, node_2_number, r, nodes)?)
-// }
-
-
-// fn determinant_of_jacobian_at_r<V>(
-//     node_1_number: u32, node_2_number: u32, r: V, nodes: &HashMap<u32, Node<V>>,
-// ) 
-//     -> Result<V, String>
-//     where V: FloatTrait<Output = V>
-// {
-//     jacobian_at_r(node_1_number, node_2_number, r, nodes)
-// }
-
-
-// pub fn h1_r<V>(r: V) -> V
-//     where V: FloatTrait<Output = V>
-// {
-//     V::from(0.5f32) * (V::from(1f32) - r)
-// }
-
-
-// pub fn h2_r<V>(r: V) -> V
-//     where V: FloatTrait<Output = V>
-// {
-//     V::from(0.5f32) * (V::from(1f32) + r)
-// }
-
-
-// fn dh1_dr<V>(r: V) -> V
-//     where V: FloatTrait<Output = V>
-// {
-//     derivative_x(power_func_x, V::from(0.5f32), V::from(0f32), 0) -
-//     derivative_x(power_func_x, V::from(0.5f32), r, 1)
-// }
-
-
-// fn dh2_dr<V>(r: V) -> V
-//     where V: FloatTrait<Output = V>
-// {
-//     derivative_x(power_func_x, V::from(0.5f32), V::from(0f32), 0) +
-//     derivative_x(power_func_x, V::from(0.5f32), r, 1)
-// }
-
-
-// pub fn strain_displacement_matrix_u_at_r<V>(
-//     node_1_number: u32, 
-//     node_2_number: u32, 
-//     r: V, 
-//     nodes: &HashMap<u32, Node<V>>
-// )
-//     -> Result<Matrix<V>, String>
-//     where V: FloatTrait<Output = V>
-// {
-//     let inverse_jacobian = inverse_jacobian_at_r(node_1_number, node_2_number, r, nodes)?;
-//     Ok
-//     (
-//         Matrix::create(
-//             1,
-//             BEAM_NODES_NUMBER * BEAM_NODE_DOF,
-//             &[
-//                 dh1_dr(r), V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32),
-//                 dh2_dr(r), V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32),
-//             ],
-//         )
-//         .multiply_by_scalar(inverse_jacobian)
-//     )
-// }
-
-
-// fn strain_displacement_matrix_v_at_r<V>(
-//     node_1_number: u32,
-//     node_2_number: u32, 
-//     r: V,
-//     nodes: &HashMap<u32, Node<V>>,
-// ) 
-//     -> Result<Matrix<V>, String>
-//     where V: FloatTrait<Output = V>
-// {
-//     let inverse_jacobian = inverse_jacobian_at_r(node_1_number, node_2_number, r, nodes)?;
+    let gamma_rz_multiplier = (
+        (c_x + r * b_x).my_powi(2) + (c_y + r * b_y).my_powi(2)).my_sqrt() / (V::from(8f32) * determinant_of_jacobian
+    );
     
-//     let lhs_matrix = Matrix::create(
-//             1,
-//             BEAM_NODES_NUMBER * BEAM_NODE_DOF,
-//             &[
-//                 V::from(0f32), dh1_dr(r), V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32),
-//                 V::from(0f32), dh2_dr(r), V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32),
-//             ],
-//         )
-//         .multiply_by_scalar(inverse_jacobian);
+    let gamma_sz_multiplier = (
+        (a_x + s * b_x).my_powi(2) + (a_y + s * b_y).my_powi(2)).my_sqrt() / (V::from(8f32) * determinant_of_jacobian
+    );
 
-//     let rhs_matrix = Matrix::create(
-//         1,
-//         BEAM_NODES_NUMBER * BEAM_NODE_DOF,
-//         &[
-//             V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), h1_r(r),
-//             V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), h2_r(r),
-//         ],
-//     );
-
-//     let matrix = lhs_matrix.subtract(&rhs_matrix)?;
-
-//     Ok(matrix)
-// }
-
-
-// fn strain_displacement_matrix_w_at_r<V>(
-//     node_1_number: u32, 
-//     node_2_number: u32, 
-//     r: V,
-//     nodes: &HashMap<u32, Node<V>>
-// ) 
-//     -> Result<Matrix<V>, String>
-//     where V: FloatTrait<Output = V>
-// {
-//     let inverse_jacobian = inverse_jacobian_at_r(node_1_number, node_2_number, r, nodes)?;
-
-//     let lhs_matrix = Matrix::create(
-//             1,
-//             BEAM_NODES_NUMBER * BEAM_NODE_DOF,
-//             &[
-//                 V::from(0f32), V::from(0f32), dh1_dr(r), V::from(0f32), V::from(0f32), V::from(0f32),
-//                 V::from(0f32), V::from(0f32), dh2_dr(r), V::from(0f32), V::from(0f32), V::from(0f32),
-//             ],
-//         )
-//         .multiply_by_scalar(inverse_jacobian);
-
-//     let rhs_matrix = Matrix::create(
-//         1,
-//         BEAM_NODES_NUMBER * BEAM_NODE_DOF,
-//         &[
-//             V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), h1_r(r), V::from(0f32),
-//             V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), h2_r(r), V::from(0f32),
-//         ],
-//     );
-
-//     let matrix = lhs_matrix.subtract(&rhs_matrix)?;
-
-//     Ok(matrix)
-// }
-
-
-// fn strain_displacement_matrix_thu_at_r<V>(
-//     node_1_number: u32, 
-//     node_2_number: u32, 
-//     r: V,
-//     nodes: &HashMap<u32, Node<V>>,
-// ) 
-//     -> Result<Matrix<V>, String>
-//     where V: FloatTrait<Output = V>
-// {
-//     let inverse_jacobian = inverse_jacobian_at_r(node_1_number, node_2_number, r, nodes)?;
-//     Ok
-//     (
-//         Matrix::create(
-//             1,
-//             BEAM_NODES_NUMBER * BEAM_NODE_DOF,
-//             &[
-//                 V::from(0f32), V::from(0f32), V::from(0f32), dh1_dr(r), V::from(0f32), V::from(0f32),
-//                 V::from(0f32), V::from(0f32), V::from(0f32), dh2_dr(r), V::from(0f32), V::from(0f32),
-//             ],
-//         )
-//         .multiply_by_scalar(inverse_jacobian)
-//     )
-// }
+    Ok(
+        Matrix::create(
+            2, 
+            PLATE_NODES_NUMBER * PLATE_NODE_DOF, 
+            &[
+                V::from(0f32), 
+                V::from(0f32), 
+                (V::from(1f32) + s) / V::from(2f32) * gamma_rz_multiplier,
+                (V::from(1f32) + s) * V::from(-1f32) * (y_1 - y_2) / V::from(4f32) * gamma_rz_multiplier,
+                (V::from(1f32) + s) * (x_1 - x_2) / V::from(4f32) * gamma_rz_multiplier,
+                V::from(0f32),
+        
+                V::from(0f32), 
+                V::from(0f32), 
+                V::from(-1f32) * (V::from(1f32) + s) / V::from(2f32) * gamma_rz_multiplier,
+                (V::from(1f32) + s) * V::from(-1f32) * (y_1 - y_2) / V::from(4f32) * gamma_rz_multiplier,
+                (V::from(1f32) + s) * (x_1 - x_2) / V::from(4f32) * gamma_rz_multiplier,
+                V::from(0f32),
+        
+                V::from(0f32), 
+                V::from(0f32), 
+                V::from(-1f32) * (V::from(1f32) - s) / V::from(2f32) * gamma_rz_multiplier,
+                (V::from(1f32) - s) * V::from(-1f32) * (y_4 - y_3) / V::from(4f32) * gamma_rz_multiplier,
+                (V::from(1f32) - s) * (x_4 - x_3) / V::from(4f32) * gamma_rz_multiplier,
+                V::from(0f32),
+        
+                V::from(0f32), 
+                V::from(0f32), 
+                (V::from(1f32) - s) / V::from(2f32) * gamma_rz_multiplier,
+                (V::from(1f32) - s) * V::from(-1f32) * (y_4 - y_3) / V::from(4f32) * gamma_rz_multiplier,
+                (V::from(1f32) - s) * (x_4 - x_3) / V::from(4f32) * gamma_rz_multiplier,
+                V::from(0f32),
+        
+                V::from(0f32), 
+                V::from(0f32), 
+                (V::from(1f32) + r) / V::from(2f32) * gamma_sz_multiplier,
+                (V::from(1f32) + r) * V::from(-1f32) * (y_1 - y_4) / V::from(4f32) * gamma_sz_multiplier,
+                (V::from(1f32) + r) * (x_1 - x_4) / V::from(4f32) * gamma_sz_multiplier,
+                V::from(0f32),
+        
+                V::from(0f32), 
+                V::from(0f32), 
+                (V::from(1f32) - r) / V::from(2f32) * gamma_sz_multiplier,
+                (V::from(1f32) - r) * V::from(-1f32) * (y_2 - y_3) / V::from(4f32) * gamma_sz_multiplier,
+                (V::from(1f32) - r) * (x_2 - x_3) / V::from(4f32) * gamma_sz_multiplier,
+                V::from(0f32),
+        
+                V::from(0f32), 
+                V::from(0f32), 
+                V::from(-1f32) * (V::from(1f32) - r) / V::from(2f32) * gamma_sz_multiplier,
+                (V::from(1f32) - r) * V::from(-1f32) * (y_2 - y_3) / V::from(4f32) * gamma_sz_multiplier,
+                (V::from(1f32) - r) * (x_2 - x_3) / V::from(4f32) * gamma_sz_multiplier,
+                V::from(0f32),
+        
+                V::from(0f32), 
+                V::from(0f32), 
+                V::from(-1f32) * (V::from(1f32) + r) / V::from(2f32) * gamma_sz_multiplier,
+                (V::from(1f32) + r) * V::from(-1f32) * (y_1 - y_4) / V::from(4f32) * gamma_sz_multiplier,
+                (V::from(1f32) + r) * (x_1 - x_4) / V::from(4f32) * gamma_sz_multiplier,
+                V::from(0f32),
+            ],
+        )
+    )
+}
 
 
-// fn strain_displacement_matrix_thv_at_r<V>(
-//     node_1_number: u32, 
-//     node_2_number: u32, 
-//     r: V, 
-//     nodes: &HashMap<u32, Node<V>>
-// ) 
-//     -> Result<Matrix<V>, String>
-//     where V: FloatTrait<Output = V>
-// {
-//     let inverse_jacobian = inverse_jacobian_at_r(node_1_number, node_2_number, r, nodes)?;
-//     Ok
-//     (
-//         Matrix::create(
-//             1,
-//             BEAM_NODES_NUMBER * BEAM_NODE_DOF,
-//             &[
-//                 V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), dh1_dr(r), V::from(0f32),
-//                 V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), dh2_dr(r), V::from(0f32),
-//             ],
-//         )
-//         .multiply_by_scalar(inverse_jacobian)
-//     )
-// }
+pub fn local_stiffness_matrix_at_ip<V>(
+    node_1_number: u32, 
+    node_2_number: u32, 
+    node_3_number: u32, 
+    node_4_number: u32,
+    young_modulus: V, 
+    poisson_ratio: V, 
+    thickness: V, 
+    shear_factor: V, 
+    alpha: V, 
+    r: V, 
+    s: V,
+    nodes: &HashMap<u32, Node<V>>, 
+    rotation_matrix_elements: &[V; 9], 
+    rel_tol: V,
+) 
+    -> Result<SquareMatrix<V>, String>
+    where V: FloatTrait<Output = V>
+{
+    let c_multiplier_mem = young_modulus * thickness / (V::from(1f32) - poisson_ratio.my_powi(2));
+    let c_mem = Matrix::create(
+            3, 
+            3, 
+            &[
+                V::from(1f32), poisson_ratio, V::from(0f32),
+                poisson_ratio, V::from(1f32), V::from(0f32),
+                V::from(0f32), V::from(0f32), (V::from(1f32) - poisson_ratio) / V::from(2f32),
+            ], 
+        )
+        .multiply_by_scalar(c_multiplier_mem);
 
+    let b_mem_at_r_s = strain_displacement_matrix_mem_at_r_s(
+        node_1_number, node_2_number, node_3_number, node_4_number, r, s, nodes, rotation_matrix_elements, rel_tol,
+    )?;
+    let b_mem_t_at_r_s = b_mem_at_r_s.transpose();
 
-// pub fn strain_displacement_matrix_thw_at_r<V>(
-//     node_1_number: u32, 
-//     node_2_number: u32, 
-//     r: V,
-//     nodes: &HashMap<u32, Node<V>>,
-// ) 
-//     -> Result<Matrix<V>, String>
-//     where V: FloatTrait<Output = V>
-// {
-//     let inverse_jacobian = inverse_jacobian_at_r(node_1_number, node_2_number, r, nodes)?;
-
-//     Ok
-//     (
-//         Matrix::create(
-//             1,
-//             BEAM_NODES_NUMBER * BEAM_NODE_DOF,
-//             &[
-//                 V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), dh1_dr(r),
-//                 V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), V::from(0f32), dh2_dr(r),
-//             ],
-//         )
-//         .multiply_by_scalar(inverse_jacobian)
-//     )
-// }
-
-
-// fn local_stiffness_matrix_at_ip<V>(
-//     node_1_number: u32,
-//     node_2_number: u32,
-//     young_modulus: V,
-//     poisson_ratio: V,
-//     area: V,
-//     i11_p: V,
-//     i22_p: V,
-//     it: V,
-//     shear_factor: V,
-//     r: V,
-//     alpha: V,
-//     nodes: &HashMap<u32, Node<V>>,
-// ) 
-//     -> Result<SquareMatrix<V>, String>
-//     where V: FloatTrait<Output = V>
-// {
-//     let b_u_at_r = strain_displacement_matrix_u_at_r(node_1_number, node_2_number, r, nodes)?;
-//     let b_u_t_at_r = b_u_at_r.transpose();
-//     let c_u_at_r = area * young_modulus;
-//     let k_u_at_ip = b_u_t_at_r
-//         .multiply_by_scalar(c_u_at_r)
-//         .multiply(&b_u_at_r)?
-//         .multiply_by_scalar(determinant_of_jacobian_at_r(node_1_number, node_2_number, r, nodes)?)
-//         .multiply_by_scalar(alpha);
-
-//     let shear_modulus = young_modulus / (V::from(2f32) * (V::from(1f32) + poisson_ratio));
-
-//     let b_v_at_r = strain_displacement_matrix_v_at_r(node_1_number, node_2_number, r, nodes)?;
-//     let b_v_t_at_r = b_v_at_r.transpose();
-//     let c_v_at_r = shear_modulus * area * shear_factor;
-//     let k_v_at_ip = b_v_t_at_r
-//         .multiply_by_scalar(c_v_at_r)
-//         .multiply(&b_v_at_r)?
-//         .multiply_by_scalar(determinant_of_jacobian_at_r(node_1_number, node_2_number, r, nodes)?)
-//         .multiply_by_scalar(alpha);
-
-//     let b_w_at_r = strain_displacement_matrix_w_at_r(node_1_number, node_2_number, r, nodes)?;
-//     let b_w_t_at_r = b_w_at_r.transpose();
-//     let c_w_at_r = shear_modulus * area * shear_factor;
-//     let k_w_at_ip = b_w_t_at_r
-//         .multiply_by_scalar(c_w_at_r)
-//         .multiply(&b_w_at_r)?
-//         .multiply_by_scalar(determinant_of_jacobian_at_r(node_1_number, node_2_number, r, nodes)?)
-//         .multiply_by_scalar(alpha);
-
-//     let b_thu_at_r = strain_displacement_matrix_thu_at_r(node_1_number, node_2_number, r, nodes)?;
-//     let b_thu_t_at_r = b_thu_at_r.transpose();
-//     let c_thu_at_r = shear_modulus * it;
-//     let k_thu_at_ip = b_thu_t_at_r
-//         .multiply_by_scalar(c_thu_at_r)
-//         .multiply(&b_thu_at_r)?
-//         .multiply_by_scalar(determinant_of_jacobian_at_r(node_1_number, node_2_number, r, nodes)?)
-//         .multiply_by_scalar(alpha);
-
-//     let b_thv_at_r = strain_displacement_matrix_thv_at_r(node_1_number, node_2_number, r, nodes)?;
-//     let b_thv_t_at_r = b_thv_at_r.transpose();
-//     let c_thv_at_r = young_modulus * i22_p;
-//     let k_thv_at_ip = b_thv_t_at_r
-//         .multiply_by_scalar(c_thv_at_r)
-//         .multiply(&b_thv_at_r)?
-//         .multiply_by_scalar(determinant_of_jacobian_at_r(node_1_number, node_2_number, r, nodes)?)
-//         .multiply_by_scalar(alpha);
-
-//     let b_thw_at_r = strain_displacement_matrix_thw_at_r(node_1_number, node_2_number, r, nodes)?;
-//     let b_thw_t_at_r = b_thw_at_r.transpose();
-//     let c_thw_at_r = young_modulus * i11_p;
-//     let k_thw_at_ip = b_thw_t_at_r
-//         .multiply_by_scalar(c_thw_at_r)
-//         .multiply(&b_thw_at_r)?
-//         .multiply_by_scalar(determinant_of_jacobian_at_r(node_1_number, node_2_number, r, nodes)?)
-//         .multiply_by_scalar(alpha);
+    let k_mem_at_ip = b_mem_t_at_r_s
+        .multiply(&c_mem)?
+        .multiply(&b_mem_at_r_s)?
+        .multiply_by_scalar(
+            determinant_of_jacobian_at_r_s(
+                node_1_number, 
+                node_2_number, 
+                node_3_number, 
+                node_4_number, 
+                r, 
+                s, 
+                nodes, 
+                rotation_matrix_elements, 
+                rel_tol,
+            )?
+        )
+        .multiply_by_scalar(alpha);
     
-//     Ok(
-//         k_u_at_ip
-//             .add(&k_v_at_ip)?
-//             .add(&k_w_at_ip)?
-//             .add(&k_thu_at_ip)?
-//             .add(&k_thv_at_ip)?
-//             .add(&k_thw_at_ip)?
-//             .try_into_square_matrix()?
-//     )
-// }
+
+    let c_multiplier_bend = young_modulus * thickness.my_powi(3) / 
+        (V::from(12f32) * (V::from(1f32) - poisson_ratio.my_powi(2)));
+    let c_bend = Matrix::create(
+            3, 
+            3, 
+            &[
+                V::from(1f32), poisson_ratio, V::from(0f32),
+                poisson_ratio, V::from(1f32), V::from(0f32),
+                V::from(0f32), V::from(0f32), (V::from(1f32) - poisson_ratio) / V::from(2f32),
+            ], 
+        )
+        .multiply_by_scalar(c_multiplier_bend);
+
+    let b_bend_at_r_s = strain_displacement_matrix_plate_bending_at_r_s(
+        node_1_number, node_2_number, node_3_number, node_4_number, r, s, nodes, rotation_matrix_elements, rel_tol,
+    )?;
+    let b_bend_t_at_r_s = b_bend_at_r_s.transpose();
+
+    let k_bend_at_ip = b_bend_t_at_r_s
+        .multiply(&c_bend)?
+        .multiply(&b_bend_at_r_s)?
+        .multiply_by_scalar(
+            determinant_of_jacobian_at_r_s(
+                node_1_number, 
+                node_2_number, 
+                node_3_number, 
+                node_4_number, 
+                r, 
+                s, 
+                nodes, 
+                rotation_matrix_elements,
+                rel_tol
+            )?
+        )
+        .multiply_by_scalar(alpha);
+
+    let c_multiplier_shear = young_modulus * thickness * shear_factor / 
+        (V::from(2f32) * (V::from(1f32) + poisson_ratio));
+    let c_shear = Matrix::create(
+            2, 
+            2, 
+            &[V::from(1f32), V::from(0f32), V::from(0f32), V::from(1f32)], 
+        )
+        .multiply_by_scalar(c_multiplier_shear * alpha);
+
+    let b_shear_at_r_s = strain_displacement_matrix_plate_shear_at_r_s(
+        node_1_number, node_2_number, node_3_number, node_4_number, r, s, nodes, rotation_matrix_elements, rel_tol,
+    )?;
+    let b_shear_t_at_r_s = b_shear_at_r_s.transpose();
+
+    let k_shear_at_ip = b_shear_t_at_r_s
+        .multiply(&c_shear)?
+        .multiply(&b_shear_at_r_s)?
+        .multiply_by_scalar(
+            determinant_of_jacobian_at_r_s(
+                node_1_number, 
+                node_2_number, 
+                node_3_number, 
+                node_4_number, 
+                r, 
+                s, 
+                nodes, 
+                rotation_matrix_elements,
+                rel_tol,
+            )?
+        )
+        .multiply_by_scalar(alpha);
+
+    Ok(
+        k_mem_at_ip
+            .add(&k_bend_at_ip)?
+            .add(&k_shear_at_ip)?
+            .try_into_square_matrix()?
+    )
+}
 
 
 // fn compose_local_stiffness_matrix<V>(
