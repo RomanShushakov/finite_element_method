@@ -23,7 +23,7 @@ pub struct FEM<V>
 
 
 impl<V> FEM<V>
-    where V: FloatTrait
+    where V: FloatTrait<Output = V>
 {
     pub fn create(rel_tol: V, abs_tol: V, nodes_number: u32) -> Self
     {
@@ -200,5 +200,41 @@ impl<V> FEM<V>
         self.truss_elements = HashMap::new();
         self.beam_elements = HashMap::new();
         self.plate_elements = HashMap::new();
+    }
+
+
+    pub fn get_truss_rotation_matrix_elements(&self, number: u32) -> Result<[V; 9], String>
+    {
+        self.check_truss_element_exist(number)?;
+
+        let truss = self.get_truss_elements()
+            .get(&number)
+            .ok_or(format!("Truss element {number} is absent!"))?;
+
+        Ok(truss.get_rotation_matrix_elements())
+    }
+
+
+    pub fn get_beam_rotation_matrix_elements(&self, number: u32) -> Result<[V; 9], String>
+    {
+        self.check_beam_element_exist(number)?;
+
+        let beam = self.get_beam_elements()
+            .get(&number)
+            .ok_or(format!("Beam element {number} is absent!"))?;
+
+        Ok(beam.get_rotation_matrix_elements())
+    }
+
+
+    pub fn get_plate_rotation_matrix_elements(&self, number: u32) -> Result<[V; 9], String>
+    {
+        self.check_plate_element_exist(number)?;
+
+        let plate = self.get_plate_elements()
+            .get(&number)
+            .ok_or(format!("Plate element {number} is absent!"))?;
+
+        Ok(plate.get_rotation_matrix_elements())
     }
 }

@@ -1046,4 +1046,10 @@ impl<V> Plate<V>
 
         Ok(element_analysis_data)
     }
+
+
+    pub fn get_rotation_matrix_elements(&self) -> [V; 9]
+    {
+        self.rotation_matrix_elements.clone()
+    }
 }

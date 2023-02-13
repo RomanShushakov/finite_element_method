@@ -8,6 +8,7 @@ enum TrussElementError
 {
     Number(u32),
     SameNodes(u32, u32),
+    NumberNotExist(u32),
 }
 
 
@@ -22,6 +23,7 @@ impl TrussElementError
             {
                 format!("Truss element with node number {node_1_number} and {node_2_number} already exists!")
             },
+            Self::NumberNotExist(number) => format!("Truss element with number {number} does not exist!"),
         }
     }
 }
@@ -117,6 +119,16 @@ impl<V> FEM<V>
 
         self.get_mut_truss_elements().insert(number, truss_element);
 
+        Ok(())
+    }
+
+
+    pub(crate) fn check_truss_element_exist(&self, number: u32) -> Result<(), String>
+    {
+        if !self.get_truss_elements().contains_key(&number) 
+        {
+            return Err(TrussElementError::NumberNotExist(number).compose_error_message());
+        }
         Ok(())
     }
 }
