@@ -4,7 +4,7 @@ use crate::fem::FEM;
 use crate::fem::structs::NODE_DOF;
 
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum DOFParameter
 {
     X = 0,

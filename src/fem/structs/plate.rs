@@ -20,6 +20,7 @@ use crate::fem::quadrilateral_4n_element_functions::
 
 const PLATE_NODES_NUMBER: usize = 4;
 pub const PLATE_NODE_DOF: usize = 6;
+const KROT6: f32 = 1.0;
 
 
 enum PlateElementDataError<V>
@@ -514,12 +515,11 @@ fn compose_local_stiffness_matrix<V>(
         local_stiffness_matrix = local_stiffness_matrix.add(&local_stiffness_matrix_at_ip)?;
     }
 
-    let krot6 = V::from(1f32);
     for i in 0..PLATE_NODES_NUMBER
     {
         *local_stiffness_matrix.get_mut_element_value(
             &Position(i * PLATE_NODE_DOF + PLATE_NODE_DOF - 1, i * PLATE_NODE_DOF + PLATE_NODE_DOF - 1),
-        )? += krot6;
+        )? += V::from(KROT6);
     }
 
     Ok(local_stiffness_matrix)

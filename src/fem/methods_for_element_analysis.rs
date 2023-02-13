@@ -3,7 +3,7 @@ use extended_matrix::FloatTrait;
 use crate::fem::FEM;
 
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ElementForceComponent
 {
     ForceR,
