@@ -37,7 +37,7 @@ impl<V> NodeError<V>
 
 
 impl<V> FEM<V>
-    where V: FloatTrait
+    where V: FloatTrait<Output = V>
 {
     fn check_node_data(&self, number: u32, node_index: usize, x: V, y: V, z: V) -> Option<NodeError<V>>
     {

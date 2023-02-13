@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use extended_matrix::{SquareMatrix, FloatTrait, Vector};
 
-use crate::fem::structs::{Props, Node, NODE_DOF, Truss};
+use crate::fem::structs::{Props, Node, NODE_DOF, Truss, Beam, Plate};
 
 
 pub struct FEM<V>
@@ -17,11 +17,13 @@ pub struct FEM<V>
     imposed_constraints: Vec<bool>,
     nodes: HashMap<u32, Node<V>>,
     truss_elements: HashMap<u32, Truss<V>>,
+    beam_elements: HashMap<u32, Beam<V>>,
+    plate_elements: HashMap<u32, Plate<V>>,
 }
 
 
 impl<V> FEM<V>
-    where V: FloatTrait
+    where V: FloatTrait<Output = V>
 {
     pub fn create(rel_tol: V, abs_tol: V, nodes_number: u32) -> Self
     {
@@ -39,11 +41,13 @@ impl<V> FEM<V>
 
         let nodes = HashMap::new();
         let truss_elements = HashMap::new();
+        let beam_elements = HashMap::new();
+        let plate_elements = HashMap::new();
 
         FEM 
         { 
             props, stiffness_matrix, displacements_vector, forces_vector, nodes_count, indexes, index_node_number_map,
-            imposed_constraints, nodes, truss_elements,
+            imposed_constraints, nodes, truss_elements, beam_elements, plate_elements,
         }
     }
 
@@ -153,5 +157,84 @@ impl<V> FEM<V>
     pub(crate) fn get_mut_truss_elements(&mut self) -> &mut HashMap<u32, Truss<V>>
     {
         &mut self.truss_elements
+    }
+
+
+    pub(crate) fn get_beam_elements(&self) -> &HashMap<u32, Beam<V>>
+    {
+        &self.beam_elements
+    }
+
+
+    pub(crate) fn get_mut_beam_elements(&mut self) -> &mut HashMap<u32, Beam<V>>
+    {
+        &mut self.beam_elements
+    }
+
+
+    pub(crate) fn get_plate_elements(&self) -> &HashMap<u32, Plate<V>>
+    {
+        &self.plate_elements
+    }
+
+
+    pub(crate) fn get_mut_plate_elements(&mut self) -> &mut HashMap<u32, Plate<V>>
+    {
+        &mut self.plate_elements
+    }
+
+
+    pub fn reset(&mut self, nodes_number: u32)
+    {
+        self.stiffness_matrix = SquareMatrix::create(
+            nodes_number as usize * NODE_DOF, &Vec::new(),
+        );
+        self.displacements_vector = Vector::create(&vec![V::from(0f32); nodes_number as usize * NODE_DOF]);
+        self.forces_vector = self.displacements_vector.clone();
+        self.nodes_count = 0;
+        self.indexes = (0..nodes_number as usize * NODE_DOF).collect::<Vec<usize>>();
+        self.index_node_number_map = HashMap::new();
+        self.imposed_constraints = vec![false; nodes_number as usize * NODE_DOF];
+
+        self.nodes = HashMap::new();
+        self.truss_elements = HashMap::new();
+        self.beam_elements = HashMap::new();
+        self.plate_elements = HashMap::new();
+    }
+
+
+    pub fn get_truss_rotation_matrix_elements(&self, number: u32) -> Result<[V; 9], String>
+    {
+        self.check_truss_element_exist(number)?;
+
+        let truss = self.get_truss_elements()
+            .get(&number)
+            .ok_or(format!("Truss element {number} is absent!"))?;
+
+        Ok(truss.get_rotation_matrix_elements())
+    }
+
+
+    pub fn get_beam_rotation_matrix_elements(&self, number: u32) -> Result<[V; 9], String>
+    {
+        self.check_beam_element_exist(number)?;
+
+        let beam = self.get_beam_elements()
+            .get(&number)
+            .ok_or(format!("Beam element {number} is absent!"))?;
+
+        Ok(beam.get_rotation_matrix_elements())
+    }
+
+
+    pub fn get_plate_rotation_matrix_elements(&self, number: u32) -> Result<[V; 9], String>
+    {
+        self.check_plate_element_exist(number)?;
+
+        let plate = self.get_plate_elements()
+            .get(&number)
+            .ok_or(format!("Plate element {number} is absent!"))?;
+
+        Ok(plate.get_rotation_matrix_elements())
     }
 }

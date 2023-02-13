@@ -58,7 +58,7 @@ impl<V> FEM<V>
     }
 
 
-    pub(crate) fn separate_stiffness_matrix(&self) -> Result<SeparatedStiffnessMatrix<V>, String>
+    pub fn separate_stiffness_matrix(&self) -> Result<SeparatedStiffnessMatrix<V>, String>
     {
         let mut k_aa_indexes = Vec::new();
         let mut k_bb_indexes = Vec::new();
@@ -107,33 +107,6 @@ impl<V> FEM<V>
             k_bb_indexes.len(), 
             &vec![V::from(0f32); k_bb_indexes.len() * k_bb_indexes.len()],
         );
-        for i in 0..k_aa_indexes.len()
-        {
-            let matrix_row = k_aa_indexes[i];
-            let matrix_column = k_aa_indexes[i];
-
-            *k_aa_matrix.get_mut_element_value(&Position(i, i))? = *self.get_stiffness_matrix()
-                .get_element_value(&Position(matrix_row, matrix_column))?;
-
-            for j in i + 1..k_aa_indexes.len()
-            {
-                let matrix_row = k_aa_indexes[i];
-                let matrix_column = k_aa_indexes[j];
-                *k_aa_matrix.get_mut_element_value(&Position(i, j))? = *self.get_stiffness_matrix()
-                    .get_element_value(&Position(matrix_row, matrix_column))?;
-                *k_aa_matrix.get_mut_element_value(&Position(j, i))? = *self.get_stiffness_matrix()
-                    .get_element_value(&Position(matrix_column, matrix_row))?;
-
-                if *self.get_stiffness_matrix()
-                    .get_element_value(&Position(matrix_row, matrix_column))? != V::from(0f32)
-                {
-                    if j >= i && j - i > k_aa_skyline[j]
-                    {
-                        k_aa_skyline[j] = j - i;
-                    }
-                }
-            }
-        }
 
         for i in 0..k_aa_indexes.len()
         {
@@ -190,6 +163,27 @@ impl<V> FEM<V>
                 }
             }
         }
+
+        for k in 0..k_bb_indexes.len()
+        {
+            let mut row = k_bb_indexes[k];
+            let mut column = k_bb_indexes[k];
+
+            *k_bb_matrix.get_mut_element_value(&Position(k, k))? = *self.get_stiffness_matrix()
+                .get_element_value(&Position(row, column))?;
+
+            for l in k + 1..k_bb_indexes.len()
+            {
+                row = k_bb_indexes[k];
+                column = k_bb_indexes[l];
+
+                *k_bb_matrix.get_mut_element_value(&Position(k, l))? = *self.get_stiffness_matrix()
+                    .get_element_value(&Position(row, column))?;
+                *k_bb_matrix.get_mut_element_value(&Position(l, k))? = *self.get_stiffness_matrix()
+                    .get_element_value(&Position(column, row))?;
+            }
+        }
+
         Ok(
             SeparatedStiffnessMatrix::create(
                 k_aa_indexes, k_bb_indexes, k_aa_skyline, k_aa_matrix, k_ab_matrix, k_ba_matrix, k_bb_matrix,
@@ -198,7 +192,7 @@ impl<V> FEM<V>
     }
 
 
-    pub(crate) fn compose_r_a_vector(&self, k_aa_indexes: &Vec<usize>) -> Result<Vector<V>, String>
+    pub fn compose_r_a_vector(&self, k_aa_indexes: &Vec<usize>) -> Result<Vector<V>, String>
     {
         let mut r_a_vector = Vector::create(&vec![V::from(0f32); k_aa_indexes.len()]);
         for i in 0..k_aa_indexes.len()
@@ -211,7 +205,7 @@ impl<V> FEM<V>
     }
 
 
-    pub(crate) fn compose_u_b_vector(&self, k_bb_indexes: &Vec<usize>) -> Result<Vector<V>, String>
+    pub fn compose_u_b_vector(&self, k_bb_indexes: &Vec<usize>) -> Result<Vector<V>, String>
     {
         let mut u_b_vector = Vector::create(&vec![V::from(0f32); k_bb_indexes.len()]);
         for i in 0..k_bb_indexes.len()

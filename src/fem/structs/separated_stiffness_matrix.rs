@@ -34,7 +34,7 @@ impl<V> SeparatedStiffnessMatrix<V>
             k_aa_matrix,
             k_ab_matrix,
             k_ba_matrix,
-            k_bb_matrix
+            k_bb_matrix,
         }
     }
 
@@ -57,25 +57,25 @@ impl<V> SeparatedStiffnessMatrix<V>
     }
 
 
-    pub fn get_kaa_matrix(&self) -> &SquareMatrix<V>
+    pub fn get_k_aa_matrix(&self) -> &SquareMatrix<V>
     {
         &self.k_aa_matrix
     }
 
 
-    pub fn get_kab_matrix(&self) -> &Matrix<V>
+    pub fn get_k_ab_matrix(&self) -> &Matrix<V>
     {
         &self.k_ab_matrix
     }
 
 
-    pub fn get_kba_matrix(&self) -> &Matrix<V>
+    pub fn get_k_ba_matrix(&self) -> &Matrix<V>
     {
         &self.k_ba_matrix
     }
 
 
-    pub fn get_kbb_matrix(&self) -> &SquareMatrix<V>
+    pub fn get_k_bb_matrix(&self) -> &SquareMatrix<V>
     {
         &self.k_bb_matrix
     }
