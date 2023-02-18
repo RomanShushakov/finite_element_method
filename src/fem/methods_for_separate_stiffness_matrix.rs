@@ -58,7 +58,7 @@ impl<V> FEM<V>
     }
 
 
-    pub fn separate_stiffness_matrix(&self) -> Result<SeparatedStiffnessMatrix<V>, String>
+    pub fn separate_stiffness_matrix(&mut self) -> Result<SeparatedStiffnessMatrix<V>, String>
     {
         let mut k_aa_indexes = Vec::new();
         let mut k_bb_indexes = Vec::new();
@@ -89,41 +89,33 @@ impl<V> FEM<V>
 
         let mut k_aa_skyline = vec![0; k_aa_indexes.len()];
 
-        let mut k_aa_matrix = SquareMatrix::create(
-            k_aa_indexes.len(), 
-            &vec![V::from(0f32); k_aa_indexes.len() * k_aa_indexes.len()],
-        );
-        let mut k_ab_matrix = Matrix::create(
-            k_aa_indexes.len(),
-            k_bb_indexes.len(),
-            &vec![V::from(0f32); k_aa_indexes.len() * k_bb_indexes.len()],
-        );
-        let mut k_ba_matrix = Matrix::create(
-            k_bb_indexes.len(),
-            k_aa_indexes.len(),
-            &vec![V::from(0f32); k_bb_indexes.len() * k_aa_indexes.len()],
-        );
-        let mut k_bb_matrix = SquareMatrix::create(
-            k_bb_indexes.len(), 
-            &vec![V::from(0f32); k_bb_indexes.len() * k_bb_indexes.len()],
-        );
+        let mut k_aa_matrix = SquareMatrix::create(1, &[V::from(0f32)]);
+        k_aa_matrix.get_mut_shape().update(k_aa_indexes.len(), k_aa_indexes.len());
+
+        let mut k_ab_matrix = Matrix::create(1, 1, &[V::from(0f32)]);
+        k_ab_matrix.get_mut_shape().update(k_aa_indexes.len(), k_bb_indexes.len());
+
+        let mut k_ba_matrix = Matrix::create(1, 1, &[V::from(0f32)]);
+        k_ba_matrix.get_mut_shape().update(k_bb_indexes.len(), k_aa_indexes.len());
+
+        let mut k_bb_matrix = SquareMatrix::create(1, &[V::from(0f32)]);
+        k_bb_matrix.get_mut_shape().update(k_bb_indexes.len(), k_bb_indexes.len());
 
         for i in 0..k_aa_indexes.len()
         {
             let mut row = k_aa_indexes[i];
             let mut column = k_aa_indexes[i];
 
-            *k_aa_matrix.get_mut_element_value(&Position(i, i))? = *self.get_stiffness_matrix()
-                .get_element_value(&Position(row, column))?;
+            let mut value = self.get_mut_stiffness_matrix()
+                .get_mut_elements()
+                .remove(&Position(row, column))
+                .ok_or(format!("Element ({row}, {column}) is absent!"))?;
+            k_aa_matrix.get_mut_elements().insert(Position(i, i), value);
 
             for j in i + 1..k_aa_indexes.len()
             {
                 row = k_aa_indexes[i];
                 column = k_aa_indexes[j];
-                *k_aa_matrix.get_mut_element_value(&Position(i, j))? = *self.get_stiffness_matrix()
-                    .get_element_value(&Position(row, column))?;
-                *k_aa_matrix.get_mut_element_value(&Position(j, i))? = *self.get_stiffness_matrix()
-                    .get_element_value(&Position(column, row))?;
 
                 if *self.get_stiffness_matrix()
                     .get_element_value(&Position(row, column))? != V::from(0f32)
@@ -133,6 +125,17 @@ impl<V> FEM<V>
                         k_aa_skyline[j] = j - i;
                     }
                 }
+                value = self.get_mut_stiffness_matrix()
+                    .get_mut_elements()
+                    .remove(&Position(row, column))
+                    .ok_or(format!("Element ({row}, {column}) is absent!"))?;
+                k_aa_matrix.get_mut_elements().insert(Position(i, j), value);
+
+                value = self.get_mut_stiffness_matrix()
+                    .get_mut_elements()
+                    .remove(&Position(column, row))
+                    .ok_or(format!("Element ({column}, {row}) is absent!"))?;
+                k_aa_matrix.get_mut_elements().insert(Position(j, i), value);
             }
 
             for k in 0..k_bb_indexes.len()
@@ -140,27 +143,17 @@ impl<V> FEM<V>
                 row = k_aa_indexes[i];
                 column = k_bb_indexes[k];
 
-                *k_ab_matrix.get_mut_element_value(&Position(i, k))? = *self.get_stiffness_matrix()
-                    .get_element_value(&Position(row, column))?;
-                *k_ba_matrix.get_mut_element_value(&Position(k, i))? = *self.get_stiffness_matrix()
-                    .get_element_value(&Position(column, row))?;
+                value = self.get_mut_stiffness_matrix()
+                    .get_mut_elements()
+                    .remove(&Position(row, column))
+                    .ok_or(format!("Element ({row}, {column}) is absent!"))?;
+                k_ab_matrix.get_mut_elements().insert(Position(i, k), value);
 
-                row = k_bb_indexes[k];
-                column = k_bb_indexes[k];
-
-                *k_bb_matrix.get_mut_element_value(&Position(k, k))? = *self.get_stiffness_matrix()
-                    .get_element_value(&Position(row, column))?;
-
-                for l in k + 1..k_bb_indexes.len()
-                {
-                    row = k_bb_indexes[k];
-                    column = k_bb_indexes[l];
-
-                    *k_bb_matrix.get_mut_element_value(&Position(k, l))? = *self.get_stiffness_matrix()
-                        .get_element_value(&Position(row, column))?;
-                    *k_bb_matrix.get_mut_element_value(&Position(l, k))? = *self.get_stiffness_matrix()
-                        .get_element_value(&Position(column, row))?;
-                }
+                value = self.get_mut_stiffness_matrix()
+                    .get_mut_elements()
+                    .remove(&Position(column, row))
+                    .ok_or(format!("Element ({column}, {row}) is absent!"))?;
+                k_ba_matrix.get_mut_elements().insert(Position(k, i), value);
             }
         }
 
@@ -169,20 +162,32 @@ impl<V> FEM<V>
             let mut row = k_bb_indexes[k];
             let mut column = k_bb_indexes[k];
 
-            *k_bb_matrix.get_mut_element_value(&Position(k, k))? = *self.get_stiffness_matrix()
-                .get_element_value(&Position(row, column))?;
+            let mut value = self.get_mut_stiffness_matrix()
+                .get_mut_elements()
+                .remove(&Position(row, column))
+                .ok_or(format!("Element ({row}, {column}) is absent!"))?;
+            k_bb_matrix.get_mut_elements().insert(Position(k, k), value);
 
             for l in k + 1..k_bb_indexes.len()
             {
                 row = k_bb_indexes[k];
                 column = k_bb_indexes[l];
 
-                *k_bb_matrix.get_mut_element_value(&Position(k, l))? = *self.get_stiffness_matrix()
-                    .get_element_value(&Position(row, column))?;
-                *k_bb_matrix.get_mut_element_value(&Position(l, k))? = *self.get_stiffness_matrix()
-                    .get_element_value(&Position(column, row))?;
+                value = self.get_mut_stiffness_matrix()
+                    .get_mut_elements()
+                    .remove(&Position(row, column))
+                    .ok_or(format!("Element ({row}, {column}) is absent!"))?;
+                k_bb_matrix.get_mut_elements().insert(Position(k, l), value);
+
+                value = self.get_mut_stiffness_matrix()
+                    .get_mut_elements()
+                    .remove(&Position(column, row))
+                    .ok_or(format!("Element ({column}, {row}) is absent!"))?;
+                k_bb_matrix.get_mut_elements().insert(Position(l, k), value);
             }
         }
+
+        *self.get_mut_stiffness_matrix() = SquareMatrix::create(1, &[V::from(0f32)]);
 
         Ok(
             SeparatedStiffnessMatrix::create(
