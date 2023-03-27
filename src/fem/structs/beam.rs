@@ -120,11 +120,28 @@ fn check_beam_properties<V>(
 }
 
 
-fn find_principal_moments_of_inertia<V>(i11: V, i22: V, i12: V) -> (V, V, V)
+fn find_principal_moments_of_inertia<V>(i11: V, i22: V, i12: V, rel_tol: V) -> (V, V, V)
     where V: FloatTrait<Output = V>
 {
-    let mut angle = (V::from(2f32) * i12 / (i22 - i11)).my_atan() / V::from(2f32);
-
+    let mut angle = 
+        if i11 != i22
+        {
+            (V::from(2f32) * i12 / (i22 - i11)).my_atan() / V::from(2f32)
+        }
+        else
+        {
+            let (i11_mod, i22_mod) = 
+                if i22 < i11
+                {
+                    (i11, (i22.my_abs() - i22.my_abs() * rel_tol) * i22 / i22.my_abs())
+                }
+                else
+                {
+                    ((i11.my_abs() - i11.my_abs() * rel_tol) * i11 / i11.my_abs(), i22)
+                };
+            (V::from(2f32) * i12 / (i22_mod - i11_mod)).my_atan() / V::from(2f32)
+        };
+    
     let mut i11_p = i11 * (angle.my_cos()).my_powi(2) +
         i22 * (angle.my_sin()).my_powi(2) -
         i12 * (V::from(2f32) * angle).my_sin();
@@ -608,7 +625,7 @@ impl<V> Beam<V>
             &local_axis_1_direction,
         )?;
 
-        let (i11_p, i22_p, angle) = find_principal_moments_of_inertia(i11, i22, i12);
+        let (i11_p, i22_p, angle) = find_principal_moments_of_inertia(i11, i22, i12, rel_tol);
 
         let rotation_matrix_elements = find_rotation_matrix_elements(
             node_1_number, node_2_number, &local_axis_1_direction, angle, nodes, rel_tol, abs_tol,
