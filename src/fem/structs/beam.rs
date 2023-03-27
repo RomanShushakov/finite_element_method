@@ -626,7 +626,6 @@ impl<V> Beam<V>
         )?;
 
         let (i11_p, i22_p, angle) = find_principal_moments_of_inertia(i11, i22, i12, rel_tol);
-        println!("{:?}, {:?}, {:?}", i11_p, i22_p, angle);
 
         let rotation_matrix_elements = find_rotation_matrix_elements(
             node_1_number, node_2_number, &local_axis_1_direction, angle, nodes, rel_tol, abs_tol,
