@@ -1,11 +1,9 @@
 #![allow(unused_imports)]
 
-use crate::fem::{FEM, DOFParameter, ElementForceComponent};
-
+use crate::fem::{DOFParameter, ElementForceComponent, FEM};
 
 #[test]
-fn test_integration_simple() -> Result<(), String>
-{
+fn test_integration_simple() -> Result<(), String> {
     const REL_TOL: f32 = 1e-4;
     const ABS_TOL: f32 = 1e-12;
 
@@ -24,26 +22,22 @@ fn test_integration_simple() -> Result<(), String>
     let r_a_vector = model.compose_r_a_vector(separated_stiffness_matrix.get_k_aa_indexes())?;
     let u_b_vector = model.compose_u_b_vector(separated_stiffness_matrix.get_k_bb_indexes())?;
 
-    let u_a_vector = model.find_ua_vector(
-        &separated_stiffness_matrix, &r_a_vector, &u_b_vector,
-    )?;
-    let r_r_vector = model.find_r_r_vector(
-        &separated_stiffness_matrix, &u_a_vector, &u_b_vector,
-    )?;
+    let u_a_vector = model.find_ua_vector(&separated_stiffness_matrix, &r_a_vector, &u_b_vector)?;
+    let r_r_vector =
+        model.find_r_r_vector(&separated_stiffness_matrix, &u_a_vector, &u_b_vector)?;
 
     model.compose_global_analysis_result(
-        separated_stiffness_matrix.get_k_aa_indexes(), 
-        separated_stiffness_matrix.get_k_bb_indexes(), 
+        separated_stiffness_matrix.get_k_aa_indexes(),
+        separated_stiffness_matrix.get_k_bb_indexes(),
         &u_a_vector,
         &r_r_vector,
     )?;
 
     let mut global_analysis_result = model.extract_global_analysis_result()?;
 
-    global_analysis_result.sort_by(
-        |(n_1, dof_1, _, _), (n_2, dof_2, _, _)| 
+    global_analysis_result.sort_by(|(n_1, dof_1, _, _), (n_2, dof_2, _, _)| {
         (n_1, dof_1).partial_cmp(&(n_2, dof_2)).unwrap()
-    );
+    });
     let global_analysis_result_expected = vec![
         (1, DOFParameter::X, 0.0, -100.0),
         (1, DOFParameter::Y, 0.0, 0.0),
@@ -60,9 +54,7 @@ fn test_integration_simple() -> Result<(), String>
     ];
 
     let elements_analysis_result = model.extract_elements_analysis_result()?;
-    let elements_analysis_result_expected = vec![
-        (1, vec![(ElementForceComponent::ForceR, 100.0)]),
-    ];
+    let elements_analysis_result_expected = vec![(1, vec![(ElementForceComponent::ForceR, 100.0)])];
 
     assert_eq!(global_analysis_result, global_analysis_result_expected);
     assert_eq!(elements_analysis_result, elements_analysis_result_expected);
