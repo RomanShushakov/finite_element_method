@@ -1,8 +1,11 @@
 #![allow(unused_imports)]
 
-use extended_matrix::{BasicOperationsTrait, Position, Vector};
+use extended_matrix::{BasicOperationsTrait, Position, SquareMatrix, Vector};
 
-use crate::fem::linalg::{axpy, dot, norm2, scale};
+use crate::fem::{
+    linalg::{axpy, dot, norm2, scale},
+    preconditioners::apply_jacobi_preconditioner,
+};
 
 const ABS_TOL: f64 = 1e-12;
 
@@ -45,4 +48,31 @@ fn test_scale() {
     assert!((x.get_element_value(&Position(0, 0)).unwrap() - 8.0).abs() < ABS_TOL);
     assert!((x.get_element_value(&Position(1, 0)).unwrap() + 4.0).abs() < ABS_TOL);
     assert!((x.get_element_value(&Position(2, 0)).unwrap() - 2.0).abs() < ABS_TOL);
+}
+
+fn mat2x2(a11: f64, a12: f64, a21: f64, a22: f64) -> SquareMatrix<f64> {
+    let mut m = SquareMatrix::create(2, &[a11, a12, a21, a22]);
+    *m.get_mut_element_value(&Position(0, 0)).unwrap() = a11;
+    *m.get_mut_element_value(&Position(0, 1)).unwrap() = a12;
+    *m.get_mut_element_value(&Position(1, 0)).unwrap() = a21;
+    *m.get_mut_element_value(&Position(1, 1)).unwrap() = a22;
+    m
+}
+
+#[test]
+fn test_jacobi_preconditioner_simple() {
+    // A = [[2, 1],
+    //      [1, 3]]
+    // r = [4, 5]^T
+    // Jacobi: z_i = r_i / A_ii => [4/2, 5/3]
+    let a = mat2x2(2.0, 1.0, 1.0, 3.0);
+    let r = vecf(&[4.0, 5.0]);
+
+    let z = apply_jacobi_preconditioner(&a, &r).unwrap();
+
+    let z0 = z.get_element_value(&Position(0, 0)).unwrap();
+    let z1 = z.get_element_value(&Position(1, 0)).unwrap();
+
+    assert!((z0 - 2.0).abs() < ABS_TOL);
+    assert!((z1 - (5.0 / 3.0)).abs() < ABS_TOL);
 }
