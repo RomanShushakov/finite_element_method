@@ -2,7 +2,7 @@ use colsol::{factorization, find_unknown};
 use extended_matrix::{
     BasicOperationsTrait, CsrMatrix, FloatTrait, Matrix, Position, SquareMatrix, Vector,
 };
-use iterative_solvers_smpl::pcg_jacobi_csr;
+use iterative_solvers_smpl::{pcg_jacobi_csr, pcg_ichol0_csr};
 
 use crate::DOFParameter;
 use crate::fem::FEM;
@@ -103,13 +103,13 @@ where
         Ok(Vector::create(&b))
     }
 
-    pub fn find_ua_vector_iterative(
+    pub fn find_ua_vector_iterative_pcg_jacobi(
         &self,
         separated: &SeparatedStiffnessMatrix<V>,
         r_a: &Vector<V>,
         u_b: &Vector<V>,
         max_iter: usize,
-    ) -> Result<Vector<V>, String> {
+    ) -> Result<(Vector<V>, usize), String> {
         let b_values: Vec<V> = find_b(r_a, separated.get_k_ab_matrix(), u_b)?;
         let n = b_values.len();
 
@@ -126,7 +126,7 @@ where
 
         let mut u_a_values = vec![V::from(0.0_f32); n];
 
-        let _iterations = pcg_jacobi_csr(
+        let iterations = pcg_jacobi_csr(
             &csr,
             &b_values,
             &mut u_a_values,
@@ -136,7 +136,43 @@ where
         )
         .map_err(|e| format!("find_ua_vector_iterative: PCG failed: {}", e))?;
 
-        Ok(Vector::create(&u_a_values))
+        Ok((Vector::create(&u_a_values), iterations))
+    }
+
+    pub fn find_ua_vector_iterative_pcg_ichol0(
+        &self,
+        separated: &SeparatedStiffnessMatrix<V>,
+        r_a: &Vector<V>,
+        u_b: &Vector<V>,
+        max_iter: usize,
+    ) -> Result<(Vector<V>, usize), String> {
+        let b_values: Vec<V> = find_b(r_a, separated.get_k_ab_matrix(), u_b)?;
+        let n = b_values.len();
+
+        let k_aa = separated.get_k_aa_matrix();
+        let csr = CsrMatrix::from_square_matrix(k_aa)
+            .map_err(|e| format!("find_ua_vector_iterative: CSR conversion failed: {}", e))?;
+
+        if csr.n_rows != n {
+            return Err(format!(
+                "find_ua_vector_iterative: size mismatch: K_aa rows = {}, b len = {}",
+                csr.n_rows, n
+            ));
+        }
+
+        let mut u_a_values = vec![V::from(0.0_f32); n];
+
+        let iterations = pcg_ichol0_csr(
+            &csr,
+            &b_values,
+            &mut u_a_values,
+            max_iter,
+            self.get_props().get_rel_tol(),
+            self.get_props().get_abs_tol(),
+        )
+        .map_err(|e| format!("find_ua_vector_iterative: PCG failed: {}", e))?;
+
+        Ok((Vector::create(&u_a_values), iterations))
     }
 
     pub fn find_r_r_vector(
