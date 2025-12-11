@@ -33,6 +33,3 @@ pub use quadrilateral_4n_element_functions::{
 };
 
 mod methods_for_plate_data_handle;
-
-mod iterative_solvers;
-pub(crate) use iterative_solvers::{linalg, preconditioners};

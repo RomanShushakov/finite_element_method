@@ -1,5 +1,8 @@
 use colsol::{factorization, find_unknown};
-use extended_matrix::{BasicOperationsTrait, FloatTrait, Matrix, Position, SquareMatrix, Vector};
+use extended_matrix::{
+    BasicOperationsTrait, CsrMatrix, FloatTrait, Matrix, Position, SquareMatrix, Vector,
+};
+use iterative_solvers_smpl::pcg_jacobi_csr;
 
 use crate::DOFParameter;
 use crate::fem::FEM;
@@ -98,6 +101,42 @@ where
         find_unknown(&a, &mut b, nn, &maxa);
 
         Ok(Vector::create(&b))
+    }
+
+    pub fn find_ua_vector_iterative(
+        &self,
+        separated: &SeparatedStiffnessMatrix<V>,
+        r_a: &Vector<V>,
+        u_b: &Vector<V>,
+        max_iter: usize,
+    ) -> Result<Vector<V>, String> {
+        let b_values: Vec<V> = find_b(r_a, separated.get_k_ab_matrix(), u_b)?;
+        let n = b_values.len();
+
+        let k_aa = separated.get_k_aa_matrix();
+        let csr = CsrMatrix::from_square_matrix(k_aa)
+            .map_err(|e| format!("find_ua_vector_iterative: CSR conversion failed: {}", e))?;
+
+        if csr.n_rows != n {
+            return Err(format!(
+                "find_ua_vector_iterative: size mismatch: K_aa rows = {}, b len = {}",
+                csr.n_rows, n
+            ));
+        }
+
+        let mut u_a_values = vec![V::from(0.0_f32); n];
+
+        let _iterations = pcg_jacobi_csr(
+            &csr,
+            &b_values,
+            &mut u_a_values,
+            max_iter,
+            self.get_props().get_rel_tol(),
+            self.get_props().get_abs_tol(),
+        )
+        .map_err(|e| format!("find_ua_vector_iterative: PCG failed: {}", e))?;
+
+        Ok(Vector::create(&u_a_values))
     }
 
     pub fn find_r_r_vector(
