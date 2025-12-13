@@ -130,7 +130,7 @@ fn test_integration_iterative_pcg_jacobi() -> Result<(), String> {
 }
 
 #[test]
-fn test_integration_iterative_pcg_ichol0() -> Result<(), String> {
+fn test_integration_iterative_pcg_block_jacobi() -> Result<(), String> {
     const REL_TOL: f32 = 1e-4;
     const ABS_TOL: f32 = 1e-12;
 
@@ -149,7 +149,7 @@ fn test_integration_iterative_pcg_ichol0() -> Result<(), String> {
     let r_a_vector = model.compose_r_a_vector(separated_stiffness_matrix.get_k_aa_indexes())?;
     let u_b_vector = model.compose_u_b_vector(separated_stiffness_matrix.get_k_bb_indexes())?;
 
-    let (u_a_vector, iterations) = model.find_ua_vector_iterative_pcg_ichol0(
+    let (u_a_vector, iterations) = model.find_ua_vector_iterative_pcg_block_jacobi(
         &separated_stiffness_matrix,
         &r_a_vector,
         &u_b_vector,

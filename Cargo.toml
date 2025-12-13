@@ -1,6 +1,6 @@
 [package]
 name = "finite_element_method"
-version = "0.9.5"
+version = "0.9.6"
 authors = ["Roman Shushakov <roman.a.shushakov1@gmail.com>"]
 edition = "2024"
 description = "A finite element method module."
@@ -11,4 +11,4 @@ repository = "https://github.com/RomanShushakov/finite_element_method"
 [dependencies]
 extended_matrix = "0.9.4"
 colsol = "1.0.0"
-iterative_solvers_smpl = "0.1.2"
+iterative_solvers_smpl = "0.1.3"

@@ -2,7 +2,7 @@ use colsol::{factorization, find_unknown};
 use extended_matrix::{
     BasicOperationsTrait, CsrMatrix, FloatTrait, Matrix, Position, SquareMatrix, Vector,
 };
-use iterative_solvers_smpl::{pcg_jacobi_csr, pcg_ichol0_csr};
+use iterative_solvers_smpl::{pcg_block_jacobi_csr, pcg_jacobi_csr};
 
 use crate::DOFParameter;
 use crate::fem::FEM;
@@ -75,6 +75,32 @@ where
     Ok(r_r)
 }
 
+/// Builds block boundaries in local K_aa indexing for Block Jacobi.
+///
+/// `k_aa_indexes[i]` is the global DOF index corresponding to row/col i in K_aa.
+/// Since global DOFs are laid out as `node_index * NODE_DOF + local_dof`,
+/// we group consecutive rows with the same `node_index`.
+pub fn build_block_starts_from_k_aa_indexes(k_aa_indexes: &[usize]) -> Vec<usize> {
+    let mut starts = Vec::new();
+    if k_aa_indexes.is_empty() {
+        return starts;
+    }
+
+    starts.push(0);
+
+    let mut current_node = k_aa_indexes[0] / NODE_DOF;
+
+    for (i, &global_dof) in k_aa_indexes.iter().enumerate() {
+        let node_index = global_dof / NODE_DOF;
+        if node_index != current_node {
+            starts.push(i); // local index where next node starts
+            current_node = node_index;
+        }
+    }
+
+    starts
+}
+
 impl<V> FEM<V>
 where
     V: FloatTrait<Output = V>,
@@ -105,29 +131,33 @@ where
 
     pub fn find_ua_vector_iterative_pcg_jacobi(
         &self,
-        separated: &SeparatedStiffnessMatrix<V>,
-        r_a: &Vector<V>,
-        u_b: &Vector<V>,
+        separated_stiffness_matrix: &SeparatedStiffnessMatrix<V>,
+        r_a_vector: &Vector<V>,
+        u_b_vector: &Vector<V>,
         max_iter: usize,
     ) -> Result<(Vector<V>, usize), String> {
-        let b_values: Vec<V> = find_b(r_a, separated.get_k_ab_matrix(), u_b)?;
+        let b_values: Vec<V> = find_b(
+            r_a_vector,
+            separated_stiffness_matrix.get_k_ab_matrix(),
+            u_b_vector,
+        )?;
         let n = b_values.len();
 
-        let k_aa = separated.get_k_aa_matrix();
-        let csr = CsrMatrix::from_square_matrix(k_aa)
+        let k_aa_matrix = separated_stiffness_matrix.get_k_aa_matrix();
+        let csr_matrix = CsrMatrix::from_square_matrix(k_aa_matrix)
             .map_err(|e| format!("find_ua_vector_iterative: CSR conversion failed: {}", e))?;
 
-        if csr.n_rows != n {
+        if csr_matrix.n_rows != n {
             return Err(format!(
                 "find_ua_vector_iterative: size mismatch: K_aa rows = {}, b len = {}",
-                csr.n_rows, n
+                csr_matrix.n_rows, n
             ));
         }
 
         let mut u_a_values = vec![V::from(0.0_f32); n];
 
         let iterations = pcg_jacobi_csr(
-            &csr,
+            &csr_matrix,
             &b_values,
             &mut u_a_values,
             max_iter,
@@ -139,38 +169,49 @@ where
         Ok((Vector::create(&u_a_values), iterations))
     }
 
-    pub fn find_ua_vector_iterative_pcg_ichol0(
+    pub fn find_ua_vector_iterative_pcg_block_jacobi(
         &self,
-        separated: &SeparatedStiffnessMatrix<V>,
-        r_a: &Vector<V>,
-        u_b: &Vector<V>,
+        separated_stiffness_matrix: &SeparatedStiffnessMatrix<V>,
+        r_a_vector: &Vector<V>,
+        u_b_vector: &Vector<V>,
         max_iter: usize,
     ) -> Result<(Vector<V>, usize), String> {
-        let b_values: Vec<V> = find_b(r_a, separated.get_k_ab_matrix(), u_b)?;
+        // Build RHS b = r_a - K_ab * u_b (whatever your find_b does)
+        let b_values: Vec<V> = find_b(r_a_vector, separated_stiffness_matrix.get_k_ab_matrix(), u_b_vector)?;
         let n = b_values.len();
 
-        let k_aa = separated.get_k_aa_matrix();
-        let csr = CsrMatrix::from_square_matrix(k_aa)
-            .map_err(|e| format!("find_ua_vector_iterative: CSR conversion failed: {}", e))?;
+        // K_aa → CSR (local system)
+        let k_aa_matrix = separated_stiffness_matrix.get_k_aa_matrix();
+        let csr_matrix = CsrMatrix::from_square_matrix(k_aa_matrix).map_err(|e| {
+            format!(
+                "find_ua_vector_iterative_block_jacobi: CSR conversion failed: {}",
+                e
+            )
+        })?;
 
-        if csr.n_rows != n {
+        if csr_matrix.n_rows != n {
             return Err(format!(
-                "find_ua_vector_iterative: size mismatch: K_aa rows = {}, b len = {}",
-                csr.n_rows, n
+                "find_ua_vector_iterative_block_jacobi: size mismatch: K_aa rows = {}, b len = {}",
+                csr_matrix.n_rows, n
             ));
         }
 
-        let mut u_a_values = vec![V::from(0.0_f32); n];
+        // Build block boundaries (local indices in K_aa)
+        let block_starts =
+            build_block_starts_from_k_aa_indexes(separated_stiffness_matrix.get_k_aa_indexes());
 
-        let iterations = pcg_ichol0_csr(
-            &csr,
+        // Solve
+        let mut u_a_values = vec![V::from(0.0_f32); n];
+        let iterations = pcg_block_jacobi_csr(
+            &csr_matrix,
             &b_values,
             &mut u_a_values,
             max_iter,
             self.get_props().get_rel_tol(),
             self.get_props().get_abs_tol(),
+            &block_starts,
         )
-        .map_err(|e| format!("find_ua_vector_iterative: PCG failed: {}", e))?;
+        .map_err(|e| format!("find_ua_vector_iterative_block_jacobi: PCG failed: {}", e))?;
 
         Ok((Vector::create(&u_a_values), iterations))
     }
