@@ -147,10 +147,10 @@ where
         let csr_matrix = CsrMatrix::from_square_matrix(k_aa_matrix)
             .map_err(|e| format!("find_ua_vector_iterative: CSR conversion failed: {}", e))?;
 
-        if csr_matrix.n_rows != n {
+        if csr_matrix.get_n_rows() != n {
             return Err(format!(
                 "find_ua_vector_iterative: size mismatch: K_aa rows = {}, b len = {}",
-                csr_matrix.n_rows, n
+                csr_matrix.get_n_rows(), n
             ));
         }
 
@@ -189,10 +189,10 @@ where
             )
         })?;
 
-        if csr_matrix.n_rows != n {
+        if csr_matrix.get_n_rows() != n {
             return Err(format!(
                 "find_ua_vector_iterative_block_jacobi: size mismatch: K_aa rows = {}, b len = {}",
-                csr_matrix.n_rows, n
+                csr_matrix.get_n_rows(), n
             ));
         }
 
