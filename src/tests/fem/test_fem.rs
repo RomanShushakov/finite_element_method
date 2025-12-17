@@ -18,7 +18,7 @@ fn test_integration_direct() -> Result<(), String> {
 
     model.add_concentrated_load(2, DOFParameter::X, 100.0)?;
 
-    let separated_stiffness_matrix = model.separate_stiffness_matrix()?;
+    let separated_stiffness_matrix = model.separate_stiffness_matrix_direct()?;
     let r_a_vector = model.compose_r_a_vector(separated_stiffness_matrix.get_k_aa_indexes())?;
     let u_b_vector = model.compose_u_b_vector(separated_stiffness_matrix.get_k_bb_indexes())?;
 
@@ -58,6 +58,23 @@ fn test_integration_direct() -> Result<(), String> {
 
     assert_eq!(global_analysis_result, global_analysis_result_expected);
     assert_eq!(elements_analysis_result, elements_analysis_result_expected);
+
+    Ok(())
+}
+
+#[test]
+fn test_sparse_separation_truss_has_kaa() -> Result<(), String> {
+    let mut model = FEM::create(1e-4_f32, 1e-12_f32, 2);
+
+    model.add_node(1, 0.0, 0.0, 0.0)?;
+    model.add_node(2, 30.0, 0.0, 0.0)?;
+    model.add_truss(1, 1, 2, 1e6, 2.0, None)?;
+    model.add_displacement(1, DOFParameter::X, 0.0)?;
+    model.add_concentrated_load(2, DOFParameter::X, 100.0)?;
+
+    let sep = model.separate_stiffness_matrix_sparse_iterative()?;
+    assert!(sep.get_n_aa() > 0);
+    assert!(!sep.get_k_aa_triplets().is_empty());
 
     Ok(())
 }

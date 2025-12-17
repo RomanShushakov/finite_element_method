@@ -10,6 +10,9 @@ pub use truss::{TRUSS_NODE_DOF, Truss};
 mod separated_stiffness_matrix;
 pub use separated_stiffness_matrix::SeparatedStiffnessMatrix;
 
+mod separated_stiffness_matrix_sparse;
+pub use separated_stiffness_matrix_sparse::SeparatedStiffnessMatrixSparse;
+
 mod beam;
 pub use beam::{BEAM_NODE_DOF, Beam};
 

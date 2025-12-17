@@ -113,12 +113,10 @@ where
                         transformed_local_stiffness_matrix
                             .get_element_value(&Position(local_row + i, local_column + j))?;
                     if *local_stiffness_matrix_element_value != V::from(0f32) {
-                        *self
-                            .get_mut_stiffness_matrix()
-                            .get_mut_element_value(&Position(
-                                global_row + i,
-                                global_column + j,
-                            ))? += *local_stiffness_matrix_element_value;
+                        self.get_mut_stiffness_matrix().add_value(
+                            Position(global_row + i, global_column + j),
+                            *local_stiffness_matrix_element_value,
+                        );
                     }
                 }
             }

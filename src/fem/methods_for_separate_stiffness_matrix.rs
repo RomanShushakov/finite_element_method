@@ -2,7 +2,7 @@ use extended_matrix::{BasicOperationsTrait, FloatTrait, Matrix, Position, Square
 
 use crate::fem::FEM;
 use crate::fem::methods_for_bc_data_handle::DOFParameter;
-use crate::fem::structs::{NODE_DOF, SeparatedStiffnessMatrix};
+use crate::fem::structs::{NODE_DOF, SeparatedStiffnessMatrix, SeparatedStiffnessMatrixSparse};
 
 enum SeparatingMatrixError {
     Load(u32, DOFParameter),
@@ -206,6 +206,93 @@ where
             k_ab_matrix,
             k_ba_matrix,
             k_bb_matrix,
+        ))
+    }
+
+    pub fn separate_stiffness_matrix_direct(
+        &mut self,
+    ) -> Result<SeparatedStiffnessMatrix<V>, String> {
+        let dense = self.get_stiffness_matrix().to_dense();
+        *self.get_mut_stiffness_matrix() = dense;
+        self.separate_stiffness_matrix()
+    }
+
+    pub fn separate_stiffness_matrix_sparse_iterative(
+        &self,
+    ) -> Result<SeparatedStiffnessMatrixSparse<V>, String> {
+        let n = self.get_indexes().len();
+
+        let mut k_aa_indexes = Vec::new();
+        let mut k_bb_indexes = Vec::new();
+
+        for &idx in self.get_indexes().iter() {
+            if self.get_imposed_constraints()[idx] {
+                k_bb_indexes.push(idx);
+            } else {
+                k_aa_indexes.push(idx);
+            }
+        }
+
+        if k_bb_indexes.is_empty() {
+            return Err("No restraints".to_string());
+        }
+
+        let n_aa = k_aa_indexes.len();
+        let n_bb = k_bb_indexes.len();
+
+        let mut aa_pos = vec![usize::MAX; n];
+        let mut bb_pos = vec![usize::MAX; n];
+
+        for (li, &gi) in k_aa_indexes.iter().enumerate() {
+            aa_pos[gi] = li;
+        }
+        for (lj, &gj) in k_bb_indexes.iter().enumerate() {
+            bb_pos[gj] = lj;
+        }
+
+        let mut k_aa_triplets = Vec::new();
+        let mut k_ab_triplets = Vec::new();
+        let mut k_ba_triplets = Vec::new();
+        let mut k_bb_triplets = Vec::new();
+
+        for (pos, val) in self.get_stiffness_matrix().get_elements().iter() {
+            let gi = pos.0;
+            let gj = pos.1;
+
+            if *val == V::from(0.0_f32) {
+                continue;
+            }
+
+            let i_aa = aa_pos[gi];
+            let j_aa = aa_pos[gj];
+            let i_bb = bb_pos[gi];
+            let j_bb = bb_pos[gj];
+
+            if i_aa != usize::MAX && j_aa != usize::MAX {
+                k_aa_triplets.push((i_aa, j_aa, *val));
+            } else if i_aa != usize::MAX && j_bb != usize::MAX {
+                k_ab_triplets.push((i_aa, j_bb, *val));
+            } else if i_bb != usize::MAX && j_aa != usize::MAX {
+                k_ba_triplets.push((i_bb, j_aa, *val));
+            } else if i_bb != usize::MAX && j_bb != usize::MAX {
+                k_bb_triplets.push((i_bb, j_bb, *val));
+            } else {
+                return Err(format!(
+                    "Sparse separation: dof {} or {} is neither AA nor BB (excluded dof?)",
+                    gi, gj
+                ));
+            }
+        }
+
+        Ok(SeparatedStiffnessMatrixSparse::create(
+            k_aa_indexes,
+            k_bb_indexes,
+            k_aa_triplets,
+            k_ab_triplets,
+            k_ba_triplets,
+            k_bb_triplets,
+            n_aa,
+            n_bb,
         ))
     }
 

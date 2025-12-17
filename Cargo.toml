@@ -9,6 +9,6 @@ readme = "README.md"
 repository = "https://github.com/RomanShushakov/finite_element_method"
 
 [dependencies]
-extended_matrix = "0.9.7"
+extended_matrix = "0.9.8"
 colsol = "1.0.0"
 iterative_solvers_smpl = "0.1.4"
