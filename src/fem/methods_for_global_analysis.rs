@@ -6,7 +6,7 @@ use iterative_solvers_smpl::{pcg_block_jacobi_csr, pcg_jacobi_csr};
 
 use crate::DOFParameter;
 use crate::fem::FEM;
-use crate::fem::structs::{NODE_DOF, SeparatedStiffnessMatrix};
+use crate::fem::structs::{NODE_DOF, SeparatedStiffnessMatrix, SeparatedStiffnessMatrixSparse};
 
 fn find_b<V>(
     r_a_vector: &Vector<V>,
@@ -20,6 +20,28 @@ where
     let b_vector = r_a_vector.subtract(&k_ab_matrix.multiply(u_b_vector)?)?;
     for i in 0..b_vector.get_shape().0 {
         b.push(*b_vector.get_element_value(&Position(i, 0))?);
+    }
+
+    Ok(b)
+}
+
+fn find_b_sparse<V>(
+    r_a_vector: &Vector<V>,
+    k_ab_triplets: &[(usize, usize, V)],
+    u_b_vector: &Vector<V>,
+    n_aa: usize,
+) -> Result<Vec<V>, String>
+where
+    V: FloatTrait<Output = V>,
+{
+    let mut b = vec![V::from(0.0_f32); n_aa];
+    for i in 0..n_aa {
+        b[i] = *r_a_vector.get_element_value(&Position(i, 0))?;
+    }
+
+    for &(i, j, a_ij) in k_ab_triplets.iter() {
+        let u_j = *u_b_vector.get_element_value(&Position(j, 0))?;
+        b[i] = b[i] - a_ij * u_j;
     }
 
     Ok(b)
@@ -75,6 +97,41 @@ where
     Ok(r_r)
 }
 
+fn find_r_r_sparse<V>(
+    k_ba_triplets: &[(usize, usize, V)], // (i_bb, j_aa, value)
+    u_a_vector: &Vector<V>,
+    k_bb_triplets: &[(usize, usize, V)], // (i_bb, j_bb, value)
+    u_b_vector: &Vector<V>,
+    r_b_vector: Vector<V>, // size n_bb
+    n_bb: usize,
+) -> Result<Vec<V>, String>
+where
+    V: FloatTrait<Output = V>,
+{
+    // y = K_ba * u_a
+    let mut y_ba = vec![V::from(0.0_f32); n_bb];
+    for &(i, j, a_ij) in k_ba_triplets.iter() {
+        let u = *u_a_vector.get_element_value(&Position(j, 0))?;
+        y_ba[i] = y_ba[i] + a_ij * u;
+    }
+
+    // z = K_bb * u_b
+    let mut y_bb = vec![V::from(0.0_f32); n_bb];
+    for &(i, j, a_ij) in k_bb_triplets.iter() {
+        let u = *u_b_vector.get_element_value(&Position(j, 0))?;
+        y_bb[i] = y_bb[i] + a_ij * u;
+    }
+
+    // r_r = y_ba + y_bb - r_b
+    let mut r_r = vec![V::from(0.0_f32); n_bb];
+    for i in 0..n_bb {
+        let rb = *r_b_vector.get_element_value(&Position(i, 0))?;
+        r_r[i] = y_ba[i] + y_bb[i] - rb;
+    }
+
+    Ok(r_r)
+}
+
 /// Builds block boundaries in local K_aa indexing for Block Jacobi.
 ///
 /// `k_aa_indexes[i]` is the global DOF index corresponding to row/col i in K_aa.
@@ -105,7 +162,7 @@ impl<V> FEM<V>
 where
     V: FloatTrait<Output = V>,
 {
-    pub fn find_ua_vector(
+    pub fn find_ua_vector_direct(
         &self,
         separated_stiffness_matrix: &SeparatedStiffnessMatrix<V>,
         r_a_vector: &Vector<V>,
@@ -158,23 +215,28 @@ where
         Ok(triplets)
     }
 
-    pub fn find_ua_vector_iterative_pcg_jacobi(
+    pub fn find_ua_vector_iterative_pcg_jacobi_sparse(
         &self,
-        separated_stiffness_matrix: &SeparatedStiffnessMatrix<V>,
+        separated_stiffness_matrix_sparse: &SeparatedStiffnessMatrixSparse<V>,
         r_a_vector: &Vector<V>,
         u_b_vector: &Vector<V>,
         max_iter: usize,
     ) -> Result<(Vector<V>, usize), String> {
-        let b_values: Vec<V> = find_b(
+        let b_values = find_b_sparse(
             r_a_vector,
-            separated_stiffness_matrix.get_k_ab_matrix(),
+            separated_stiffness_matrix_sparse.get_k_ab_triplets(),
             u_b_vector,
+            separated_stiffness_matrix_sparse.get_n_aa(),
         )?;
+
         let n = b_values.len();
 
-        let k_aa_matrix = separated_stiffness_matrix.get_k_aa_matrix();
-        let csr_matrix = CsrMatrix::from_square_matrix(k_aa_matrix)
-            .map_err(|e| format!("find_ua_vector_iterative: CSR conversion failed: {}", e))?;
+        let csr_matrix = CsrMatrix::from_coo(
+            separated_stiffness_matrix_sparse.get_n_aa(),
+            separated_stiffness_matrix_sparse.get_n_aa(),
+            separated_stiffness_matrix_sparse.get_k_aa_triplets(),
+        )
+        .map_err(|e| format!("CSR from COO failed: {}", e))?;
 
         if csr_matrix.get_n_rows() != n {
             return Err(format!(
@@ -199,79 +261,32 @@ where
         Ok((Vector::create(&u_a_values), iterations))
     }
 
-    pub fn find_ua_vector_iterative_pcg_block_jacobi(
-        &self,
-        separated_stiffness_matrix: &SeparatedStiffnessMatrix<V>,
-        r_a_vector: &Vector<V>,
-        u_b_vector: &Vector<V>,
-        max_iter: usize,
-    ) -> Result<(Vector<V>, usize), String> {
-        // Build RHS b = r_a - K_ab * u_b (whatever your find_b does)
-        let b_values: Vec<V> = find_b(
-            r_a_vector,
-            separated_stiffness_matrix.get_k_ab_matrix(),
-            u_b_vector,
-        )?;
-        let n = b_values.len();
-
-        // K_aa → CSR (local system)
-        let k_aa_matrix = separated_stiffness_matrix.get_k_aa_matrix();
-        let csr_matrix = CsrMatrix::from_square_matrix(k_aa_matrix).map_err(|e| {
-            format!(
-                "find_ua_vector_iterative_block_jacobi: CSR conversion failed: {}",
-                e
-            )
-        })?;
-
-        if csr_matrix.get_n_rows() != n {
-            return Err(format!(
-                "find_ua_vector_iterative_block_jacobi: size mismatch: K_aa rows = {}, b len = {}",
-                csr_matrix.get_n_rows(),
-                n
-            ));
-        }
-
-        // Build block boundaries (local indices in K_aa)
-        let block_starts =
-            build_block_starts_from_k_aa_indexes(separated_stiffness_matrix.get_k_aa_indexes());
-
-        // Solve
-        let mut u_a_values = vec![V::from(0.0_f32); n];
-        let iterations = pcg_block_jacobi_csr(
-            &csr_matrix,
-            &b_values,
-            &mut u_a_values,
-            max_iter,
-            self.get_props().get_rel_tol(),
-            self.get_props().get_abs_tol(),
-            &block_starts,
-        )
-        .map_err(|e| format!("find_ua_vector_iterative_block_jacobi: PCG failed: {}", e))?;
-
-        Ok((Vector::create(&u_a_values), iterations))
-    }
-
     pub fn find_ua_vector_iterative_pcg_block_jacobi_sparse(
         &self,
-        separated_stiffness_matrix: &SeparatedStiffnessMatrix<V>,
+        separated_stiffness_matrix_sparse: &SeparatedStiffnessMatrixSparse<V>,
         r_a_vector: &Vector<V>,
         u_b_vector: &Vector<V>,
         max_iter: usize,
     ) -> Result<(Vector<V>, usize), String> {
-        let b_values: Vec<V> = find_b(
+        let b_values = find_b_sparse(
             r_a_vector,
-            separated_stiffness_matrix.get_k_ab_matrix(),
+            separated_stiffness_matrix_sparse.get_k_ab_triplets(),
             u_b_vector,
+            separated_stiffness_matrix_sparse.get_n_aa(),
         )?;
+
         let n = b_values.len();
 
-        let triplets =
-            self.build_kaa_coo_from_separated_stiffness_matrix(separated_stiffness_matrix)?;
-        let csr = CsrMatrix::from_coo(n, n, &triplets)
-            .map_err(|e| format!("CSR from COO failed: {}", e))?;
+        let csr = CsrMatrix::from_coo(
+            separated_stiffness_matrix_sparse.get_n_aa(),
+            separated_stiffness_matrix_sparse.get_n_aa(),
+            separated_stiffness_matrix_sparse.get_k_aa_triplets(),
+        )
+        .map_err(|e| format!("CSR from COO failed: {}", e))?;
 
-        let block_starts =
-            build_block_starts_from_k_aa_indexes(separated_stiffness_matrix.get_k_aa_indexes());
+        let block_starts = build_block_starts_from_k_aa_indexes(
+            separated_stiffness_matrix_sparse.get_k_aa_indexes(),
+        );
         let mut u_a_values = vec![V::from(0.0_f32); n];
 
         let iterations = pcg_block_jacobi_csr(
@@ -312,6 +327,35 @@ where
             separated_stiffness_matrix.get_k_bb_matrix(),
             u_b_vector,
             r_b_vector,
+        )?;
+
+        Ok(Vector::create(&r_r))
+    }
+
+    pub fn find_r_r_vector_sparse(
+        &self,
+        sep: &SeparatedStiffnessMatrixSparse<V>,
+        u_a_vector: &Vector<V>,
+        u_b_vector: &Vector<V>,
+    ) -> Result<Vector<V>, String>
+    where
+        V: FloatTrait<Output = V>,
+    {
+        let mut r_b_vector = Vector::create(&vec![V::from(0.0_f32); sep.get_n_bb()]);
+        for i in 0..sep.get_n_bb() {
+            let global_idx = sep.get_k_bb_indexes()[i];
+            *r_b_vector.get_mut_element_value(&Position(i, 0))? = *self
+                .get_forces_vector()
+                .get_element_value(&Position(global_idx, 0))?;
+        }
+
+        let r_r = find_r_r_sparse(
+            sep.get_k_ba_triplets(),
+            u_a_vector,
+            sep.get_k_bb_triplets(),
+            u_b_vector,
+            r_b_vector,
+            sep.get_n_bb(),
         )?;
 
         Ok(Vector::create(&r_r))

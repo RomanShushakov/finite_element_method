@@ -60,7 +60,12 @@ where
         Ok(())
     }
 
-    pub fn separate_stiffness_matrix(&mut self) -> Result<SeparatedStiffnessMatrix<V>, String> {
+    pub fn separate_stiffness_matrix_direct(
+        &mut self,
+    ) -> Result<SeparatedStiffnessMatrix<V>, String> {
+        let dense_stiffness_matrix = self.get_stiffness_matrix().to_dense();
+        *self.get_mut_stiffness_matrix() = dense_stiffness_matrix;
+
         let mut k_aa_indexes = Vec::new();
         let mut k_bb_indexes = Vec::new();
 
@@ -209,23 +214,38 @@ where
         ))
     }
 
-    pub fn separate_stiffness_matrix_direct(
-        &mut self,
-    ) -> Result<SeparatedStiffnessMatrix<V>, String> {
-        let dense = self.get_stiffness_matrix().to_dense();
-        *self.get_mut_stiffness_matrix() = dense;
-        self.separate_stiffness_matrix()
-    }
-
     pub fn separate_stiffness_matrix_sparse_iterative(
         &self,
     ) -> Result<SeparatedStiffnessMatrixSparse<V>, String> {
         let n = self.get_indexes().len();
 
+        let mut diag = vec![V::from(0.0_f32); n];
+        for (pos, val) in self.get_stiffness_matrix().get_elements().iter() {
+            if pos.0 == pos.1 {
+                diag[pos.0] = *val;
+            }
+        }
+
         let mut k_aa_indexes = Vec::new();
         let mut k_bb_indexes = Vec::new();
 
         for &idx in self.get_indexes().iter() {
+            if diag[idx] == V::from(0.0_f32) {
+                if self.get_imposed_constraints()[idx] {
+                    return Err(format!(
+                        "There are no stiffness to withstand displacement {:?} applied to node {}!",
+                        DOFParameter::from_usize(idx % NODE_DOF),
+                        self.get_index_node_number_map()
+                            .get(&(idx / NODE_DOF))
+                            .copied()
+                            .unwrap_or(0)
+                    ));
+                } else {
+                    // excluded/inactive dof
+                    continue;
+                }
+            }
+
             if self.get_imposed_constraints()[idx] {
                 k_bb_indexes.push(idx);
             } else {
@@ -242,7 +262,6 @@ where
 
         let mut aa_pos = vec![usize::MAX; n];
         let mut bb_pos = vec![usize::MAX; n];
-
         for (li, &gi) in k_aa_indexes.iter().enumerate() {
             aa_pos[gi] = li;
         }
@@ -256,12 +275,12 @@ where
         let mut k_bb_triplets = Vec::new();
 
         for (pos, val) in self.get_stiffness_matrix().get_elements().iter() {
-            let gi = pos.0;
-            let gj = pos.1;
-
             if *val == V::from(0.0_f32) {
                 continue;
             }
+
+            let gi = pos.0;
+            let gj = pos.1;
 
             let i_aa = aa_pos[gi];
             let j_aa = aa_pos[gj];
@@ -277,11 +296,15 @@ where
             } else if i_bb != usize::MAX && j_bb != usize::MAX {
                 k_bb_triplets.push((i_bb, j_bb, *val));
             } else {
-                return Err(format!(
-                    "Sparse separation: dof {} or {} is neither AA nor BB (excluded dof?)",
-                    gi, gj
-                ));
+                // entry touches excluded dof(s) -> ignore
+                continue;
             }
+        }
+
+        if k_aa_triplets.is_empty() {
+            return Err(
+                "Sparse separation: K_aa is empty (structure has no free stiffness?)".to_string(),
+            );
         }
 
         Ok(SeparatedStiffnessMatrixSparse::create(
