@@ -1,10 +1,9 @@
 use std::collections::HashMap;
-use std::f32::consts::PI;
 use std::fmt::Debug;
 
 use extended_matrix::{
     BasicOperationsTrait, FloatTrait, Matrix, Position, SquareMatrix, TryIntoSquareMatrixTrait,
-    Vector, Vector3, VectorTrait,
+    Vector,
 };
 
 use crate::fem::methods_for_element_analysis::ElementForceComponent;

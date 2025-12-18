@@ -186,35 +186,6 @@ where
         Ok(Vector::create(&b))
     }
 
-    fn build_kaa_coo_from_separated_stiffness_matrix(
-        &self,
-        separated_stiffness_matrix: &SeparatedStiffnessMatrix<V>,
-    ) -> Result<Vec<(usize, usize, V)>, String>
-    where
-        V: Copy,
-    {
-        let k_aa = separated_stiffness_matrix.get_k_aa_matrix();
-        let (n, m) = (k_aa.get_shape().0, k_aa.get_shape().1);
-
-        if n != m {
-            return Err("K_aa is not square".to_string());
-        }
-
-        let mut triplets = Vec::with_capacity(k_aa.get_elements().len());
-
-        for (pos, val) in k_aa.get_elements().iter() {
-            let i = pos.0;
-            let j = pos.1;
-            triplets.push((i, j, *val));
-        }
-
-        if triplets.is_empty() && n > 0 {
-            return Err("K_aa has no nonzero entries".to_string());
-        }
-
-        Ok(triplets)
-    }
-
     pub fn find_ua_vector_iterative_pcg_jacobi_sparse(
         &self,
         separated_stiffness_matrix_sparse: &SeparatedStiffnessMatrixSparse<V>,
