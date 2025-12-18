@@ -1,6 +1,6 @@
 [package]
 name = "finite_element_method"
-version = "0.9.8"
+version = "0.9.9"
 authors = ["Roman Shushakov <roman.a.shushakov1@gmail.com>"]
 edition = "2024"
 description = "A finite element method module."
