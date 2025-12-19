@@ -2,7 +2,7 @@ mod fem;
 pub use fem::FEM;
 
 mod structs;
-pub use structs::SeparatedStiffnessMatrix;
+pub use structs::{SeparatedStiffnessMatrix, SeparatedStiffnessMatrixSparse};
 
 mod methods_for_node_data_handle;
 
