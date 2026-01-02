@@ -1,3 +1,8 @@
+//! truss.
+//!
+//! See crate README for context. This file contains the implementation for the
+//! `truss` element/type.
+
 use std::collections::HashMap;
 use std::fmt::Debug;
 

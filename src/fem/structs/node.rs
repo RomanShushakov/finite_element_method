@@ -1,3 +1,8 @@
+//! node.
+//!
+//! See crate README for context. This file contains the implementation for the
+//! `node` element/type.
+
 use extended_matrix::FloatTrait;
 
 pub const NODE_DOF: usize = 6;

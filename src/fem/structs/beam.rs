@@ -1,3 +1,8 @@
+//! beam.
+//!
+//! See crate README for context. This file contains the implementation for the
+//! `beam` element/type.
+
 use std::collections::HashMap;
 use std::f32::consts::PI;
 use std::fmt::Debug;

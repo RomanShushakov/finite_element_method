@@ -1,80 +1,91 @@
-## Description
+# finite_element_method
+
+![Rust](https://img.shields.io/badge/Rust-stable-orange)
+![FEM](https://img.shields.io/badge/Finite%20Element%20Method-FEM-blue)
+![Numerical Methods](https://img.shields.io/badge/Numerical%20Methods-assembly%20%26%20stiffness-lightgrey)
+![Status](https://img.shields.io/badge/status-learning%20%2F%20building-lightgrey)
+
+A small Rust crate that collects **finite‑element method (FEM) building blocks** used as the
+foundation for my browser‑based FEA project [`fea_app`](https://github.com/RomanShushakov/fea_app).
+
+This crate is intentionally **educational and practical**. It focuses on clarity and explicit
+data flow (elements → assembly → global system), rather than on being a general‑purpose or
+feature‑complete FEM framework.
+
+---
+
+## Overview
+
+The goal of this crate is to make the core ideas of the finite‑element method tangible in code:
+
+- how elements are defined and parameterized,
+- how local stiffness contributions are assembled,
+- how the global system is prepared for downstream solvers.
+
+It is designed to be read, experimented with, and extended.
+
+---
+
+## What’s inside
+
+- **Mesh and data model**
+  - nodes, element connectivity, and basic material / section properties
+- **Element implementations**
+  - a small set of classic structural elements (e.g. truss / beam / plate variants)
+- **Assembly helpers**
+  - routines to compute and assemble global stiffness contributions
+- **Geometry utilities**
+  - small helpers (e.g. planar convex hull) used by element logic
+
+> Solvers live in separate repositories:
+>
+> - Iterative methods (CG / PCG): [`iterative_solvers`](https://github.com/RomanShushakov/iterative_solvers)
+> - Direct solver experiments: [`colsol`](https://github.com/RomanShushakov/colsol)
+> - GPU compute & visualization pipeline: implemented in [`fea_app`](https://github.com/RomanShushakov/fea_app)
+
+---
+
+## Design notes
+
+- **Readability first**  
+  This code is written to understand FEM internals end‑to‑end, not to hide them behind abstractions.
+
+- **Explicit data flow**  
+  Types and functions aim to make mathematical structure and data movement visible.
+
+- **Scoped ambition**  
+  This is not a production FEM package. It intentionally omits features such as:
+  nonlinear analysis, contact, advanced integration schemes, or a large element catalog.
+
+---
+
+## Documentation
+
+Some background notes and design explanations live in the `docs/` directory:
 
 - [Elements axes direction](./docs/Elements_axes_direction.md)
 - [Element types](./docs/Element_types.md)
-- [Stiffness groups](./docs/Stiffness_groups.md)
 
+---
 
-## Finite element method
+## Relationship to `fea_app`
 
-A finite element method module.
+`fea_app` integrates these building blocks into a complete pipeline:
 
-### Example
+**mesh input → FEM assembly → solver → visualization (WebGL / WebGPU)**
 
-```rust
-#[macro_use]
-extern crate finite_element_method;
+This crate provides the **FEM side** (elements and assembly).  
+Companion crates provide **solvers** and **GPU compute** experiments.
 
-use finite_element_method::{FEM, DOFParameter, ElementForceComponent};
+---
 
-const REL_TOL: f32 = 1e-4;
-const ABS_TOL: f32 = 1e-12;
+## Status
 
+Active learning and exploration.  
+The API may evolve as the broader project grows.
 
-let mut model = FEM::create(REL_TOL, ABS_TOL, 10);
+---
 
-model.add_node(1, 0.0, 0.0, 0.0)?;
-model.add_node(2, 0.0, 30.0, 0.0)?;
+## License
 
-model.add_truss(1, 1, 2, 1e6, 2.0, None)?;
-
-model.add_displacement(1, DOFParameter::X, 0.0)?;
-
-model.add_concentrated_load(2, DOFParameter::Y, 100.0)?;
-
-let separated_stiffness_matrix = model.separate_stiffness_matrix()?;
-let r_a_vector = model.compose_r_a_vector(separated_stiffness_matrix.get_k_aa_indexes())?;
-let u_b_vector = model.compose_u_b_vector(separated_stiffness_matrix.get_k_bb_indexes())?;
-
-let u_a_vector = model.find_ua_vector(
-    &separated_stiffness_matrix, &r_a_vector, &u_b_vector,
-)?;
-let r_r_vector = model.find_r_r_vector(
-    &separated_stiffness_matrix, &u_a_vector, &u_b_vector,
-)?;
-
-model.compose_global_analysis_result(
-    separated_stiffness_matrix.get_k_aa_indexes(), 
-    separated_stiffness_matrix.get_k_bb_indexes(), 
-    &u_a_vector,
-    &r_r_vector,
-)?;
-
-let mut global_analysis_result = model.extract_global_analysis_result()?;
-global_analysis_result.sort_by(
-    |(n_1, dof_1, _, _), (n_2, dof_2, _, _)| 
-    (n_1, dof_1).partial_cmp(&(n_2, dof_2)).unwrap()
-);
-let global_analysis_result_expected = vec![
-    (1, DOFParameter::X, 0.0, -100.0),
-    (1, DOFParameter::Y, 0.0, 0.0),
-    (1, DOFParameter::Z, 0.0, 0.0),
-    (1, DOFParameter::ThX, 0.0, 0.0),
-    (1, DOFParameter::ThY, 0.0, 0.0),
-    (1, DOFParameter::ThZ, 0.0, 0.0),
-    (2, DOFParameter::X, 0.0014999999, 100.0),
-    (2, DOFParameter::Y, 0.0, 0.0),
-    (2, DOFParameter::Z, 0.0, 0.0),
-    (2, DOFParameter::ThX, 0.0, 0.0),
-    (2, DOFParameter::ThY, 0.0, 0.0),
-    (2, DOFParameter::ThZ, 0.0, 0.0),
-];
-
-let elements_analysis_result = model.extract_elements_analysis_result()?;
-let elements_analysis_result_expected = vec![
-    (1, vec![(ElementForceComponent::ForceR, 100.0)]),
-];
-
-assert_eq!(global_analysis_result, global_analysis_result_expected);
-assert_eq!(elements_analysis_result, elements_analysis_result_expected);
-```
+MIT OR Apache‑2.0 (see `Cargo.toml`).

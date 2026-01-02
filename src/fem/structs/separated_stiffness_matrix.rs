@@ -1,3 +1,8 @@
+//! separated_stiffness_matrix.
+//!
+//! See crate README for context. This file contains the implementation for the
+//! `separated_stiffness_matrix` element/type.
+
 use extended_matrix::{Matrix, SquareMatrix};
 
 pub struct SeparatedStiffnessMatrix<V> {

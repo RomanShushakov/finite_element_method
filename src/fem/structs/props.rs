@@ -1,3 +1,8 @@
+//! props.
+//!
+//! See crate README for context. This file contains the implementation for the
+//! `props` element/type.
+
 pub struct Props<V> {
     rel_tol: V,
     abs_tol: V,

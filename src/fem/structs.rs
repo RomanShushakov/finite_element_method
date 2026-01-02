@@ -1,3 +1,15 @@
+//! Element and mesh data structures.
+//!
+//! This module contains the concrete element implementations (truss / beam / plate)
+//! and small supporting types such as [`Node`] and [`Props`].
+//!
+//! The element types typically implement:
+//! - local stiffness / transformation routines
+//! - assembly helpers (mapping local DOFs to global DOFs)
+//!
+//! The goal is to keep each element self-contained so it can be tested/extended in
+//! isolation.
+
 mod props;
 pub use props::Props;
 

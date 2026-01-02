@@ -1,3 +1,8 @@
+//! separated_stiffness_matrix_sparse.
+//!
+//! See crate README for context. This file contains the implementation for the
+//! `separated_stiffness_matrix_sparse` element/type.
+
 #[derive(Clone, Debug)]
 pub struct SeparatedStiffnessMatrixSparse<V> {
     k_aa_indexes: Vec<usize>,

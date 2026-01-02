@@ -1,3 +1,11 @@
+//! High-level FEM driver.
+//!
+//! [`FEM`] is a convenience façade around mesh data (nodes/elements) and assembly
+//! routines that produce global stiffness matrices and load vectors.
+//!
+//! The intent is to keep this layer "boring": mostly data plumbing and calls into
+//! element routines, so the math-heavy parts stay local to each element module.
+
 use std::collections::HashMap;
 
 use extended_matrix::{FloatTrait, SquareMatrix, Vector};

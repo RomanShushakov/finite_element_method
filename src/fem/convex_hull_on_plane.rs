@@ -1,3 +1,11 @@
+//! Convex hull helper (2D / planar).
+//!
+//! A small geometry utility used by some element routines (e.g. plate-related
+//! operations) where a local planar hull is handy.
+//!
+//! This is not meant to be a full computational geometry library — just the
+//! bits needed by this crate.
+
 use std::cmp::Ordering;
 use std::fmt::Debug;
 

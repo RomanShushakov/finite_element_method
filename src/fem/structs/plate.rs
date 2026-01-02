@@ -1,3 +1,8 @@
+//! plate.
+//!
+//! See crate README for context. This file contains the implementation for the
+//! `plate` element/type.
+
 use std::collections::HashMap;
 use std::fmt::Debug;
 

@@ -1,3 +1,10 @@
+//! FEM module re-exports.
+//!
+//! The public API exposes the high-level [`FEM`] type (see `fem/fem.rs`) and
+//! a small set of supporting modules used during assembly.
+//!
+//! Most element-specific code lives under [`fem::structs`].
+
 mod fem;
 pub use fem::FEM;
 
